@@ -1,4 +1,4 @@
-import { checkTasks, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
+import { EXAMPLE, checkTasks, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
 
 const state = { tileUrl: "", tasks: null, subGridSize: 4, scenarios: [], active: -1 };
 const element = (id) => document.getElementById(id);
@@ -68,18 +68,35 @@ function render() {
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    const tasks = JSON.parse(await element("tasks-file").files[0].text());
-    checkTasks(tasks);
-    state.tasks = tasks;
-    state.tileUrl = element("tile-url").value.trim();
-    state.subGridSize = Number(element("sub-grid").value);
-    state.scenarios = [];
-    state.active = -1;
-    showImagery(taskBounds(tasks));
-    showTasks(tasks);
-    setStatus(`${tasks.features.length} tasks loaded. Click a task on the map to add it as a scenario.`);
-    render();
+    load(JSON.parse(await element("tasks-file").files[0].text()));
   } catch (error) {
+    console.error(error);
+    setStatus(error.message);
+  }
+});
+
+function load(tasks) {
+  checkTasks(tasks);
+  state.tasks = tasks;
+  state.tileUrl = element("tile-url").value.trim();
+  state.subGridSize = Number(element("sub-grid").value);
+  state.scenarios = [];
+  state.active = -1;
+  showImagery(taskBounds(tasks));
+  showTasks(tasks);
+  setStatus(`${tasks.features.length} tasks loaded. Click a task on the map to add it as a scenario.`);
+  render();
+}
+
+element("example").addEventListener("click", async () => {
+  try {
+    const response = await fetch(EXAMPLE.tasks);
+    if (!response.ok) throw new Error(`The example tasks failed to load (HTTP ${response.status}).`);
+    element("tile-url").value = EXAMPLE.tileUrl;
+    element("sub-grid").value = "4";
+    load(await response.json());
+  } catch (error) {
+    console.error(error);
     setStatus(error.message);
   }
 });
@@ -117,5 +134,5 @@ element("download").addEventListener("click", () => {
   link.href = URL.createObjectURL(blob);
   link.download = "tutorial_scenarios.geojson";
   link.click();
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 });

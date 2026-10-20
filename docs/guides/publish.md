@@ -1,3 +1,7 @@
+---
+icon: lucide/rocket
+---
+
 # Publish and check the project
 
 ## 1. Publish the tutorial
@@ -55,3 +59,13 @@ The project tiles follow, one per screen. Tap cells, move with the arrows, and p
 ![Mapping a project tile](../assets/publish/web-mapping.png)
 
 When the project works on stage, create it again on production for volunteers.
+
+## 5. Finish the project
+
+A project reaches 100% when every tile has been seen by as many volunteers as the verification number. The manager accepts 3 or more, so one account alone cannot complete a project.
+
+To close a project, open it in the manager, click **Finish** at the top right and **Confirm**. **Finish** is available before the project reaches 100%. It moves to **Finished** and leaves the volunteers' project list. Its results stay available.
+
+![Confirm finishing the project](../assets/results/finish-confirm.png)
+
+![Finished project](../assets/results/finished.png)

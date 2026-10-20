@@ -1,3 +1,7 @@
+---
+icon: lucide/download
+---
+
 # Download the results
 
 ## When the results appear
@@ -22,9 +26,7 @@ The stage website (<https://website-stage.mapswipe.org/>) may not list new stage
 
 [List the result files of stage project 894](https://backend-stage.mapswipe.org/graphql/?query=%7B%20publicProject%28id%3A%20%22894%22%29%20%7B%20exportAggregatedResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportAggregatedResultsWithGeometry%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportTasks%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportGroups%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportUsers%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportHistory%20%7B%20file%20%7B%20url%20%7D%20%7D%20%7D%20%7D)
 
-The browser shows a short JSON text with one `url` per file. Open a `url` to download that file. For production projects, use the same link with `backend.mapswipe.org` instead of `backend-stage.mapswipe.org`:
-
-[List the result files of production project 894](https://backend.mapswipe.org/graphql/?query=%7B%20publicProject%28id%3A%20%22894%22%29%20%7B%20exportAggregatedResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportAggregatedResultsWithGeometry%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportTasks%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportGroups%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportUsers%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportHistory%20%7B%20file%20%7B%20url%20%7D%20%7D%20%7D%20%7D)
+The browser shows a short JSON text with one `url` per file. Open a `url` to download that file. For production projects, change `backend-stage.mapswipe.org` in the link to `backend.mapswipe.org`.
 
 ## The files
 
@@ -49,7 +51,7 @@ Each tile is exploded into one row per cell. These columns matter most:
 | Column | Meaning |
 |---|---|
 | `task_id` | The tile, as `zoom-x-y`, for example `20-773384-440491` |
-| `task_partition_index` | The cell, counted row by row from the top left, starting at 0. In a 4x4 grid the first row is 0 to 3 and the last row is 12 to 15 |
+| `task_partition_index` | The cell, counted row by row from the top left, starting at 0 ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/utils/geo.ts)). In a 4x4 grid the first row is 0 to 3 and the last row is 12 to 15 |
 | `0_count`, `1_count`, `2_count` | How many volunteers answered No, Single Feature and Multiple Features |
 | `0_share`, `1_share`, `2_share` | The same counts as shares of `total_count` |
 | `total_count` | How many volunteers answered this cell |

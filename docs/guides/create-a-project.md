@@ -1,3 +1,7 @@
+---
+icon: lucide/map-plus
+---
+
 # Create a Locate project
 
 A project goes through these states in the manager: **Initialize**, **Draft**, **Processing**, **Processed**, **Publishing**, **Published** and **Finished**. This page takes it from Initialize to Processed.
@@ -14,10 +18,12 @@ Open the [area helper](../builder/area.html), paste the address, choose the zoom
 
 Then:
 
-1. Click **Draw area of interest** and drag a rectangle over the part volunteers will map. The helper cuts it to the imagery and shows its size and how many tiles MapSwipe will create.
+1. Click **Draw area of interest** and drag a rectangle over the part volunteers will map. The helper cuts it to the imagery and shows its size and an estimate of how many tiles MapSwipe will create.
 2. Click **Download area of interest** to save `area-of-interest.geojson`.
 3. Zoom the map to a view that shows the object well and click **Save map view as cover image** to save `cover-image.jpg`.
 4. Copy the **Tile URL for the manager**.
+
+**Download footprint** saves the outline of the whole image, if you want to keep it.
 
 ![Area of interest drawn and cut to the imagery](../assets/create/area-helper-area.png)
 
@@ -51,8 +57,8 @@ Click **Save Draft**. The page reloads as **Update project** and the project is 
 
 Under **Additional**:
 
-- **Verification number**: how many volunteers see each tile. The form default is 3; use 5 or more for hard-to-see objects.
-- **Group size**: about how many tiles a volunteer maps in one session. The form default is 25. MapSwipe builds groups from strips of tiles three rows tall, so a session can hold a few more tiles.
+- **Verification number**: how many volunteers see each tile. The form default and minimum is 3; use 5 or more for hard-to-see objects.
+- **Group size**: the width of one group in tiles; the form default is 25. Groups are three tiles tall, so one mapping session holds up to about three times this number ([source](https://github.com/mapswipe/mapswipe-backend/blob/main/utils/geo/tile_grouping.py)).
 - **Max tasks per user**: leave empty for no limit.
 - **Project cover image**: `cover-image.jpg` from step 1, or another `.jpg` or `.png` you have the rights to use.
 

@@ -1,8 +1,8 @@
-const IMAGE_ID = /(?:selected_id=|\/items\/)([0-9a-f]{24})|^([0-9a-f]{24})$/;
+const IMAGE_ID = /(?:selected_id=|\/items\/)([0-9a-f]{24}|[0-9a-f-]{36})|^([0-9a-f]{24}|[0-9a-f-]{36})$/;
 
 export function parseImageId(text) {
   const match = text.trim().match(IMAGE_ID);
-  if (!match) throw new Error("Paste an imagery.hotosm.org link, a Copy TMS URL or a 24-character image ID.");
+  if (!match) throw new Error("Paste an imagery.hotosm.org link, a Copy TMS URL or an image ID.");
   return match[1] ?? match[2];
 }
 
@@ -37,9 +37,9 @@ function tileY(latitude, zoom) {
   return Math.floor(((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2) * 2 ** zoom);
 }
 
-// MapSwipe groups tiles in strips three rows tall, so the row count rounds up to a multiple of three.
+// An estimate: MapSwipe groups tiles in strips three rows tall and an even number of columns wide.
 export function tileCount([west, south, east, north], zoom) {
   const columns = tileX(east, zoom) - tileX(west, zoom) + 1;
   const rows = tileY(south, zoom) - tileY(north, zoom) + 1;
-  return columns * Math.ceil(rows / 3) * 3;
+  return (columns + (columns % 2)) * Math.ceil(rows / 3) * 3;
 }

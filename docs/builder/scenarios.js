@@ -1,3 +1,8 @@
+export const EXAMPLE = {
+  tileUrl: "https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/62d86c65d8499800053796c4/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0",
+  tasks: "../examples/files/banepa-water-tanks-processed-tasks.geojson",
+};
+
 export const ANSWERS = ["No", "Single Feature", "Multiple Features"];
 
 export function nextAnswer(answer) {

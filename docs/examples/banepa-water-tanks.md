@@ -1,3 +1,7 @@
+---
+icon: lucide/droplets
+---
+
 # Example: water tanks in Banepa
 
 This example ran on stage, following the guides from start to finish. It asks volunteers to find rooftop water tanks in drone imagery of Banepa, Nepal.
@@ -46,3 +50,19 @@ Three scenarios, with cells numbered row by row from 0:
 | 3 | 20 / 773389 / 440494 | none | none | Is there a tank here? |
 
 Icons: **Tap** for instructions, **Information** for hints, **Check** for success messages.
+
+## A finished project
+
+A second, smaller stage project ran through every step, from the [area helper](../builder/area.html) to QGIS:
+
+| Step | Result |
+|---|---|
+| Area | 4 by 3 tiles at zoom 20, drawn in the area helper, which estimated 12 tiles |
+| Processing | 12 tasks |
+| Tutorial | The tutorial above, attached to this project too |
+| Mapping | All 12 tiles mapped once in the web app, by looking at each tile |
+| Finish | **Finish** in the manager, with each tile mapped once (below 100%) |
+| Results | 192 rows, one per cell: 29 marked Single Feature, 10 Multiple Features |
+| QGIS | Cells coloured by answer, as in [Use the results in QGIS](../guides/qgis.md) |
+
+![Finished project results in QGIS](../assets/results/qgis-cells.jpg)

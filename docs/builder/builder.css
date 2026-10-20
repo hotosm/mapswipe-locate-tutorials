@@ -100,3 +100,4 @@ aside > button { align-self: stretch; }
 #details dt { font-size: 13px; color: var(--muted); }
 #details dd { margin: 0 0 8px; overflow-wrap: anywhere; }
 #details code { font-size: 12px; }
+button.secondary { background: var(--panel); color: var(--accent); }

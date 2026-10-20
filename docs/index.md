@@ -1,17 +1,28 @@
+---
+icon: lucide/house
+---
+
 # MapSwipe Locate tutorials
 
 Step-by-step guides for creating a MapSwipe **Locate Objects** project, adding its tutorial, publishing it and downloading the results.
 
 In a Locate Objects project, volunteers see one imagery tile at a time, split into a grid of 2x2, 4x4 or 8x8 cells. They tap each cell that contains the object the project asks for: once for one object, twice for several. The results record which cells of each tile hold the object, intended as training data for AI models such as fAIr ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)).
 
-## The steps
+<div class="grid cards" markdown>
 
-1. [Create a Locate project](guides/create-a-project.md): basic details, imagery, area of interest, then processing. The [area helper](builder/area.html) gives the tile URL, the area of interest cut to the real imagery, and a cover image.
-2. [Create the tutorial](guides/create-the-tutorial.md): pick example tiles with the [scenario builder](builder/index.html), mark the answers, and upload them.
-3. [Publish and check the project](guides/publish.md): attach the tutorial, publish, and try it as a volunteer.
-4. [Download the results](guides/download-results.md): where the exports appear and how to read them.
+-   :lucide-book-open: **[Guides](guides/index.md)**
 
-The [Banepa water tanks example](examples/banepa-water-tanks.md) lists every value used in these guides, with the files to download.
+    Create a project, build its tutorial, publish it, and get the results into QGIS.
+
+-   :lucide-wrench: **[Helpers](helpers/index.md)**
+
+    The area helper and the scenario builder, with one-click sample data.
+
+-   :lucide-droplets: **[Example: water tanks in Banepa](examples/banepa-water-tanks.md)**
+
+    Every value used in the guides, with the files to download.
+
+</div>
 
 ## Stage and production
 

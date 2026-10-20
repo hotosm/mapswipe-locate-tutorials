@@ -12,14 +12,21 @@ edit_uri = "edit/main/docs/"
 nav = [
   { "Home" = "index.md" },
   { "Guides" = [
+    "guides/index.md",
     { "Create a Locate project" = "guides/create-a-project.md" },
     { "Create the tutorial" = "guides/create-the-tutorial.md" },
     { "Publish and check the project" = "guides/publish.md" },
     { "Download the results" = "guides/download-results.md" },
+    { "Use the results in QGIS" = "guides/qgis.md" },
   ] },
-  { "Area helper" = "builder/area.html" },
-  { "Scenario builder" = "builder/index.html" },
-  { "Example: water tanks in Banepa" = "examples/banepa-water-tanks.md" },
+  { "Helpers" = [
+    "helpers/index.md",
+    { "Area helper" = "builder/area.html" },
+    { "Scenario builder" = "builder/index.html" },
+  ] },
+  { "Example" = [
+    { "Water tanks in Banepa" = "examples/banepa-water-tanks.md" },
+  ] },
 ]
 
 [project.theme]
@@ -28,8 +35,10 @@ features = [
   "content.action.edit",
   "content.code.copy",
   "navigation.footer",
+  "navigation.indexes",
   "navigation.instant",
   "navigation.sections",
+  "navigation.tabs",
   "navigation.top",
   "search.highlight",
   "toc.follow",
@@ -62,6 +71,8 @@ attr_list = {}
 md_in_html = {}
 toc.permalink = true
 pymdownx.details = {}
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
 pymdownx.highlight.anchor_linenums = true
 pymdownx.inlinehilite = {}
 pymdownx.keys = {}

@@ -1,3 +1,7 @@
+---
+icon: lucide/graduation-cap
+---
+
 # Create the tutorial
 
 The tutorial runs the first time a volunteer opens the project. It has information pages that explain the object, then scenario pages: real tiles from the project where the volunteer must tap the right cells before moving on.

@@ -9,6 +9,10 @@ test("the image ID is read from a browse link, a TMS URL or the bare ID", () => 
   assert.equal(parseImageId(`https://imagery.hotosm.org/browse?lat=27.6&lon=85.5&zoom=13&selected_id=${ID}`), ID);
   assert.equal(parseImageId(`https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/${ID}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual`), ID);
   assert.equal(parseImageId(` ${ID} `), ID);
+  const uuid = "f766000e-184d-4edb-aa65-da4fda986eee";
+  assert.equal(parseImageId(`https://imagery.hotosm.org/browse?selected_id=${uuid}`), uuid);
+  assert.equal(parseImageId(`https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/${uuid}/tiles/WebMercatorQuad/{z}/{x}/{y}`), uuid);
+  assert.equal(parseImageId(uuid), uuid);
   assert.throws(() => parseImageId("https://imagery.hotosm.org/browse"), /image ID/);
 });
 
@@ -18,6 +22,10 @@ test("white, black and transparent pixels are empty, imagery pixels are not", ()
   assert.equal(isEmptyPixel(120, 90, 60, 0), true);
   assert.equal(isEmptyPixel(250, 250, 200, 255), false);
   assert.equal(isEmptyPixel(30, 40, 20, 255), false);
+  assert.equal(isEmptyPixel(245, 245, 245, 255), true);
+  assert.equal(isEmptyPixel(244, 245, 245, 255), false);
+  assert.equal(isEmptyPixel(10, 10, 10, 255), true);
+  assert.equal(isEmptyPixel(11, 10, 10, 255), false);
 });
 
 test("the mask marks imagery pixels with 1 in reading order", () => {
@@ -36,7 +44,11 @@ test("the tile count matches what MapSwipe processing created for the Banepa are
   assert.equal(tileCount([85.5205, 27.6295, 85.5235, 27.6322], 20), 120);
 });
 
-test("rows round up to a multiple of three", () => {
+test("an odd column count rounds up to even, as MapSwipe groups do", () => {
+  assert.equal(tileCount([85.5205, 27.6295, 85.5238, 27.6322], 20), 144);
+});
+
+test("a single tile counts as two columns and three rows", () => {
   const oneTile = [85.52051, 27.62951, 85.52052, 27.62952];
-  assert.equal(tileCount(oneTile, 20), 3);
+  assert.equal(tileCount(oneTile, 20), 6);
 });

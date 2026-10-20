@@ -5,6 +5,7 @@ const PREVIEW_SIZE = 1024;
 // Patches smaller than 2000 m² are white roofs or specks, not gaps in the imagery.
 const MIN_PATCH_SQUARE_METRES = 2000;
 
+const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?lat=27.6337&lon=85.5228&zoom=13.4&selected_id=62d86c65d8499800053796c4";
 const state = { footprint: null, area: null, zoom: 20 };
 const element = (id) => document.getElementById(id);
 
@@ -25,7 +26,7 @@ function download(name, blob) {
   link.href = URL.createObjectURL(blob);
   link.download = name;
   link.click();
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function downloadGeoJson(name, feature) {
@@ -74,6 +75,10 @@ async function findFootprint(imageId, bbox) {
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
+  state.footprint = null;
+  state.area = null;
+  element("details").hidden = true;
+  for (const id of ["download-footprint", "draw", "download-area", "cover"]) element(id).disabled = true;
   try {
     const imageId = parseImageId(element("image").value);
     state.zoom = Number(element("zoom").value);
@@ -101,11 +106,17 @@ element("setup").addEventListener("submit", async (event) => {
     element("area-size").textContent = "Not drawn yet";
     element("details").hidden = false;
     for (const id of ["download-footprint", "draw", "cover"]) element(id).disabled = false;
-    element("download-area").disabled = true;
     setStatus(`${item.properties?.title ?? imageId}: the red line is where the image has imagery. Draw the area volunteers will map inside it.`);
   } catch (error) {
+    console.error(error);
     setStatus(error.message);
   }
+});
+
+element("example").addEventListener("click", () => {
+  element("image").value = EXAMPLE_IMAGE;
+  element("zoom").value = "20";
+  element("setup").requestSubmit();
 });
 
 element("zoom").addEventListener("change", () => {
@@ -116,6 +127,7 @@ element("zoom").addEventListener("change", () => {
 
 element("draw").addEventListener("click", () => {
   setStatus("Press and drag on the map to draw a rectangle.");
+  element("draw").disabled = true;
   map.dragPan.disable();
   map.getCanvas().style.cursor = "crosshair";
   let start = null;
@@ -123,14 +135,13 @@ element("draw").addEventListener("click", () => {
   const rectangle = (end) => turf.bboxPolygon([
     Math.min(start.lng, end.lng), Math.min(start.lat, end.lat), Math.max(start.lng, end.lng), Math.max(start.lat, end.lat),
   ]);
-  const onDown = (event) => { start = event.lngLat; };
-  const onMove = (event) => { if (start) showLayer("area", rectangle(event.lngLat), {}); };
+  const onMove = (event) => showLayer("area", rectangle(event.lngLat.wrap()), {});
   const onUp = (event) => {
-    map.off("mousedown", onDown);
     map.off("mousemove", onMove);
     map.dragPan.enable();
     map.getCanvas().style.cursor = "";
-    const clipped = turf.intersect(turf.featureCollection([rectangle(event.lngLat), state.footprint]));
+    element("draw").disabled = false;
+    const clipped = turf.intersect(turf.featureCollection([rectangle(event.lngLat.wrap()), state.footprint]));
     if (!clipped) {
       showLayer("area", turf.featureCollection([]), {});
       setStatus("The rectangle has no imagery inside it. Draw again inside the red line.");
@@ -142,9 +153,11 @@ element("draw").addEventListener("click", () => {
     element("download-area").disabled = false;
     setStatus("The yellow line is the area of interest, cut to the imagery. Download it, or draw again.");
   };
-  map.on("mousedown", onDown);
-  map.on("mousemove", onMove);
-  map.once("mouseup", onUp);
+  map.once("mousedown", (event) => {
+    start = event.lngLat.wrap();
+    map.on("mousemove", onMove);
+    map.once("mouseup", onUp);
+  });
 });
 
 element("download-footprint").addEventListener("click", () => downloadGeoJson("imagery-footprint.geojson", state.footprint));
