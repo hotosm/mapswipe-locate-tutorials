@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locate scenario builder</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+  <header>
+    <h1>Locate scenario builder</h1>
+    <nav><a href="area.html">Area helper</a> · <a href="../">Back to the guides</a></nav>
+  </header>
+
+  <form id="setup">
+    <label>
+      <span>1. Tile URL</span>
+      <input id="tile-url" type="url" placeholder="https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/.../tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&amp;nodata=0" required>
+    </label>
+    <label>
+      <span>2. Processed tasks GeoJSON</span>
+      <input id="tasks-file" type="file" accept=".geojson,.json" required>
+    </label>
+    <label>
+      <span>3. Sub-grid size</span>
+      <select id="sub-grid">
+        <option value="2">2x2</option>
+        <option value="4" selected>4x4</option>
+        <option value="8">8x8</option>
+      </select>
+    </label>
+    <button type="submit">Load</button>
+  </form>
+
+  <main>
+    <div id="map"></div>
+    <aside>
+      <p id="status">Load the tile URL and the tasks file, then click a task on the map to add it as a scenario.</p>
+      <div id="editor" hidden>
+        <h2 id="editor-title"></h2>
+        <div id="tile">
+          <img id="tile-image" alt="Imagery of the selected task">
+          <div id="cells"></div>
+        </div>
+        <p class="legend">
+          <span>Click a cell to change its answer:</span>
+          <span><span class="swatch answer-0"></span>No</span>
+          <span><span class="swatch answer-1"></span>Single Feature</span>
+          <span><span class="swatch answer-2"></span>Multiple Features</span>
+        </p>
+        <button id="remove" type="button">Remove this scenario</button>
+      </div>
+      <ol id="scenario-list"></ol>
+      <button id="download" type="button" disabled>4. Download scenarios</button>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

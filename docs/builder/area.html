@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locate area helper</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+  <header>
+    <h1>Locate area helper</h1>
+    <nav><a href="index.html">Scenario builder</a> · <a href="../">Back to the guides</a></nav>
+  </header>
+
+  <form id="setup">
+    <label>
+      <span>1. Image from imagery.hotosm.org (link, Copy TMS URL or ID)</span>
+      <input id="image" type="text" placeholder="https://imagery.hotosm.org/browse?...&amp;selected_id=..." required>
+    </label>
+    <label>
+      <span>2. Project zoom level</span>
+      <select id="zoom">
+        <option value="18">18</option>
+        <option value="19">19</option>
+        <option value="20" selected>20</option>
+        <option value="21">21</option>
+      </select>
+    </label>
+    <button type="submit">Load</button>
+  </form>
+
+  <main>
+    <div id="map"></div>
+    <aside>
+      <p id="status">Paste an image, then click Load. The page finds where the image has real imagery.</p>
+      <dl id="details" hidden>
+        <dt>Tile URL for the manager</dt>
+        <dd><code id="tile-url"></code></dd>
+        <dt>Footprint</dt>
+        <dd id="footprint-size"></dd>
+        <dt>Area of interest</dt>
+        <dd id="area-size">Not drawn yet</dd>
+      </dl>
+      <button id="download-footprint" type="button" disabled>Download footprint</button>
+      <button id="draw" type="button" disabled>3. Draw area of interest</button>
+      <button id="download-area" type="button" disabled>4. Download area of interest</button>
+      <button id="cover" type="button" disabled>5. Save map view as cover image</button>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.4.0/turf.min.js"></script>
+  <script type="module" src="area.js"></script>
+</body>
+</html>
