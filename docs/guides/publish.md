@@ -6,13 +6,13 @@ icon: lucide/rocket
 
 ## 1. Publish the tutorial
 
-On the tutorial page, click **Publish** and **Confirm**. Only a published tutorial can be attached to a project.
+On the tutorial page, click **Publish** and **Confirm**. Only a published tutorial can be attached to a project. Skip this step when you reuse a tutorial that is already published.
 
 ![Confirm tutorial publishing](../assets/publish/tutorial-publish.png)
 
 ## 2. Attach the tutorial to the project
 
-Open the project. Under **Tutorial**, select the tutorial you created and click **Update project**. Only tutorials of the same project type are listed.
+Open the project. Under **Tutorial**, select the tutorial you created or reused and click **Update project**. Only tutorials of the same project type are listed.
 
 ![Tutorial selected on the project](../assets/publish/select-tutorial.png)
 

@@ -82,8 +82,14 @@ The map preview on the right shows the imagery once the URL is right.
 ## 6. Choose the grid and answers
 
 - **Sub grid Size**: no size is selected at first. Select how many cells each tile is split into: 4x4 (16 cells) suits most rooftop objects; use 8x8 for very small objects.
-- **Include 'Multiple Features' option**: keep it ticked when one cell can hold several objects. Without it, volunteers only choose between **No** and **Single Feature**.
-- **Export Meta**: a key and a value that describe the feature, for example its OpenStreetMap tag. The MapSwipe documentation describes it as an "additional metadata entry attached to exports" ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)). Both fields are required.
+- **Include 'Multiple Features' option**: keep it ticked when one cell can hold several objects. Without it, volunteers only choose between **No** and **Single Feature**. For trees, keep it: Multiple Features shows where trees grow in groups. Untick it when knowing whether a cell has the object is enough.
+- **Export Meta**: a key and a value that describe the feature, for example its OpenStreetMap tag. The MapSwipe documentation describes it as an "additional metadata entry attached to exports" ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)). Both fields are required. Examples:
+
+    | Feature | Key | Value |
+    |---|---|---|
+    | Trees | `natural` | `tree` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree)) |
+    | Water tanks | `man_made` | `storage_tank` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Tag:man_made%3Dstorage_tank)) |
+    | Buildings | `building` | `yes` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Key:building)) |
 
 ![Sub-grid, answer options and export meta](../assets/create/subgrid-answers-export-meta.png)
 
@@ -100,6 +106,6 @@ Click **Process** at the top right and **Confirm**. Processing splits the area i
 
 ![Confirm processing](../assets/create/process-confirm.png)
 
-When processing finishes, the project is **Processed** and a **Publish** button appears. From now on the area and imagery settings are read-only. Before publishing, the project needs a tutorial: continue with [Create the tutorial](create-the-tutorial.md).
+When processing finishes, the project is **Processed** and a **Publish** button appears. From now on the area and imagery settings are read-only. Before publishing, the project needs a tutorial: continue with [Create the tutorial](create-the-tutorial.md), which starts with checking for an existing one.
 
 ![Processed project](../assets/create/processed.png)

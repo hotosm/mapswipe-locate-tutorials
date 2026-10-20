@@ -6,6 +6,9 @@ icon: lucide/graduation-cap
 
 The tutorial runs the first time a volunteer opens the project. It has information pages that explain the object, then scenario pages: real tiles from the project where the volunteer must tap the right cells before moving on.
 
+!!! tip "Check for an existing tutorial first"
+    In the manager, open **Tutorials** and look for a published Locate tutorial on the same object, made with imagery that looks like your area. If one fits, skip this page: select it in [Attach the tutorial to the project](publish.md#2-attach-the-tutorial-to-the-project) and publish.
+
 ## 1. Create the tutorial
 
 In the manager, open **Tutorials** and click **New Tutorial**. Enter a title, select the processed project under **Reference Project**, and click **Submit**. The tutorial copies the instruction, imagery and grid settings from that project.
