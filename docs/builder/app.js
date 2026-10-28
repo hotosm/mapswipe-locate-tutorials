@@ -1,4 +1,4 @@
-import { EXAMPLE, checkTasks, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
+import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
 
 const state = { tileUrl: "", tasks: null, subGridSize: 4, scenarios: [], active: -1 };
 const element = (id) => document.getElementById(id);
@@ -9,6 +9,7 @@ const map = new maplibregl.Map({
   center: [0, 20],
   zoom: 1,
 });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
 
 function setStatus(message) {
   element("status").textContent = message;
@@ -68,23 +69,26 @@ function render() {
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    load(JSON.parse(await element("tasks-file").files[0].text()));
+    await load(JSON.parse(await element("tasks-file").files[0].text()));
   } catch (error) {
     console.error(error);
     setStatus(error.message);
   }
 });
 
-function load(tasks) {
+async function load(tasks) {
   checkTasks(tasks);
+  const tileUrl = element("tile-url").value.trim();
+  setStatus("Checking the tile URL...");
+  await checkTileAccess(tileUrl, tasks.features[0]);
   state.tasks = tasks;
-  state.tileUrl = element("tile-url").value.trim();
+  state.tileUrl = tileUrl;
   state.subGridSize = Number(element("sub-grid").value);
   state.scenarios = [];
   state.active = -1;
   showImagery(taskBounds(tasks));
   showTasks(tasks);
-  setStatus(`${tasks.features.length} tasks loaded. Click a task on the map to add it as a scenario.`);
+  setStatus(`${tasks.features.length} tasks loaded. Zoom in with the + button or the mouse wheel to see the features, then click a task to add it as a scenario.`);
   render();
 }
 
@@ -94,7 +98,7 @@ element("example").addEventListener("click", async () => {
     if (!response.ok) throw new Error(`The example tasks failed to load (HTTP ${response.status}).`);
     element("tile-url").value = EXAMPLE.tileUrl;
     element("sub-grid").value = "4";
-    load(await response.json());
+    await load(await response.json());
   } catch (error) {
     console.error(error);
     setStatus(error.message);

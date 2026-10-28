@@ -40,6 +40,18 @@ export function tileImageUrl(template, x, y, z) {
   return template.replace("{z}", z).replace("{x}", x).replace("{y}", y);
 }
 
+// Browsers block tile reads from servers without CORS headers, which leaves the manager's map previews blank.
+// An HTTP error is accepted: tiles outside the image return 404 from servers that do send CORS headers.
+export async function checkTileAccess(template, task, fetchTile = fetch) {
+  const { tile_x: x, tile_y: y, tile_z: z } = task.properties;
+  try {
+    await fetchTile(tileImageUrl(template, x, y, z));
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    throw new Error("Browsers cannot read tiles from this URL (no CORS headers, or the server cannot be reached), so the manager's tutorial preview would stay blank. Use a tile URL from api.imagery.hotosm.org, as the area helper and the mosaic helper give.", { cause: error });
+  }
+}
+
 // Matches the MapSwipe manager upload: one feature per screen, references ordered row by row.
 export function scenarioFile(scenarios) {
   return {

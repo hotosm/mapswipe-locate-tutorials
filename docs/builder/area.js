@@ -16,6 +16,7 @@ const map = new maplibregl.Map({
   zoom: 1,
   canvasContextAttributes: { preserveDrawingBuffer: true },
 });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
 
 function setStatus(message) {
   element("status").textContent = message;

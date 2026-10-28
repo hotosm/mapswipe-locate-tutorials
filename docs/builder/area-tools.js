@@ -1,9 +1,16 @@
 const IMAGE_ID = /(?:selected_id=|\/items\/)([0-9a-f]{24}|[0-9a-f-]{36})|^([0-9a-f]{24}|[0-9a-f-]{36})$/;
 
-export function parseImageId(text) {
+export const IMAGE_HINT = "Paste an imagery.hotosm.org link, a Copy TMS URL or an image ID.";
+
+export function matchImageId(text) {
   const match = text.trim().match(IMAGE_ID);
-  if (!match) throw new Error("Paste an imagery.hotosm.org link, a Copy TMS URL or an image ID.");
-  return match[1] ?? match[2];
+  return match ? match[1] ?? match[2] : null;
+}
+
+export function parseImageId(text) {
+  const id = matchImageId(text);
+  if (!id) throw new Error(IMAGE_HINT);
+  return id;
 }
 
 // Drone mosaics pad their edges with white or black, which is not imagery.

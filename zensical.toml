@@ -23,6 +23,8 @@ nav = [
     "helpers/index.md",
     { "Area helper" = "builder/area.html" },
     { "Scenario builder" = "builder/index.html" },
+    { "Mosaic helper" = "builder/mosaic.html" },
+    { "Results helper" = "builder/results.html" },
   ] },
   { "Example" = [
     { "Water tanks in Banepa" = "examples/banepa-water-tanks.md" },

@@ -44,6 +44,8 @@ Most files are compressed (`.gz`). Unzip them before use.
 
 The [MapSwipe data documentation](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/about_data.md) describes each file.
 
+The [results helper](../builder/results.html) reads the Aggregated Results link or file and downloads the cells volunteers marked as GeoJSON.
+
 ## Reading Locate results
 
 Each tile is exploded into one row per cell. These columns matter most:

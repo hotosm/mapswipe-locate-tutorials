@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { checkTasks, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
+import { checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
 
 test("a click cycles a cell from No to Single to Multiple and back to No", () => {
   assert.deepEqual([0, 1, 2].map(nextAnswer), [1, 2, 0]);
@@ -56,4 +56,14 @@ test("the export numbers screens in order and keeps each tile's references", () 
       { tile_x: 3, tile_y: 4, tile_z: 20, screen: 2, references: [0, 0, 0, 0] },
     ],
   );
+});
+
+test("the tile check requests the first task's tile, explains a CORS block and lets an HTTP error through", async () => {
+  const task = { properties: { tile_x: 773386, tile_y: 440490, tile_z: 20 } };
+  const requested = [];
+  await checkTileAccess("https://example.org/{z}/{x}/{y}", task, async (url) => { requested.push(url); return { ok: true }; });
+  assert.deepEqual(requested, ["https://example.org/20/773386/440490"]);
+
+  await assert.rejects(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => { throw new TypeError("Failed to fetch"); }), /no CORS headers/);
+  await assert.doesNotReject(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => ({ ok: false, status: 404 })));
 });

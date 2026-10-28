@@ -6,7 +6,7 @@ default:
 setup:
     uv sync --only-group docs
 
-# Run the builder and area helper tests
+# Run the helper tests
 test:
     node --test
 

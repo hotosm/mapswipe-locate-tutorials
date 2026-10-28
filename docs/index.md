@@ -16,7 +16,7 @@ In a Locate Objects project, volunteers see one imagery tile at a time, split in
 
 -   :lucide-wrench: **[Helpers](helpers/index.md)**
 
-    The area helper and the scenario builder, with one-click sample data.
+    Prepare the area, the tutorial and merged imagery, and clean up the results, with one-click sample data.
 
 -   :lucide-droplets: **[Example: water tanks in Banepa](examples/banepa-water-tanks.md)**
 

@@ -36,11 +36,11 @@ Open the [scenario builder](../builder/index.html) in a new browser tab.
 1. Paste the same tile URL used in the project.
 2. Choose the processed tasks file.
 3. Select the same sub-grid size as the project.
-4. Click **Load**. The project tiles appear on the map, and the imagery a few seconds later.
+4. Click **Load**. The builder first checks that browsers can read the tile URL, then the project tiles appear on the map, and the imagery a few seconds later.
 
 ![Scenario builder with the tile URL and tasks file](../assets/tutorial/builder-setup.png)
 
-Click a tile on the map to add it as a scenario. The tile opens on the right with its grid. Click each cell to set its answer: one click for **Single Feature** (green), two for **Multiple Features** (yellow), three to go back to **No**.
+Zoom in with the **+** button or the mouse wheel until the features are clear, then click a tile to add it as a scenario. The tile opens on the right with its grid. Click each cell to set its answer: one click for **Single Feature** (green), two for **Multiple Features** (yellow), three to go back to **No**.
 
 ![Scenario builder with a tile and its marked cells](../assets/tutorial/builder-scenario.png)
 
@@ -69,8 +69,11 @@ For each scenario, pick an icon and write a title and description for the three 
 | Hint | Information | After a wrong tap | **Look for round shapes on roofs**: Tanks are round and often green, black, blue or yellow. |
 | Success | Check | When all cells are right | **Well done**: You found every water tank in this image. |
 
-The phone preview on the right shows the result.
+The phone preview on the right shows the result, with the tile imagery under the cells.
 
 ![Scenario with messages, icons and cell answers](../assets/tutorial/scenario.png)
+
+!!! note "Preview without imagery"
+    When the phone preview shows the cells on a dark background, the reference project's tile URL usually sends no CORS headers (see the warning in [Add the area and imagery](create-a-project.md#5-add-the-area-and-imagery)). The tile URL and the reference project cannot be changed later. Create the project again with the `api.imagery.hotosm.org` tile URL and make the tutorial from that project.
 
 Click **Update tutorial**, then continue with [Publish and check the project](publish.md).

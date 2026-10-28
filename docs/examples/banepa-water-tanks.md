@@ -17,7 +17,8 @@ This example ran on stage, following the guides from start to finish. It asks vo
 | Field | Value |
 |---|---|
 | Project type | Locate Objects |
-| Project topic | `fAIrSwipe - Water Tanks` |
+| Project topic | `fAIrSwipe - Nepal - HOT - Water Tanks` |
+| Project number | 1 |
 | Project region | `Banepa, Nepal` |
 | Organization | Humanitarian OpenStreetMap Team |
 | Instruction | `We are looking for rooftop water tanks` |
@@ -35,7 +36,7 @@ This example ran on stage, following the guides from start to finish. It asks vo
 
 Processing created 120 tiles. Export Meta follows the OpenStreetMap tag for tanks: `man_made=water_tank` is deprecated in favour of `man_made=storage_tank` with `content=water` ([source](https://wiki.openstreetmap.org/wiki/Tag:man_made%3Dwater_tank)). Export Meta holds one pair, so it carries `man_made=storage_tank`.
 
-This example project was created with the short topic `fAIrSwipe - Water Tanks`. New projects follow the naming convention on the home page, for example `fAIrSwipe - Nepal - HOT - Water Tanks`.
+On stage the project is `/project/913` and its tutorial `/tutorial/102` in the manager, both published.
 
 ## Tutorial
 
@@ -59,10 +60,10 @@ A second, smaller stage project ran through every step, from the [area helper](.
 |---|---|
 | Area | 4 by 3 tiles at zoom 20, drawn in the area helper, which estimated 12 tiles |
 | Processing | 12 tasks |
-| Tutorial | The tutorial above, attached to this project too |
+| Tutorial | An earlier copy of the tutorial above, with the same pages and scenarios |
 | Mapping | All 12 tiles mapped once in the web app, by looking at each tile |
 | Finish | **Finish** in the manager, with each tile mapped once (below 100%) |
 | Results | 192 rows, one per cell: 29 marked Single Feature, 10 Multiple Features |
-| QGIS | Cells coloured by answer, as in [Use the results in QGIS](../guides/qgis.md) |
+| QGIS | Cells kept at 50% in the [results helper](../builder/results.html), coloured by answer, as in [Use the results in QGIS](../guides/qgis.md) |
 
-![Finished project results in QGIS](../assets/results/qgis-cells.jpg)
+![Finished project results in QGIS](../assets/results/qgis-map.jpg)

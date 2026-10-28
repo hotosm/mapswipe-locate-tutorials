@@ -12,6 +12,9 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 
 ![Copy TMS on imagery.hotosm.org](../assets/create/imagery-copy-tms.png)
 
+??? note "Area across several images"
+    Most projects use one image; skip this when yours does. When the area needs several images, merge them in the [mosaic helper](../helpers/index.md#mosaic-helper) and use its tile URL in step 5. The area helper cuts the area of interest to one image, so draw the rectangle in a tool such as <https://geojson.io> and save it as `area-of-interest.geojson`.
+
 Open the [area helper](../builder/area.html), paste the address, choose the zoom level the project will use (20 for small objects such as water tanks, see step 5), and click **Load**. The red line shows where the image has imagery; white and black edges are left out.
 
 ![Area helper with the imagery footprint](../assets/create/area-helper-footprint.png)
@@ -78,6 +81,9 @@ Under **Locate Objects**:
 The map preview on the right shows the imagery once the URL is right.
 
 ![Tile server settings](../assets/create/tile-server.png)
+
+!!! warning "Use a tile URL from api.imagery.hotosm.org"
+    The manager draws its maps in the browser, which reads only tile servers that send CORS headers. `api.imagery.hotosm.org` sends them. `tiles.openaerialmap.org` links do not: with one, this preview and the tutorial preview stay blank. On stage, the web app still showed the imagery of such a project. The area and imagery settings are read-only after processing (step 7), so check that the preview shows imagery before you continue.
 
 ## 6. Choose the grid and answers
 

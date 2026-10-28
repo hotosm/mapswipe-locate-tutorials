@@ -4,58 +4,42 @@ icon: lucide/layers
 
 # Use the results in QGIS
 
-This page turns the aggregated results into one polygon per cell in QGIS and colours them by answer.
+This page puts the cells volunteers marked on the map in QGIS, over the project imagery. The steps and screenshots are from QGIS 4.2.
 
-## 1. Load the results
+## 1. Get the marked cells
 
-Download **Aggregated Results (with Geometry)** as described in [Download the results](download-results.md) and unzip it. Drag `agg_results_by_task_<project>_geom.geojson` into QGIS.
+Open the [results helper](../builder/results.html). Paste the **Aggregated Results** link from [Download the results](download-results.md), or choose the downloaded file, and click **Load**. Move the slider to the share of volunteers a cell needs, for example 50%, and click **Download cells**.
 
-## 2. Make one polygon per cell
+The file has one square per kept cell, with `tile_id`, `cell_index`, `majority_answer`, `single_feature_votes`, `multiple_features_votes`, `volunteers_total` and `feature_vote_percent`. The [helpers page](../helpers/index.md#results-helper) explains each property. Click a cell on the helper's map to see its values.
 
-Open **Processing Toolbox**, search for **Geometry by expression** ([QGIS documentation](https://docs.qgis.org/latest/en/docs/user_manual/processing_algs/qgis/vectorgeometry.html#geometry-by-expression)), select the results layer, keep **Polygon** as the output geometry type, and paste this expression. Change `4` in the first line to the project's sub-grid size (2, 4 or 8).
+![Results helper with the Banepa water tank cells and a cell popup](../assets/results/results-helper.jpg)
 
-```text
-with_variable('size', 4,
-with_variable('tile', bounds(transform($geometry, 'EPSG:4326', 'EPSG:3857')),
-with_variable('width', (x_max(@tile) - x_min(@tile)) / @size,
-with_variable('column', "task_partition_index" % @size,
-with_variable('row', floor("task_partition_index" / @size),
-transform(
-  make_rectangle_3points(
-    make_point(x_min(@tile) + @column * @width, y_max(@tile) - @row * @width),
-    make_point(x_min(@tile) + (@column + 1) * @width, y_max(@tile) - @row * @width),
-    make_point(x_min(@tile) + (@column + 1) * @width, y_max(@tile) - (@row + 1) * @width)
-  ),
-  'EPSG:3857', 'EPSG:4326'
-))))))
-```
+## 2. Add the imagery
 
-Cells are numbered row by row from the top left ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/utils/geo.ts)), so the expression finds each cell's row and column inside its tile. The split is done in Web Mercator, the projection the tiles are cut in.
-
-## 3. Add the imagery
-
-In the **Browser** panel, right-click **XYZ Tiles**, choose **New Connection**, and paste the project's tile URL, for example:
+In the **Browser** panel, right-click **XYZ Tiles** and choose **New Connection**. Enter a **Name**, paste the project's tile URL into **URL**, tick **Max. Zoom Level** and set it to 22, and click **OK**. The Banepa example uses this tile URL:
 
 ```text
 https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/62d86c65d8499800053796c4/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0
 ```
 
-Set **Max. Zoom Level** to 22 and add the connection to the map below the cells.
+![XYZ connection with the name, tile URL and maximum zoom](../assets/results/qgis-xyz-connection.png)
+
+Expand **XYZ Tiles** and double-click the new connection to add it to the map.
+
+## 3. Add the cells
+
+Drag the downloaded `.geojson` file into QGIS. It is added above the imagery.
 
 ## 4. Colour the cells by answer
 
-Open the cell layer's **Properties**, **Symbology**, choose **Categorized**, and use this expression as the value. A cell counts as an object when more volunteers marked it than left it empty.
+Double-click the cell layer in the **Layers** panel to open its properties, and open **Symbology** ([QGIS documentation](https://docs.qgis.org/latest/en/docs/user_manual/working_with_vector/vector_properties.html#categorized-renderer)):
 
-```text
-CASE
-  WHEN "1_count" + "2_count" > "0_count" THEN
-    CASE WHEN "2_count" >= "1_count" THEN 'Multiple Features' ELSE 'Single Feature' END
-  ELSE 'No'
-END
-```
+1. Change **Single Symbol** at the top to **Categorized**.
+2. Set **Value** to `majority_answer`.
+3. Click **Classify**. QGIS gives **Single Feature** and **Multiple Features** each a colour, chosen at random. It also adds an **all other values** class, which stays unused because every cell is Single Feature or Multiple Features.
 
-Click **Classify**, set **Single Feature** to green and **Multiple Features** to yellow, and give **No** a transparent fill.
+![Categorized symbology on majority_answer after Classify](../assets/results/qgis-classify.png)
 
-The result for the finished stage project in the [Banepa example](../examples/banepa-water-tanks.md): green cells hold one tank, yellow cells several.
+Under **Layer Rendering** at the bottom of the same tab, set **Opacity** to 50% so the imagery shows through the cells, and click **OK**.
 
-![Cells coloured by answer over the Banepa imagery](../assets/results/qgis-cells.jpg)
+![Cells coloured by answer over the Banepa imagery in QGIS](../assets/results/qgis-map.jpg)
