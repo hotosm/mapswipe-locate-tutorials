@@ -32,4 +32,5 @@ test("the mosaic tile URL lists every image and fills in to a tile request in th
 
 test("the combined bounds cover every image", () => {
   assert.deepEqual(unionBounds([[85.49, 27.61, 85.54, 27.65], [85.54, 27.6, 85.55, 27.62]]), [85.49, 27.6, 85.55, 27.65]);
+  assert.deepEqual(unionBounds([[-13.2991565, 8.5004312, -13.1252206, 8.3971738]]), [-13.2991565, 8.3971738, -13.1252206, 8.5004312]);
 });

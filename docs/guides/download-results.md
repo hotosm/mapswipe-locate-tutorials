@@ -52,18 +52,18 @@ Each tile is exploded into one row per cell. These columns matter most:
 
 | Column | Meaning |
 |---|---|
-| `task_id` | The tile, as `zoom-x-y`, for example `20-773384-440491` |
+| `task_id` | The tile, as `zoom-x-y`, for example `20-485867-499535` |
 | `task_partition_index` | The cell, counted row by row from the top left, starting at 0 ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/utils/geo.ts)). In a 4x4 grid the first row is 0 to 3 and the last row is 12 to 15 |
 | `0_count`, `1_count`, `2_count` | How many volunteers answered No, Single Feature and Multiple Features |
 | `0_share`, `1_share`, `2_share` | The same counts as shares of `total_count` |
 | `total_count` | How many volunteers answered this cell |
 | `url` | The imagery tile |
 
-A row from the Banepa example, where one volunteer marked several tanks in cell 6:
+A row from the [Freetown example](../examples/freetown-solar-panels.md), where 17 of 20 volunteers marked solar panels in cell 1. The project leaves out Multiple Features, so the file has no `2_count` column:
 
 ```text
-task_id,task_partition_index,0_count,1_count,2_count,total_count
-20-773384-440491,6,0,0,1,1
+task_id,task_partition_index,0_count,1_count,total_count
+20-485867-499535,1,3,17,20
 ```
 
 !!! note "Geometry is the whole tile"

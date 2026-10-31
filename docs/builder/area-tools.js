@@ -30,6 +30,11 @@ export function imageryMask(rgba, width, height) {
   return mask;
 }
 
+// Some imagery records list the bbox latitudes north first; longitudes stay as listed, since west can exceed east across the antimeridian.
+export function orderedBounds([west, y1, east, y2]) {
+  return [west, Math.min(y1, y2), east, Math.max(y1, y2)];
+}
+
 // The preview covers the image bounds in EPSG:4326, so pixels map linearly to degrees.
 export function pixelToLonLat([west, south, east, north], width, height) {
   return ([x, y]) => [west + (x / width) * (east - west), north - (y / height) * (north - south)];

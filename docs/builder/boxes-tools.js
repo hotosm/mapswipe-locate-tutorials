@@ -117,6 +117,50 @@ export function boxOutline([x1, y1, x2, y2]) {
   return [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
 }
 
+// The smallest rectangle around a convex ring has one side along a ring edge (Freeman and Shapira, 1975), so each edge is tried.
+export function rotatedBox(hull) {
+  let best = null;
+  for (let index = 0; index < hull.length - 1; index++) {
+    const [[x1, y1], [x2, y2]] = [hull[index], hull[index + 1]];
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length === 0) continue;
+    const [alongX, alongY] = [(x2 - x1) / length, (y2 - y1) / length];
+    const along = hull.map(([x, y]) => x * alongX + y * alongY);
+    const across = hull.map(([x, y]) => y * alongX - x * alongY);
+    const [start, end, near, far] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)];
+    const area = (end - start) * (far - near);
+    if (best && area >= best.area) continue;
+    const corners = [[start, near], [end, near], [end, far], [start, far]].map(([a, c]) => [a * alongX - c * alongY, a * alongY + c * alongX]);
+    best = { area, corners };
+  }
+  return best.corners;
+}
+
+// The YOLO OBB format takes corners between 0 and 1, so corners past the image edge are moved onto it.
+export function clampedCorners(corners, pixels) {
+  return corners.map((point) => point.map((value) => Math.min(pixels, Math.max(0, value))));
+}
+
+// A hand-drawn rotated box: one side from `start` to `end`, the opposite side through `point`.
+export function rectangleFromSide(start, end, point) {
+  const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
+  const [normalX, normalY] = [(start[1] - end[1]) / length, (end[0] - start[0]) / length];
+  const depth = (point[0] - start[0]) * normalX + (point[1] - start[1]) * normalY;
+  const [shiftX, shiftY] = [normalX * depth, normalY * depth];
+  return [start, end, [end[0] + shiftX, end[1] + shiftY], [start[0] + shiftX, start[1] + shiftY], start];
+}
+
+export function ringBox(ring, pixels) {
+  const [xs, ys] = [ring.map(([x]) => x), ring.map(([, y]) => y)];
+  return clampedCorners([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], pixels).flat();
+}
+
+// YOLO OBB labels: class, then the four corners as shares of the image side.
+export function obbLabels(cornerSets, pixels) {
+  const share = (value) => (value / pixels).toFixed(6);
+  return cornerSets.map((corners) => `0 ${corners.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`).join("\n");
+}
+
 // YOLO segmentation labels: class, then the outline points as shares of the image side, without repeating the first point.
 export function segmentLabels(outlines, pixels) {
   const share = (value) => (value / pixels).toFixed(6);
@@ -142,12 +186,25 @@ function lonLatRing(tile, ring, pixels) {
   return signedRingArea(lonLat) < 0 ? lonLat.toReversed() : lonLat;
 }
 
+const OUTPUTS = {
+  detect: { dataset: "detection", feature: "box" },
+  segment: { dataset: "segmentation", feature: "outline" },
+  obb: { dataset: "oriented bounding box (OBB)", feature: "rotated box" },
+};
+
+// Rotated boxes need each object's `corners`, which the page works out with a convex hull.
+function pixelRing({ box, outline, corners }, mode) {
+  if (mode === "segment") return outline;
+  if (mode === "obb") return [...corners, corners[0]];
+  return boxOutline(box);
+}
+
 export function labelsGeojson(tiles, objects, { mode, objectName, pixels }) {
   const features = tiles.flatMap((tile) =>
-    (objects.get(tile.id) ?? []).map(({ box, outline, source }) => ({
+    (objects.get(tile.id) ?? []).map((object) => ({
       type: "Feature",
-      geometry: { type: "Polygon", coordinates: [lonLatRing(tile, mode === "segment" ? outline : boxOutline(box), pixels)] },
-      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, output: mode === "segment" ? "outline" : "box", source, marked_cells: tile.cells.length, imagery_url: tile.template },
+      geometry: { type: "Polygon", coordinates: [lonLatRing(tile, pixelRing(object, mode), pixels)] },
+      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
     })));
   return { type: "FeatureCollection", features };
 }
@@ -156,7 +213,7 @@ export function datasetReadme({ projectName, projectLink, threshold, modelName, 
   const templates = [...new Set(tiles.map((tile) => tile.template))];
   return `# ${projectName}
 
-YOLO ${mode === "segment" ? "segmentation" : "detection"} dataset of "${objectName}", marked with the Locate auto labeller.
+YOLO ${OUTPUTS[mode].dataset} dataset of "${objectName}", marked with the Locate auto labeller.
 
 - Project: ${projectLink}
 - Volunteer share: ${threshold}%

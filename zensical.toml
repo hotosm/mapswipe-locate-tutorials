@@ -5,6 +5,8 @@ site_description = "Step-by-step guides for creating MapSwipe Locate Objects pro
 site_author = "Humanitarian OpenStreetMap Team"
 copyright = "Copyright &copy; 2026 Humanitarian OpenStreetMap Team"
 
+extra_css = ["assets/stylesheets/helper-nav.css"]
+
 repo_url = "https://github.com/hotosm/mapswipe-locate-tutorials"
 repo_name = "hotosm/mapswipe-locate-tutorials"
 edit_uri = "edit/main/docs/"
@@ -28,7 +30,7 @@ nav = [
     { "Auto labeller" = "builder/boxes.html" },
   ] },
   { "Example" = [
-    { "Water tanks in Banepa" = "examples/banepa-water-tanks.md" },
+    { "Solar panels in Freetown" = "examples/freetown-solar-panels.md" },
   ] },
 ]
 

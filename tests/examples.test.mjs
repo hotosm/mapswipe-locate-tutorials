@@ -2,21 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { tileCount } from "../docs/builder/area-tools.js";
 import { EXAMPLE, checkTasks } from "../docs/builder/scenarios.js";
-
-const read = (name) => JSON.parse(readFileSync(new URL(`../docs/examples/files/${name}`, import.meta.url)));
 
 test("the tutorial builder's example button points at tasks that load", () => {
   const tasks = JSON.parse(readFileSync(new URL(EXAMPLE.tasks, new URL("../docs/builder/", import.meta.url))));
   assert.doesNotThrow(() => checkTasks(tasks));
 });
 
-test("every Banepa example scenario is a tile of the example tasks, with one answer per 4x4 cell", () => {
-  const tiles = new Set(read("banepa-water-tanks-processed-tasks.geojson").features.map(({ properties }) => `${properties.tile_x}/${properties.tile_y}`));
-  const scenarios = read("banepa-water-tanks-scenarios.geojson").features;
-  assert.deepEqual(scenarios.map(({ properties }) => properties.screen), [1, 2, 3]);
-  for (const { properties } of scenarios) {
-    assert.ok(tiles.has(`${properties.tile_x}/${properties.tile_y}`));
-    assert.equal(properties.references.length, 16);
-  }
+test("the Freetown example's area of interest gives as many tiles as its processed tasks file lists", () => {
+  const read = (name) => JSON.parse(readFileSync(new URL(`../docs/examples/files/${name}`, import.meta.url)));
+  const ring = read("freetown-solar-panels-aoi.geojson").features[0].geometry.coordinates[0];
+  const [longitudes, latitudes] = [ring.map(([longitude]) => longitude), ring.map(([, latitude]) => latitude)];
+  const bbox = [Math.min(...longitudes), Math.min(...latitudes), Math.max(...longitudes), Math.max(...latitudes)];
+  assert.equal(tileCount(bbox, 20), read("freetown-solar-panels-processed-tasks.geojson").features.length);
 });

@@ -64,9 +64,9 @@ For each scenario, pick an icon and write a title and description for the three 
 
 | Message | Icon | When it shows | Example |
 |---|---|---|---|
-| Instruction | Tap | When the scenario opens | **Find the water tanks**: Tap each square with a rooftop water tank. Tap twice when a square has more than one tank. |
-| Hint | Information | After a wrong tap | **Look for round shapes on roofs**: Tanks are round and often green, black, blue or yellow. |
-| Success | Check | When all cells are right | **Well done**: You found every water tank in this image. |
+| Instruction | Tap | When the scenario opens | **Find the solar panels**: Tap each square with solar panels on a roof. |
+| Hint | Information | After a wrong tap | **Look for dark rectangles in rows**: Solar panels are dark blue or black, with a grid of lines. |
+| Success | Check | When all cells are right | **Well done**: You found every solar panel in this image. |
 
 The phone preview on the right shows the result, with the tile imagery under the cells.
 

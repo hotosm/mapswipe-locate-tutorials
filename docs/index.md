@@ -18,9 +18,9 @@ In a Locate Objects project, volunteers see one imagery tile at a time, split in
 
     Prepare the area, the tutorial and merged imagery, and clean up the results, with one-click sample data.
 
--   :lucide-droplets: **[Example: water tanks in Banepa](examples/banepa-water-tanks.md)**
+-   :lucide-sun: **[Example: solar panels in Freetown](examples/freetown-solar-panels.md)**
 
-    Every value used in the guides, with the files to download.
+    A finished project from the imagery to a training dataset, with the files to download.
 
 </div>
 
@@ -41,4 +41,4 @@ The screenshots in these guides come from stage. The production manager has the 
 - The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area finder](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
 
 !!! note "Project naming"
-    Set the **Project topic** as `fAIrSwipe - Country - Org/Name - Feature`, for example `fAIrSwipe - Nepal - HOT - Water Tanks`.
+    Set the **Project topic** as `fAIrSwipe - Country - Org/Name - Feature`, for example `fAIrSwipe - Sierra Leone - HOT - Solar Panels`.

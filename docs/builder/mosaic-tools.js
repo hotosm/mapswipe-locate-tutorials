@@ -1,4 +1,4 @@
-import { IMAGE_HINT, matchImageId } from "./area-tools.js";
+import { IMAGE_HINT, matchImageId, orderedBounds } from "./area-tools.js";
 
 export const RASTER_API = "https://api.imagery.hotosm.org/raster";
 export const EXAMPLE_IMAGES = [
@@ -22,7 +22,8 @@ export function mosaicTileUrl(ids) {
   return `${RASTER_API}/collections/openaerialmap/tiles/WebMercatorQuad/{z}/{x}/{y}?ids=${ids.join(",")}&exitwhenfull=false&skipcovered=false&assets=visual&nodata=0`;
 }
 
-export function unionBounds(bboxes) {
+export function unionBounds(items) {
+  const bboxes = items.map(orderedBounds);
   return [
     Math.min(...bboxes.map((bbox) => bbox[0])),
     Math.min(...bboxes.map((bbox) => bbox[1])),

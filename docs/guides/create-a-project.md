@@ -15,7 +15,7 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 ??? note "Area across several images"
     Most projects use one image; skip this when yours does. When the area needs several images, merge them in the [imagery merger](../helpers/index.md#imagery-merger) and use its tile URL in step 5. The area finder cuts the area of interest to one image, so draw the rectangle in a tool such as <https://geojson.io> and save it as `area-of-interest.geojson`.
 
-Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as water tanks, see step 5); the tile estimates follow it.
+Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as solar panels, see step 5); the tile estimates follow it.
 
 ![Area finder with the imagery footprint](../assets/create/area-helper-footprint.png)
 
@@ -40,13 +40,13 @@ Log in to the manager dashboard and click **New Project** on the home page. Unde
 
 | Field | What to enter | Example |
 |---|---|---|
-| Project topic | Title following the naming convention on the [home page](../index.md), on stage and production alike | `fAIrSwipe - Nepal - HOT - Water Tanks` |
-| Project region | City and country | `Banepa, Nepal` |
+| Project topic | Title following the naming convention on the [home page](../index.md), on stage and production alike | `fAIrSwipe - Sierra Leone - HOT - Solar Panels` |
+| Project region | City and country | `Freetown, Sierra Leone` |
 | Project number | `1`, or the next number when the same feature and area get several projects | `1` |
 | Organization | The organization requesting the data | `Humanitarian OpenStreetMap Team` |
-| Project description | Why the data is collected; markdown is supported | `Help us to identify rooftop water tanks in Banepa, Nepal. Your answers help train GeoAI models created with fAIr.` |
-| Instruction | What volunteers look for, shown above every tile | `We are looking for rooftop water tanks` |
-| Look for (legacy) | The feature name. The web app shows it in the tutorial as "You are looking for: ..." | `Water tanks` |
+| Project description | Why the data is collected; markdown is supported | `Help us to find rooftop solar panels in Freetown, Sierra Leone. Your answers help train GeoAI models created with fAIr.` |
+| Instruction | What volunteers look for, shown above every tile | `We are looking for rooftop solar panels` |
+| Look for (legacy) | The feature name. The web app shows it in the tutorial as "You are looking for: ..." | `Solar panels` |
 
 The project name is generated from these fields. Leave **Select Team** and **Additional info URL** empty.
 
@@ -73,10 +73,10 @@ Under **Locate Objects**:
 
 1. **AOI geometry**: click **Select geojson** and upload `area-of-interest.geojson` from step 1.
 2. **Imagery server**: check that **Custom** is selected.
-3. **Custom Imagery Server URL**: paste the tile URL from step 1. It looks like `https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/62d86c65d8499800053796c4/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`.
-4. **Imagery Credits**: the image provider and licence, for example `OpenAerialMap, Geomatics Engineering Society, CC-BY 4.0`.
+3. **Custom Imagery Server URL**: paste the tile URL from step 1. It looks like `https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`.
+4. **Imagery Credits**: the image provider and licence, for example `OpenAerialMap, DroneTM, CC-BY 4.0`.
 5. **Min zoom** and **Max zoom**: the zoom levels the imagery supports, for example 14 and 22 for drone imagery.
-6. **Zoom level**: open the list (it starts at **18 - Pedestrian View**) and select the zoom volunteers see. Use **19** or **20 - Close-up View** for small objects such as solar panels and water tanks.
+6. **Zoom level**: open the list (it starts at **18 - Pedestrian View**) and select the zoom volunteers see. Use **19** or **20 - Close-up View** for small objects such as solar panels.
 
 The map preview on the right shows the imagery once the URL is right.
 
@@ -94,7 +94,7 @@ The map preview on the right shows the imagery once the URL is right.
     | Feature | Key | Value |
     |---|---|---|
     | Trees | `natural` | `tree` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree)) |
-    | Water tanks | `man_made` | `storage_tank` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Tag:man_made%3Dstorage_tank)) |
+    | Solar panels | `generator:source` | `solar` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Tag:generator:source%3Dsolar)) |
     | Buildings | `building` | `yes` ([OSM wiki](https://wiki.openstreetmap.org/wiki/Key:building)) |
 
 ![Sub-grid, answer options and export meta](../assets/create/subgrid-answers-export-meta.png)

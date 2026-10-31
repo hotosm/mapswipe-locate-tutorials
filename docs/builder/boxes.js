@@ -1,17 +1,18 @@
 import { AutoProcessor, EdgeTamModel, RawImage, Tensor } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0";
 import { contours } from "https://cdn.jsdelivr.net/npm/d3-contour@4.0.2/+esm";
 import { simplify } from "https://cdn.jsdelivr.net/npm/@turf/simplify@7.4.0/+esm";
+import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { TILE_PIXELS, boxOutline, cellRectangle, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, ringBox, savedObjectsKey, segmentLabels, yoloLabels } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
 // One pixel keeps the label files small; on 36 Freetown objects the outline area changed by at most 2%.
 const OUTLINE_TOLERANCE = 1;
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, busy: false };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -23,6 +24,17 @@ function nextPaint() {
 
 function outputMode() {
   return document.querySelector('input[name="mode"]:checked').value;
+}
+
+function orientedCorners(outline) {
+  return clampedCorners(rotatedBox(convex({ type: "Polygon", coordinates: [outline] }).geometry.coordinates[0]), PIXELS);
+}
+
+function strokeRing(context, ring) {
+  context.beginPath();
+  ring.forEach(([x, y], index) => (index === 0 ? context.moveTo(x, y) : context.lineTo(x, y)));
+  context.closePath();
+  context.stroke();
 }
 
 function currentTile() {
@@ -60,22 +72,15 @@ function drawObjects() {
   context.setLineDash([12, 8]);
   context.lineWidth = 2;
   context.strokeStyle = "#ffffff";
-  if (state.drag?.box) {
-    const [x1, y1, x2, y2] = state.drag.box;
-    context.strokeRect(x1, y1, x2 - x1, y2 - y1);
-  }
+  if (state.drag?.box) strokeRing(context, boxOutline(state.drag.box));
+  const side = state.drag?.side ?? state.side;
+  if (side) strokeRing(context, state.side && state.pointer ? rectangleFromSide(...state.side, state.pointer) : side);
   context.setLineDash([]);
   context.lineWidth = 4;
   context.strokeStyle = "#d73f3f";
-  for (const { box: [x1, y1, x2, y2], outline } of currentObjects()) {
-    if (outputMode() === "segment") {
-      context.beginPath();
-      outline.forEach(([x, y], index) => (index === 0 ? context.moveTo(x, y) : context.lineTo(x, y)));
-      context.closePath();
-      context.stroke();
-    } else {
-      context.strokeRect(x1, y1, x2 - x1, y2 - y1);
-    }
+  const mode = outputMode();
+  for (const { box, outline } of currentObjects()) {
+    strokeRing(context, mode === "segment" ? outline : mode === "obb" ? orientedCorners(outline) : boxOutline(box));
   }
   updateControls();
 }
@@ -156,6 +161,7 @@ async function tileImage(tile) {
 async function showTile(index) {
   state.index = index;
   state.prompt = null;
+  clearSide();
   const tile = currentTile();
   element("position").textContent = `Tile ${index + 1} of ${state.tiles.length}: ${tile.id}, ${tile.cells.length} marked cells`;
   tileCanvas.getContext("2d").clearRect(0, 0, PIXELS, PIXELS);
@@ -207,12 +213,53 @@ boxCanvas.addEventListener("pointerdown", (event) => {
   state.drag = { start: imagePoint(event), box: null };
 });
 
+function drawingRotated() {
+  return drawing() && outputMode() === "obb";
+}
+
+function isSide(start, end) {
+  return Math.hypot(end[0] - start[0], end[1] - start[1]) >= DRAG_PIXELS;
+}
+
+function clearSide() {
+  state.side = null;
+  state.pointer = null;
+}
+
 boxCanvas.addEventListener("pointermove", (event) => {
+  if (state.side) {
+    state.pointer = imagePoint(event);
+    drawObjects();
+    return;
+  }
   if (!state.drag) return;
   const end = imagePoint(event);
-  state.drag.box = isDrag(state.drag.start, end) ? dragBox(state.drag.start, end, PIXELS) : null;
+  if (drawingRotated() && !state.side) {
+    state.drag.side = isSide(state.drag.start, end) ? [state.drag.start, end] : null;
+  } else {
+    state.drag.box = isDrag(state.drag.start, end) ? dragBox(state.drag.start, end, PIXELS) : null;
+  }
   drawObjects();
 });
+
+// A rotated box is drawn in two steps: a drag along one side of the object, then a tap on the opposite side.
+function drawRotated(start, end) {
+  if (!state.side) {
+    if (isSide(start, end)) state.side = [start, end];
+    drawObjects();
+    setStatus(state.side ? "Tap the opposite side of the object." : "Drag along one side of the object.");
+    return;
+  }
+  const outline = clampedCorners(rectangleFromSide(...state.side, end), PIXELS);
+  clearSide();
+  if (!isSide(outline[0], outline[1]) || !isSide(outline[1], outline[2])) {
+    drawObjects();
+    setStatus("That box has no width. Drag along one side of the object, then tap the opposite side.");
+    return;
+  }
+  currentObjects().push({ box: ringBox(outline, PIXELS), outline, source: "drawn by hand" });
+  afterChange(`Drawn by hand. ${objectCount()}`);
+}
 
 boxCanvas.addEventListener("pointerup", (event) => {
   if (!state.drag || state.busy) {
@@ -222,6 +269,10 @@ boxCanvas.addEventListener("pointerup", (event) => {
   const { start } = state.drag;
   state.drag = null;
   const end = imagePoint(event);
+  if (drawingRotated() && (state.side || isSide(start, end))) {
+    drawRotated(start, end);
+    return;
+  }
   const box = isDrag(start, end) ? dragBox(start, end, PIXELS) : null;
   const point = box ? [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] : start;
   const objects = currentObjects();
@@ -246,6 +297,8 @@ function drawing() {
 
 element("draw").addEventListener("click", () => {
   element("draw").setAttribute("aria-pressed", String(!drawing()));
+  clearSide();
+  if (state.tiles.length > 0) drawObjects();
 });
 
 boxCanvas.addEventListener("pointercancel", () => {
@@ -266,6 +319,11 @@ function afterChange(message) {
 }
 
 element("undo").addEventListener("click", () => {
+  if (state.side) {
+    clearSide();
+    drawObjects();
+    return;
+  }
   currentObjects().pop();
   afterChange(objectCount());
 });
@@ -280,6 +338,7 @@ element("next").addEventListener("click", () => work(() => showTile(state.index 
 
 for (const choice of document.querySelectorAll('input[name="mode"]')) {
   choice.addEventListener("change", () => {
+    clearSide();
     if (state.tiles.length > 0) drawObjects();
   });
 }
@@ -341,15 +400,16 @@ async function download() {
   }
   const mode = outputMode();
   setStatus(`Preparing ${tiles.length} images...`);
+  const shaped = mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
   const zip = new JSZip();
   for (const tile of tiles) {
-    const objects = state.objects.get(tile.id);
+    const objects = shaped.get(tile.id);
     zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
-    const labels = mode === "segment" ? segmentLabels(objects.map(({ outline }) => outline), PIXELS) : yoloLabels(objects.map(({ box }) => box), PIXELS);
+    const labels = { detect: () => yoloLabels(objects.map(({ box }) => box), PIXELS), segment: () => segmentLabels(objects.map(({ outline }) => outline), PIXELS), obb: () => obbLabels(objects.map(({ corners }) => corners), PIXELS) }[mode]();
     zip.file(`labels/${tile.id}.txt`, labels);
   }
   zip.file("data.yaml", datasetYaml(objectName));
-  zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, state.objects, { mode, objectName, pixels: PIXELS })));
+  zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, pixels: PIXELS })));
   const objectCount = tiles.reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   const link = document.createElement("a");

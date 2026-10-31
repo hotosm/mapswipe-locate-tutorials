@@ -1,4 +1,4 @@
-import { imageryMask, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
+import { imageryMask, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
@@ -6,7 +6,7 @@ const PREVIEW_SIZE = 1024;
 // Patches smaller than 2000 m² are white roofs or specks, not gaps in the imagery.
 const MIN_PATCH_SQUARE_METRES = 2000;
 
-const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?lat=27.6337&lon=85.5228&zoom=13.4&selected_id=62d86c65d8499800053796c4";
+const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
 const state = { footprint: null, area: null, zoom: 20 };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
@@ -81,17 +81,18 @@ element("setup").addEventListener("submit", async (event) => {
     const response = await fetch(`${API}/stac/collections/openaerialmap/items/${imageId}`);
     if (!response.ok) throw new Error(`Image ${imageId} was not found (HTTP ${response.status}).`);
     const item = await response.json();
+    const bounds = orderedBounds(item.bbox);
 
     const tileUrl = `${API}/raster/collections/openaerialmap/items/${imageId}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`;
     if (map.getSource("imagery")) {
       map.removeLayer("imagery");
       map.removeSource("imagery");
     }
-    map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds: item.bbox });
+    map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds });
     map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getLayer("footprint") ? "footprint" : undefined);
-    map.fitBounds([[item.bbox[0], item.bbox[1]], [item.bbox[2], item.bbox[3]]], { padding: 20 });
+    map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
 
-    state.footprint = await findFootprint(imageId, item.bbox);
+    state.footprint = await findFootprint(imageId, bounds);
     state.area = null;
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     showLayer("area", turf.featureCollection([]), { "line-color": "#ffdd00", "line-width": 3 });

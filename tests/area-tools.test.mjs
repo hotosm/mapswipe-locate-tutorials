@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { imageryMask, isEmptyPixel, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
+import { imageryMask, isEmptyPixel, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -40,8 +40,14 @@ test("pixel corners map to the image bounds", () => {
   assert.deepEqual(toLonLat([50, 25]), [85.5, 27.5]);
 });
 
-test("the tile count matches what MapSwipe processing created for the Banepa area", () => {
-  assert.equal(tileCount([85.5205, 27.6295, 85.5235, 27.6322], 20), 120);
+test("a bbox listed north first, as in the Freetown imagery record, is put in west, south, east, north order", () => {
+  assert.deepEqual(orderedBounds([-13.2991565, 8.5004312, -13.1252206, 8.3971738]), [-13.2991565, 8.3971738, -13.1252206, 8.5004312]);
+  assert.deepEqual(orderedBounds([85.0, 27.0, 86.0, 28.0]), [85.0, 27.0, 86.0, 28.0]);
+  assert.deepEqual(orderedBounds([179.5, -17.0, -179.5, -16.0]), [179.5, -17.0, -179.5, -16.0]);
+});
+
+test("the tile count matches what MapSwipe processing created for the Freetown area", () => {
+  assert.equal(tileCount([-13.197283, 8.454954, -13.171633, 8.467287], 20), 2964);
 });
 
 test("an odd column count rounds up to even, as MapSwipe groups do", () => {

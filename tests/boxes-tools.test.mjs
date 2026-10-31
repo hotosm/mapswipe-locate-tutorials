@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "../docs/builder/boxes-tools.js";
+import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, ringBox, rotatedBox, savedObjectsKey, segmentLabels, yoloLabels } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -127,7 +127,8 @@ test("a box covering the whole image becomes the tile's corners in longitude and
 test("boxes and outlines both come out with counterclockwise outer rings", () => {
   const clockwiseInImage = [[0, 0], [512, 0], [512, 512], [0, 0]];
   const counterclockwiseInImage = clockwiseInImage.toReversed();
-  for (const [mode, object] of [["detect", { box: [0, 0, 512, 512] }], ["segment", { outline: clockwiseInImage }], ["segment", { outline: counterclockwiseInImage }]]) {
+  const corners = [[0, 0], [512, 0], [512, 512], [0, 512]];
+  for (const [mode, object] of [["detect", { box: [0, 0, 512, 512] }], ["segment", { outline: clockwiseInImage }], ["segment", { outline: counterclockwiseInImage }], ["obb", { corners }], ["obb", { corners: corners.toReversed() }]]) {
     const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ ...object, source: "EdgeTAM" }]]]), { mode, objectName: "tank", pixels: 1024 }).features;
     assert.ok(signedArea(feature.geometry.coordinates[0]) > 0, `${mode} ${JSON.stringify(object)}`);
   }
@@ -157,4 +158,46 @@ test("with tiles on two imagery URLs the readme lists both and asks for one conn
   assert.ok(readme.includes(TILE.template) && readme.includes(second.template));
   assert.match(readme, /paste one of these URLs/);
   assert.match(readme, /YOLO detection dataset/);
+});
+
+const sortedPoints = (points) => points.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6]).toSorted(([ax, ay], [bx, by]) => ax - bx || ay - by);
+
+test("the rotated box of a square turned 45 degrees is the square itself, half the area of its straight box", () => {
+  const diamond = [[512, 312], [712, 512], [512, 712], [312, 512], [512, 312]];
+  const corners = rotatedBox(diamond);
+  assert.deepEqual(sortedPoints(corners), sortedPoints(diamond.slice(0, -1)));
+  const [x1, y1, x2, y2] = ringBox(diamond, 1024);
+  const rotatedArea = Math.abs(signedArea([...corners, corners[0]])) / 2;
+  assert.ok(Math.abs((x2 - x1) * (y2 - y1) - 2 * rotatedArea) < 1e-6);
+});
+
+test("a repeated point in the ring does not break the rotated box", () => {
+  const diamond = [[512, 312], [512, 312], [712, 512], [512, 712], [312, 512], [512, 312]];
+  assert.ok(rotatedBox(diamond).flat().every(Number.isFinite));
+});
+
+test("the rotated box of an upright rectangle with a point midway along a side is the rectangle", () => {
+  const rectangle = [[100, 100], [200, 100], [300, 100], [300, 150], [100, 150], [100, 100]];
+  assert.deepEqual(sortedPoints(rotatedBox(rectangle)), sortedPoints([[100, 100], [300, 100], [300, 150], [100, 150]]));
+});
+
+test("a hand-drawn rotated box runs from the dragged side to the tapped side, on either side of it", () => {
+  assert.deepEqual(rectangleFromSide([100, 100], [300, 100], [250, 160]), [[100, 100], [300, 100], [300, 160], [100, 160], [100, 100]]);
+  assert.deepEqual(rectangleFromSide([100, 100], [300, 100], [250, 40]), [[100, 100], [300, 100], [300, 40], [100, 40], [100, 100]]);
+});
+
+test("rotated box labels list four corners as shares of the image side, kept inside the image", () => {
+  const corners = clampedCorners([[-20, 512], [512, -20], [1044, 512], [512, 1044]], 1024);
+  assert.equal(obbLabels([corners, [[0, 0], [1024, 0], [1024, 1024], [0, 1024]]], 1024), "0 0.000000 0.500000 0.500000 0.000000 1.000000 0.500000 0.500000 1.000000\n0 0.000000 0.000000 1.000000 0.000000 1.000000 1.000000 0.000000 1.000000");
+});
+
+test("rotated boxes go in the GeoJSON as their four corners and the readme names an OBB dataset", () => {
+  const corners = [[512, 0], [1024, 512], [512, 1024], [0, 512]];
+  const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ box: [0, 0, 1024, 1024], corners, source: "EdgeTAM" }]]]), { mode: "obb", objectName: "tank", pixels: 1024 }).features;
+  const ring = feature.geometry.coordinates[0];
+  assert.equal(ring.length, 5);
+  assert.ok(ring.some(([lon, lat]) => Math.abs(lon + 13.197154998779297) < 1e-9 && Math.abs(lat - 8.467618188) < 1e-9));
+  assert.equal(feature.properties.output, "rotated box");
+  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
+  assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset of "tank"/);
 });

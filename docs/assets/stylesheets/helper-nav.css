@@ -1,0 +1,20 @@
+/* The helper pages are HTML files, which carry no front matter icon, so their nav entries get one here. */
+.md-nav__link[href$="builder/area.html"]::before,
+.md-nav__link[href$="builder/index.html"]::before,
+.md-nav__link[href$="builder/mosaic.html"]::before,
+.md-nav__link[href$="builder/results.html"]::before,
+.md-nav__link[href$="builder/boxes.html"]::before {
+  content: "";
+  flex-shrink: 0;
+  width: 1.3em;
+  height: 1.3em;
+  opacity: 0.5;
+  background-color: currentcolor;
+  mask: var(--helper-icon) center / contain no-repeat;
+}
+
+.md-nav__link[href$="builder/area.html"] { --helper-icon: url("../icons/crop.svg"); }
+.md-nav__link[href$="builder/index.html"] { --helper-icon: url("../icons/layout-grid.svg"); }
+.md-nav__link[href$="builder/mosaic.html"] { --helper-icon: url("../icons/images.svg"); }
+.md-nav__link[href$="builder/results.html"] { --helper-icon: url("../icons/map.svg"); }
+.md-nav__link[href$="builder/boxes.html"] { --helper-icon: url("../icons/scan-search.svg"); }
