@@ -4,14 +4,14 @@ import { simplify } from "https://cdn.jsdelivr.net/npm/@turf/simplify@7.4.0/+esm
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { TILE_PIXELS, boxOutline, cellRectangle, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, largestRing, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "./boxes-tools.js";
+import { TILE_PIXELS, boxOutline, cellRectangle, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
 // One pixel keeps the label files small; on 36 Freetown objects the outline area changed by at most 2%.
 const OUTLINE_TOLERANCE = 1;
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, busy: false };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, busy: false };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -41,13 +41,25 @@ function drawObjects() {
   const context = boxCanvas.getContext("2d");
   context.clearRect(0, 0, PIXELS, PIXELS);
   const tile = currentTile();
+  context.fillStyle = "rgb(0 0 0 / 0.55)";
+  context.fillRect(0, 0, PIXELS, PIXELS);
+  for (const cell of tile.cells) {
+    const [x1, y1, x2, y2] = cellRectangle(cell, tile.size, PIXELS);
+    context.clearRect(x1, y1, x2 - x1, y2 - y1);
+  }
+  context.lineWidth = 4;
+  context.strokeStyle = "#ffd400";
+  context.lineCap = "square";
+  context.beginPath();
+  for (const [[x1, y1], [x2, y2]] of markedAreaEdges(tile.cells, tile.size, PIXELS)) {
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+  }
+  context.stroke();
+  context.lineCap = "butt";
   context.setLineDash([12, 8]);
   context.lineWidth = 2;
   context.strokeStyle = "#ffffff";
-  for (const cell of tile.cells) {
-    const [x1, y1, x2, y2] = cellRectangle(cell, tile.size, PIXELS);
-    context.strokeRect(x1, y1, x2 - x1, y2 - y1);
-  }
   if (state.drag?.box) {
     const [x1, y1, x2, y2] = state.drag.box;
     context.strokeRect(x1, y1, x2 - x1, y2 - y1);
@@ -214,7 +226,7 @@ boxCanvas.addEventListener("pointerup", (event) => {
   const point = box ? [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] : start;
   const objects = currentObjects();
   if (box && drawing()) {
-    objects.push({ box, outline: boxOutline(box) });
+    objects.push({ box, outline: boxOutline(box), source: "drawn by hand" });
     afterChange(`Drawn by hand. ${objectCount()}`);
     return;
   }
@@ -223,7 +235,7 @@ boxCanvas.addEventListener("pointerup", (event) => {
     drawObjects();
     await nextPaint();
     const object = await findObject({ point, box });
-    if (object) objects.push(object);
+    if (object) objects.push({ ...object, source: state.modelName });
     afterChange(object ? objectCount() : "Nothing found there. Drag closer around the object.");
   });
 });
@@ -295,6 +307,8 @@ async function load(link) {
   state.tiles = tiles;
   state.images = new Map();
   state.name = fileName;
+  state.projectName = name;
+  state.projectLink = link;
   state.threshold = threshold;
   state.storageKey = storageKey;
   state.objects = restored.objects;
@@ -320,25 +334,29 @@ async function download() {
     setStatus("Enter the object name before downloading.");
     return;
   }
-  const found = [...state.objects].filter(([, objects]) => objects.length > 0);
-  if (found.length === 0) {
+  const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
+  if (tiles.length === 0) {
     setStatus("Mark at least one object before downloading.");
     return;
   }
   const mode = outputMode();
-  setStatus(`Preparing ${found.length} images...`);
+  setStatus(`Preparing ${tiles.length} images...`);
   const zip = new JSZip();
-  for (const [id, objects] of found) {
-    zip.file(`images/${id}.jpg`, await tileImage(state.tiles.find((tile) => tile.id === id)));
+  for (const tile of tiles) {
+    const objects = state.objects.get(tile.id);
+    zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
     const labels = mode === "segment" ? segmentLabels(objects.map(({ outline }) => outline), PIXELS) : yoloLabels(objects.map(({ box }) => box), PIXELS);
-    zip.file(`labels/${id}.txt`, labels);
+    zip.file(`labels/${tile.id}.txt`, labels);
   }
   zip.file("data.yaml", datasetYaml(objectName));
+  zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, state.objects, { mode, objectName, pixels: PIXELS })));
+  const objectCount = tiles.reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
+  zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   const link = document.createElement("a");
   link.href = URL.createObjectURL(await zip.generateAsync({ type: "blob" }));
   link.download = `${state.name}_yolo_${mode}_${state.threshold}.zip`;
   link.click();
-  setStatus(`Downloaded ${found.length} tiles with objects.`);
+  setStatus(`Downloaded ${tiles.length} tiles with objects.`);
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 

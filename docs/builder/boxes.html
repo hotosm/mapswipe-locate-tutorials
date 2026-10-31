@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Locate box helper</title>
+  <title>Locate auto labeller</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
   <header>
-    <h1>Locate box helper</h1>
-    <nav><a href="area.html">Area helper</a><a href="index.html">Scenario builder</a><a href="mosaic.html">Mosaic helper</a><a href="results.html">Results helper</a><a href="boxes.html" aria-current="page">Box helper</a><a href="../">Back to the guides</a></nav>
+    <h1><a class="logo" href="https://ai.hotosm.org"><img src="fair-logo.svg" alt="fAIr" width="24" height="24"></a>Locate auto labeller</h1>
+    <nav><a href="area.html">Area finder</a><a href="index.html">Tutorial builder</a><a href="mosaic.html">Imagery merger</a><a href="results.html">Results map</a><a href="boxes.html" aria-current="page">Auto labeller</a><a href="../">Back to the guides</a></nav>
   </header>
 
   <main>
@@ -50,7 +50,7 @@
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-      <p class="hint">Tap an object, or drag around it. Dashed squares are the cells volunteers marked.</p>
+      <p class="hint">Tap an object, or drag around it. The bright cells inside the yellow line are the cells volunteers marked.</p>
       <div id="tile-bar">
         <p id="position"></p>
         <p id="status" aria-live="polite"></p>

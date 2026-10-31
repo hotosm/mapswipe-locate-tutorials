@@ -21,11 +21,11 @@ nav = [
   ] },
   { "Helpers" = [
     "helpers/index.md",
-    { "Area helper" = "builder/area.html" },
-    { "Scenario builder" = "builder/index.html" },
-    { "Mosaic helper" = "builder/mosaic.html" },
-    { "Results helper" = "builder/results.html" },
-    { "Box helper" = "builder/boxes.html" },
+    { "Area finder" = "builder/area.html" },
+    { "Tutorial builder" = "builder/index.html" },
+    { "Imagery merger" = "builder/mosaic.html" },
+    { "Results map" = "builder/results.html" },
+    { "Auto labeller" = "builder/boxes.html" },
   ] },
   { "Example" = [
     { "Water tanks in Banepa" = "examples/banepa-water-tanks.md" },

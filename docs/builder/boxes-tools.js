@@ -1,4 +1,4 @@
-import { imageryTemplate, passesThreshold, subGridSize } from "./results-tools.js";
+import { imageryTemplate, passesThreshold, subGridSize, tileFractionToLonLat } from "./results-tools.js";
 
 export const TILE_PIXELS = 256;
 
@@ -39,6 +39,21 @@ export function cellRectangle(cell, size, pixels) {
   return [left, top, left + side, top + side];
 }
 
+// The sides of marked cells that do not touch another marked cell, as [start, end] point pairs.
+export function markedAreaEdges(cells, size, pixels) {
+  const marked = new Set(cells);
+  const edges = [];
+  for (const cell of cells) {
+    const [left, top, right, bottom] = cellRectangle(cell, size, pixels);
+    const column = cell % size;
+    if (!marked.has(cell - size)) edges.push([[left, top], [right, top]]);
+    if (!marked.has(cell + size)) edges.push([[left, bottom], [right, bottom]]);
+    if (column === 0 || !marked.has(cell - 1)) edges.push([[left, top], [left, bottom]]);
+    if (column === size - 1 || !marked.has(cell + 1)) edges.push([[right, top], [right, bottom]]);
+  }
+  return edges;
+}
+
 // The smallest box around the set pixels of a mask stored row by row.
 export function maskBox(mask, width, height) {
   let [left, top, right, bottom] = [width, height, -1, -1];
@@ -64,11 +79,15 @@ export function restoredObjects(saved, tiles) {
   return { objects, index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
-function ringArea(ring) {
-  return Math.abs(ring.reduce((sum, [x1, y1], index) => {
+function signedRingArea(ring) {
+  return ring.reduce((sum, [x1, y1], index) => {
     const [x2, y2] = ring[(index + 1) % ring.length];
     return sum + x1 * y2 - x2 * y1;
-  }, 0)) / 2;
+  }, 0) / 2;
+}
+
+function ringArea(ring) {
+  return Math.abs(signedRingArea(ring));
 }
 
 // A mask comes back as one main shape plus specks; the outer ring of the largest polygon is the object's outline.
@@ -111,4 +130,53 @@ export function segmentLabels(outlines, pixels) {
 // Without a `path` line Ultralytics reads the folders next to this file. Training and validation both use all images.
 export function datasetYaml(objectName) {
   return `train: images\nval: images\nnames:\n  0: ${JSON.stringify(objectName)}\n`;
+}
+
+function pixelToLonLat(tile, [x, y], pixels) {
+  return tileFractionToLonLat(tile.x + x / pixels, tile.y + y / pixels, tile.zoom);
+}
+
+// RFC 7946 asks for counterclockwise outer rings, so a clockwise ring is reversed.
+function lonLatRing(tile, ring, pixels) {
+  const lonLat = ring.map((point) => pixelToLonLat(tile, point, pixels));
+  return signedRingArea(lonLat) < 0 ? lonLat.toReversed() : lonLat;
+}
+
+export function labelsGeojson(tiles, objects, { mode, objectName, pixels }) {
+  const features = tiles.flatMap((tile) =>
+    (objects.get(tile.id) ?? []).map(({ box, outline, source }) => ({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [lonLatRing(tile, mode === "segment" ? outline : boxOutline(box), pixels)] },
+      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, output: mode === "segment" ? "outline" : "box", source, marked_cells: tile.cells.length, imagery_url: tile.template },
+    })));
+  return { type: "FeatureCollection", features };
+}
+
+export function datasetReadme({ projectName, projectLink, threshold, modelName, mode, objectName, tiles, objectCount, pixels, detailLevels }) {
+  const templates = [...new Set(tiles.map((tile) => tile.template))];
+  return `# ${projectName}
+
+YOLO ${mode === "segment" ? "segmentation" : "detection"} dataset of "${objectName}", marked with the Locate auto labeller.
+
+- Project: ${projectLink}
+- Volunteer share: ${threshold}%
+- Model: ${modelName}
+- Images: ${tiles.length}, objects: ${objectCount}
+
+## Files
+
+- \`images/\`: one ${pixels} x ${pixels} JPEG per tile, named by tile ID (zoom-x-y).
+- \`labels/\`: one YOLO label file per image.
+- \`data.yaml\`: the dataset file for Ultralytics.
+- \`labels.geojson\`: every object as a polygon in longitude and latitude (EPSG:4326), with its tile, source and imagery.
+
+## Open in QGIS
+
+1. In the **Browser** panel, right-click **XYZ Tiles** and choose **New Connection**. Enter a **Name**, paste ${templates.length === 1 ? "this URL" : "one of these URLs"} into **URL**, tick **Max. Zoom Level** and set it to ${tiles[0].zoom + detailLevels}, and click **OK**.
+
+${templates.map((template) => `   \`\`\`text\n   ${template}\n   \`\`\``).join("\n\n")}
+
+2. Expand **XYZ Tiles** and double-click the new connection to add the imagery to the map.
+3. Drag \`labels.geojson\` into QGIS. It draws above the imagery.
+`;
 }

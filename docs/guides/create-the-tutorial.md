@@ -31,17 +31,17 @@ Click **Update tutorial** to save the page before going on.
 
 ## 4. Build the scenarios
 
-Open the [scenario builder](../builder/index.html) in a new browser tab.
+Open the [tutorial builder](../builder/index.html) in a new browser tab.
 
 1. Paste the same tile URL used in the project.
 2. Choose the processed tasks file.
 3. Click **Load**. The builder first checks that browsers can read the tile URL, then the project tiles appear on the map, and the imagery a few seconds later.
 
-![Scenario builder with the tile URL and tasks file](../assets/tutorial/builder-setup.png)
+![Tutorial builder with the tile URL and tasks file](../assets/tutorial/builder-setup.png)
 
 In the side panel, select the same **Sub-grid** size as the project. Zoom in with the **+** button or the mouse wheel until the features are clear, then click a tile to add it as a scenario. The tile opens on the right with its grid. Click each cell to set its answer: one click for **Single Feature** (green), two for **Multiple Features** (yellow), three to go back to **No**.
 
-![Scenario builder with a tile and its marked cells](../assets/tutorial/builder-scenario.png)
+![Clicking a tile, then its cells, in the tutorial builder](../assets/tutorial/tutorial-builder.gif){ loading=lazy }
 
 Add three to five scenarios that cover the cases volunteers will meet:
 

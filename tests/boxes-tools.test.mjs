@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, largestRing, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "../docs/builder/boxes-tools.js";
+import { boxOutline, cellRectangle, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, restoredObjects, savedObjectsKey, segmentLabels, yoloLabels } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -95,4 +95,66 @@ test("a hand-drawn box becomes a closed four-corner outline that labels as the b
   const outline = boxOutline([256, 512, 768, 1024]);
   assert.deepEqual(outline, [[256, 512], [768, 512], [768, 1024], [256, 1024], [256, 512]]);
   assert.equal(segmentLabels([outline], 1024), "0 0.250000 0.500000 0.750000 0.500000 0.750000 1.000000 0.250000 1.000000");
+});
+
+test("a lone cell has four edges and two side by side cells share no edge", () => {
+  assert.equal(markedAreaEdges([5], 4, 1024).length, 4);
+  const pair = markedAreaEdges([5, 6], 4, 1024);
+  assert.equal(pair.length, 6);
+  assert.ok(!pair.some(([[x1], [x2]]) => x1 === 512 && x2 === 512));
+});
+
+test("cells on the grid border keep their outer edge even where the index wraps to the next row", () => {
+  const edges = markedAreaEdges([3, 4], 4, 1024);
+  assert.equal(edges.length, 8);
+});
+
+const TILE = { id: "20-485848-499534", x: 485848, y: 499534, zoom: 20, size: 4, cells: [0, 1], template: "https://tiles.example/{z}/{x}/{y}" };
+
+const signedArea = (ring) => ring.slice(0, -1).reduce((sum, [x1, y1], index) => sum + x1 * ring[index + 1][1] - ring[index + 1][0] * y1, 0);
+
+test("a box covering the whole image becomes the tile's corners in longitude and latitude, as a closed ring", () => {
+  const objects = new Map([[TILE.id, [{ box: [0, 0, 1024, 1024], outline: [], source: "EdgeTAM" }]]]);
+  const [feature] = labelsGeojson([TILE], objects, { mode: "detect", objectName: "tank", pixels: 1024 }).features;
+  const ring = feature.geometry.coordinates[0];
+  const corners = ring.map(([lon, lat]) => `${lon.toFixed(9)},${lat.toFixed(9)}`);
+  assert.ok(corners.includes("-13.197326660,8.467618188"));
+  assert.ok(corners.includes("-13.196983337,8.467278608"));
+  assert.deepEqual(ring[0], ring.at(-1));
+  assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
+});
+
+test("boxes and outlines both come out with counterclockwise outer rings", () => {
+  const clockwiseInImage = [[0, 0], [512, 0], [512, 512], [0, 0]];
+  const counterclockwiseInImage = clockwiseInImage.toReversed();
+  for (const [mode, object] of [["detect", { box: [0, 0, 512, 512] }], ["segment", { outline: clockwiseInImage }], ["segment", { outline: counterclockwiseInImage }]]) {
+    const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ ...object, source: "EdgeTAM" }]]]), { mode, objectName: "tank", pixels: 1024 }).features;
+    assert.ok(signedArea(feature.geometry.coordinates[0]) > 0, `${mode} ${JSON.stringify(object)}`);
+  }
+});
+
+test("outlines use the outline points and tiles without objects add nothing", () => {
+  const objects = new Map([[TILE.id, [{ box: [0, 0, 1, 1], outline: [[512, 256], [1024, 256], [1024, 512], [512, 256]], source: "drawn by hand" }]], ["other", []]]);
+  const { features } = labelsGeojson([TILE, { ...TILE, id: "other" }], objects, { mode: "segment", objectName: "tank", pixels: 1024 });
+  assert.equal(features.length, 1);
+  assert.ok(features[0].geometry.coordinates[0].some((point) => Math.abs(point[0] + 13.197154998779297) < 1e-9 && Math.abs(point[1] - 8.46753329333681) < 1e-9));
+  assert.equal(features[0].geometry.coordinates[0].length, 4);
+  assert.equal(features[0].properties.output, "outline");
+  assert.equal(features[0].properties.source, "drawn by hand");
+});
+
+test("the readme lists each imagery URL once and the QGIS zoom of the stitched sub-tiles", () => {
+  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "segment", objectName: "tank", tiles: [TILE, { ...TILE, id: "20-485849-499534" }], objectCount: 3, pixels: 1024, detailLevels: 2 });
+  assert.equal(readme.split(TILE.template).length - 1, 1);
+  assert.match(readme, /set it to 22,/);
+  assert.match(readme, /YOLO segmentation dataset of "tank"/);
+  assert.match(readme, /Images: 2, objects: 3/);
+});
+
+test("with tiles on two imagery URLs the readme lists both and asks for one connection each", () => {
+  const second = { ...TILE, id: "20-485849-499534", template: "https://other.example/{z}/{x}/{y}.png" };
+  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "detect", objectName: "tank", tiles: [TILE, second], objectCount: 2, pixels: 1024, detailLevels: 2 });
+  assert.ok(readme.includes(TILE.template) && readme.includes(second.template));
+  assert.match(readme, /paste one of these URLs/);
+  assert.match(readme, /YOLO detection dataset/);
 });

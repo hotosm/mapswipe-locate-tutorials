@@ -6,7 +6,7 @@ import { EXAMPLE, checkTasks } from "../docs/builder/scenarios.js";
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../docs/examples/files/${name}`, import.meta.url)));
 
-test("the scenario builder's example button points at tasks that load", () => {
+test("the tutorial builder's example button points at tasks that load", () => {
   const tasks = JSON.parse(readFileSync(new URL(EXAMPLE.tasks, new URL("../docs/builder/", import.meta.url))));
   assert.doesNotThrow(() => checkTasks(tasks));
 });

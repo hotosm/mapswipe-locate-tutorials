@@ -71,7 +71,7 @@ export function passesThreshold(row, thresholdPercent) {
   return row.total_count > 0 && positiveCount(row) * 100 >= thresholdPercent * row.total_count;
 }
 
-function tileFractionToLonLat(x, y, zoom) {
+export function tileFractionToLonLat(x, y, zoom) {
   const size = 2 ** zoom;
   const longitude = (x / size) * 360 - 180;
   const latitude = (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / size))) * 180) / Math.PI;

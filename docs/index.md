@@ -38,7 +38,7 @@ The screenshots in these guides come from stage. The production manager has the 
 ## Before you start
 
 - A MapSwipe account with project manager rights. The manager login page says: "If you don't yet have access, please reach out to the MapSwipe community via Slack." Edit only projects you created.
-- The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area helper](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
+- The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area finder](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
 
 !!! note "Project naming"
     Set the **Project topic** as `fAIrSwipe - Country - Org/Name - Feature`, for example `fAIrSwipe - Nepal - HOT - Water Tanks`.

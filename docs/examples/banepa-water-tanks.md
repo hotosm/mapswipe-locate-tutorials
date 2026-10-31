@@ -10,7 +10,7 @@ This example ran on stage, following the guides from start to finish. It asks vo
 
 - [Area of interest](files/banepa-water-tanks-aoi.geojson): a rectangle of about 300 m by 300 m inside the imagery.
 - [Cover image](files/banepa-water-tanks-cover.jpg): a crop of the same imagery.
-- [Tutorial scenarios](files/banepa-water-tanks-scenarios.geojson): the three scenarios made with the [scenario builder](../builder/index.html).
+- [Tutorial scenarios](files/banepa-water-tanks-scenarios.geojson): the three scenarios made with the [tutorial builder](../builder/index.html).
 
 ## Project settings
 
@@ -54,16 +54,16 @@ Icons: **Tap** for instructions, **Information** for hints, **Check** for succes
 
 ## A finished project
 
-A second, smaller stage project ran through every step, from the [area helper](../builder/area.html) to QGIS:
+A second, smaller stage project ran through every step, from the [area finder](../builder/area.html) to QGIS:
 
 | Step | Result |
 |---|---|
-| Area | 4 by 3 tiles at zoom 20, drawn in the area helper, which estimated 12 tiles |
+| Area | 4 by 3 tiles at zoom 20, drawn in the area finder, which estimated 12 tiles |
 | Processing | 12 tasks |
 | Tutorial | An earlier copy of the tutorial above, with the same pages and scenarios |
 | Mapping | All 12 tiles mapped once in the web app, by looking at each tile |
 | Finish | **Finish** in the manager, with each tile mapped once (below 100%) |
 | Results | 192 rows, one per cell: 29 marked Single Feature, 10 Multiple Features |
-| QGIS | Cells kept at 50% in the [results helper](../builder/results.html), coloured by answer, as in [Use the results in QGIS](../guides/qgis.md) |
+| QGIS | Cells kept at 50% in the [results map](../builder/results.html), coloured by answer, as in [Use the results in QGIS](../guides/qgis.md) |
 
 ![Finished project results in QGIS](../assets/results/qgis-map.jpg)

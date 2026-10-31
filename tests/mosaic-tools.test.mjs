@@ -23,7 +23,7 @@ test("fewer than two different images is rejected, and a bad field is named by i
   assert.throws(() => parseImageIds(["", BANEPA, "not-an-image"]), /^Error: Image 3:/);
 });
 
-test("the mosaic tile URL lists every image and fills in to a tile request in the scenario builder", () => {
+test("the mosaic tile URL lists every image and fills in to a tile request in the tutorial builder", () => {
   assert.equal(
     tileImageUrl(mosaicTileUrl([BANEPA, TRAINING_CENTER]), 773386, 440490, 20),
     `https://api.imagery.hotosm.org/raster/collections/openaerialmap/tiles/WebMercatorQuad/20/773386/440490?ids=${BANEPA},${TRAINING_CENTER}&exitwhenfull=false&skipcovered=false&assets=visual&nodata=0`,

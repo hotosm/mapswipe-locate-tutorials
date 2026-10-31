@@ -48,7 +48,7 @@ export async function checkTileAccess(template, task, fetchTile = fetch) {
     await fetchTile(tileImageUrl(template, x, y, z));
   } catch (error) {
     if (!(error instanceof TypeError)) throw error;
-    throw new Error("Browsers cannot read tiles from this URL (no CORS headers, or the server cannot be reached), so the manager's tutorial preview would stay blank. Use a tile URL from api.imagery.hotosm.org, as the area helper and the mosaic helper give.", { cause: error });
+    throw new Error("Browsers cannot read tiles from this URL (no CORS headers, or the server cannot be reached), so the manager's tutorial preview would stay blank. Use a tile URL from api.imagery.hotosm.org, as the area finder and the imagery merger give.", { cause: error });
   }
 }
 

@@ -13,11 +13,11 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 ![Copy TMS on imagery.hotosm.org](../assets/create/imagery-copy-tms.png)
 
 ??? note "Area across several images"
-    Most projects use one image; skip this when yours does. When the area needs several images, merge them in the [mosaic helper](../helpers/index.md#mosaic-helper) and use its tile URL in step 5. The area helper cuts the area of interest to one image, so draw the rectangle in a tool such as <https://geojson.io> and save it as `area-of-interest.geojson`.
+    Most projects use one image; skip this when yours does. When the area needs several images, merge them in the [imagery merger](../helpers/index.md#imagery-merger) and use its tile URL in step 5. The area finder cuts the area of interest to one image, so draw the rectangle in a tool such as <https://geojson.io> and save it as `area-of-interest.geojson`.
 
-Open the [area helper](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as water tanks, see step 5); the tile estimates follow it.
+Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as water tanks, see step 5); the tile estimates follow it.
 
-![Area helper with the imagery footprint](../assets/create/area-helper-footprint.png)
+![Area finder with the imagery footprint](../assets/create/area-helper-footprint.png)
 
 Then:
 
@@ -28,7 +28,7 @@ Then:
 
 **Download footprint** saves the outline of the whole image, if you want to keep it.
 
-![Area of interest drawn and cut to the imagery](../assets/create/area-helper-area.png)
+![Drawing an area of interest, which the area finder cuts to the imagery](../assets/create/area-finder.gif){ loading=lazy }
 
 ## 2. Start a new project
 
