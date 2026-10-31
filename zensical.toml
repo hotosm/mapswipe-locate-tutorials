@@ -25,6 +25,7 @@ nav = [
     { "Scenario builder" = "builder/index.html" },
     { "Mosaic helper" = "builder/mosaic.html" },
     { "Results helper" = "builder/results.html" },
+    { "Box helper" = "builder/boxes.html" },
   ] },
   { "Example" = [
     { "Water tanks in Banepa" = "examples/banepa-water-tanks.md" },

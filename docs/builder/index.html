@@ -5,39 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Locate scenario builder</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
   <header>
     <h1>Locate scenario builder</h1>
-    <nav><a href="area.html">Area helper</a> · <a href="mosaic.html">Mosaic helper</a> · <a href="results.html">Results helper</a> · <a href="../">Back to the guides</a></nav>
+    <nav><a href="area.html">Area helper</a><a href="index.html" aria-current="page">Scenario builder</a><a href="mosaic.html">Mosaic helper</a><a href="results.html">Results helper</a><a href="boxes.html">Box helper</a><a href="../">Back to the guides</a></nav>
   </header>
 
-  <form id="setup">
-    <label>
-      <span>1. Tile URL</span>
-      <input id="tile-url" type="url" placeholder="https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/.../tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&amp;nodata=0" required>
-    </label>
-    <label>
-      <span>2. Processed tasks GeoJSON</span>
-      <input id="tasks-file" type="file" accept=".geojson,.json" required>
-    </label>
-    <label>
-      <span>3. Sub-grid size</span>
-      <select id="sub-grid">
-        <option value="2">2x2</option>
-        <option value="4" selected>4x4</option>
-        <option value="8">8x8</option>
-      </select>
-    </label>
-    <button type="submit">Load</button>
-    <button id="example" type="button" class="secondary">Load Banepa example</button>
-  </form>
-
   <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Load the project tiles</h2>
+        <label>
+          <span>Tile URL</span>
+          <input id="tile-url" type="url" placeholder="https://.../{z}/{x}/{y}..." required>
+        </label>
+        <label>
+          <span>Processed tasks file</span>
+          <input id="tasks-file" type="file" accept=".geojson,.json" required>
+        </label>
+        <div class="actions">
+          <button type="submit">Load</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Banepa example</button>
+      </div>
+    </form>
     <div id="map"></div>
     <aside>
-      <p id="status">Load the tile URL and the tasks file, then click a task on the map to add it as a scenario.</p>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p id="status" aria-live="polite"></p>
+      <fieldset id="sub-grid-sizes" class="choices">
+        <legend>Sub-grid</legend>
+        <label><input type="radio" name="sub-grid" value="2"> 2x2</label>
+        <label><input type="radio" name="sub-grid" value="4" checked> 4x4</label>
+        <label><input type="radio" name="sub-grid" value="8"> 8x8</label>
+      </fieldset>
       <div id="editor" hidden>
         <h2 id="editor-title"></h2>
         <div id="tile">
@@ -45,18 +52,17 @@
           <div id="cells"></div>
         </div>
         <p class="legend">
-          <span>Click a cell to change its answer:</span>
+          <span>Click a cell to change it:</span>
           <span><span class="swatch answer-0"></span>No</span>
           <span><span class="swatch answer-1"></span>Single Feature</span>
           <span><span class="swatch answer-2"></span>Multiple Features</span>
         </p>
-        <button id="remove" type="button">Remove this scenario</button>
+        <button id="remove" type="button" class="secondary">Remove scenario</button>
       </div>
       <ol id="scenario-list"></ol>
-      <button id="download" type="button" disabled>4. Download scenarios</button>
+      <button id="download" type="button" disabled>Download scenarios</button>
     </aside>
   </main>
-
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script type="module" src="app.js"></script>
 </body>

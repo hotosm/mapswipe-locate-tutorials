@@ -5,33 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Locate results helper</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
   <header>
     <h1>Locate results helper</h1>
-    <nav><a href="area.html">Area helper</a> · <a href="index.html">Scenario builder</a> · <a href="mosaic.html">Mosaic helper</a> · <a href="../">Back to the guides</a></nav>
+    <nav><a href="area.html">Area helper</a><a href="index.html">Scenario builder</a><a href="mosaic.html">Mosaic helper</a><a href="results.html" aria-current="page">Results helper</a><a href="boxes.html">Box helper</a><a href="../">Back to the guides</a></nav>
   </header>
 
-  <form id="setup">
-    <label>
-      <span>1. Aggregated Results link (.csv.gz)</span>
-      <input id="results-url" type="url" placeholder="https://backend.mapswipe.org/media/project/.../agg_results_by_task_....csv.gz">
-    </label>
-    <label>
-      <span>or a downloaded file (.csv or .csv.gz)</span>
-      <input id="results-file" type="file" accept=".csv,.gz">
-    </label>
-    <button type="submit">Load</button>
-    <button id="example" type="button" class="secondary">Load Freetown example</button>
-  </form>
-
   <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Load a finished project</h2>
+        <label>
+          <span>Project link</span>
+          <input id="project-link" type="url" placeholder="https://mapswipe.org/en/projects/..." required>
+        </label>
+        <div class="actions">
+          <button type="submit">Load</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Freetown example</button>
+      </div>
+    </form>
     <div id="map"></div>
     <aside>
-      <p id="status">Load the Aggregated Results of a finished Locate project.</p>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p id="status" aria-live="polite"></p>
       <label>
-        <span>2. Keep cells marked by at least this share of volunteers: <output id="threshold-value">50%</output></span>
+        <span>Volunteer share: <output id="threshold-value">50%</output></span>
         <input id="threshold" type="range" min="1" max="100" value="50">
       </label>
       <p class="legend">
@@ -39,11 +44,10 @@
         <span><span class="swatch cell-multiple"></span>Multiple Features</span>
         <span id="answer-counts"></span>
       </p>
-      <p class="hint">Click a cell on the map to see its properties.</p>
-      <button id="download" type="button" disabled>3. Download cells</button>
+      <p class="hint">Click a cell to see its votes.</p>
+      <button id="download" type="button" disabled>Download cells</button>
     </aside>
   </main>
-
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script type="module" src="results.js"></script>

@@ -15,7 +15,7 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 ??? note "Area across several images"
     Most projects use one image; skip this when yours does. When the area needs several images, merge them in the [mosaic helper](../helpers/index.md#mosaic-helper) and use its tile URL in step 5. The area helper cuts the area of interest to one image, so draw the rectangle in a tool such as <https://geojson.io> and save it as `area-of-interest.geojson`.
 
-Open the [area helper](../builder/area.html), paste the address, choose the zoom level the project will use (20 for small objects such as water tanks, see step 5), and click **Load**. The red line shows where the image has imagery; white and black edges are left out.
+Open the [area helper](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as water tanks, see step 5); the tile estimates follow it.
 
 ![Area helper with the imagery footprint](../assets/create/area-helper-footprint.png)
 

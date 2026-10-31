@@ -5,36 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Locate area helper</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
   <header>
     <h1>Locate area helper</h1>
-    <nav><a href="index.html">Scenario builder</a> · <a href="mosaic.html">Mosaic helper</a> · <a href="results.html">Results helper</a> · <a href="../">Back to the guides</a></nav>
+    <nav><a href="area.html" aria-current="page">Area helper</a><a href="index.html">Scenario builder</a><a href="mosaic.html">Mosaic helper</a><a href="results.html">Results helper</a><a href="boxes.html">Box helper</a><a href="../">Back to the guides</a></nav>
   </header>
 
-  <form id="setup">
-    <label>
-      <span>1. Image from imagery.hotosm.org (link, Copy TMS URL or ID)</span>
-      <input id="image" type="text" placeholder="https://imagery.hotosm.org/browse?...&amp;selected_id=..." required>
-    </label>
-    <label>
-      <span>2. Project zoom level</span>
-      <select id="zoom">
-        <option value="18">18</option>
-        <option value="19">19</option>
-        <option value="20" selected>20</option>
-        <option value="21">21</option>
-      </select>
-    </label>
-    <button type="submit">Load</button>
-    <button id="example" type="button" class="secondary">Load Banepa example</button>
-  </form>
-
   <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Load an image</h2>
+        <label>
+          <span>Image from imagery.hotosm.org</span>
+          <input id="image" type="text" placeholder="Browse link, TMS URL or image ID" required>
+        </label>
+        <div class="actions">
+          <button type="submit">Load</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Banepa example</button>
+      </div>
+    </form>
     <div id="map"></div>
     <aside>
-      <p id="status">Paste an image, then click Load. The page finds where the image has real imagery.</p>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p id="status" aria-live="polite"></p>
+      <fieldset id="zoom-levels" class="choices">
+        <legend>Project zoom</legend>
+        <label><input type="radio" name="zoom" value="18"> 18</label>
+        <label><input type="radio" name="zoom" value="19"> 19</label>
+        <label><input type="radio" name="zoom" value="20" checked> 20</label>
+        <label><input type="radio" name="zoom" value="21"> 21</label>
+      </fieldset>
       <dl id="details" hidden>
         <dt>Tile URL for the manager</dt>
         <dd><code id="tile-url"></code></dd>
@@ -43,13 +50,12 @@
         <dt>Area of interest</dt>
         <dd id="area-size">Not drawn yet</dd>
       </dl>
-      <button id="download-footprint" type="button" disabled>Download footprint</button>
-      <button id="draw" type="button" disabled>3. Draw area of interest</button>
-      <button id="download-area" type="button" disabled>4. Download area of interest</button>
-      <button id="cover" type="button" disabled>5. Save map view as cover image</button>
+      <button id="draw" type="button" disabled>Draw area of interest</button>
+      <button id="download-area" type="button" disabled>Download area of interest</button>
+      <button id="cover" type="button" disabled>Save map view as cover image</button>
+      <button id="download-footprint" type="button" class="secondary" disabled>Download footprint</button>
     </aside>
   </main>
-
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.4.0/turf.min.js"></script>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locate box helper</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+  <header>
+    <h1>Locate box helper</h1>
+    <nav><a href="area.html">Area helper</a><a href="index.html">Scenario builder</a><a href="mosaic.html">Mosaic helper</a><a href="results.html">Results helper</a><a href="boxes.html" aria-current="page">Box helper</a><a href="../">Back to the guides</a></nav>
+  </header>
+
+  <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Load a finished project</h2>
+        <label>
+          <span>Project link</span>
+          <input id="project-link" type="url" placeholder="https://mapswipe.org/en/projects/..." required>
+        </label>
+        <label>
+          <span>Volunteer share (%)</span>
+          <input id="threshold" type="number" min="1" max="100" value="50">
+        </label>
+        <label>
+          <span>Model</span>
+          <select id="model">
+            <option value="onnx-community/EdgeTAM-ONNX" data-name="EdgeTAM" data-size="41 MB" selected>EdgeTAM, runs in this browser</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button type="submit">Load</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Freetown example</button>
+      </div>
+    </form>
+    <div id="stage-area">
+      <div id="stage">
+        <canvas id="tile-canvas" width="1024" height="1024"></canvas>
+        <canvas id="box-canvas" width="1024" height="1024"></canvas>
+        <button id="draw" type="button" class="secondary" aria-pressed="false" disabled>Draw</button>
+      </div>
+    </div>
+    <aside>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
+      <p class="hint">Tap an object, or drag around it. Dashed squares are the cells volunteers marked.</p>
+      <div id="tile-bar">
+        <p id="position"></p>
+        <p id="status" aria-live="polite"></p>
+        <div>
+          <button id="previous" type="button" class="secondary" disabled>Previous</button>
+          <button id="undo" type="button" class="secondary" disabled>Undo</button>
+          <button id="next" type="button" class="secondary" disabled>Next</button>
+        </div>
+      </div>
+      <fieldset class="choices">
+        <legend>Output</legend>
+        <label><input type="radio" name="mode" value="detect" checked> Boxes</label>
+        <label><input type="radio" name="mode" value="segment"> Outlines</label>
+      </fieldset>
+      <label>
+        <span>Object name</span>
+        <input id="object-name" type="text" value="solar panel">
+      </label>
+      <button id="download" type="button" disabled>Download dataset</button>
+    </aside>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="boxes.js"></script>
+</body>
+</html>

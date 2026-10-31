@@ -1,7 +1,9 @@
 import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
+import { foldSetup, setStatus } from "./setup-card.js";
 
 const state = { tileUrl: "", tasks: null, subGridSize: 4, scenarios: [], active: -1 };
 const element = (id) => document.getElementById(id);
+const chosenSubGrid = () => Number(document.querySelector('input[name="sub-grid"]:checked').value);
 
 const map = new maplibregl.Map({
   container: "map",
@@ -10,10 +12,6 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
-
-function setStatus(message) {
-  element("status").textContent = message;
-}
 
 function replaceSource(id, source) {
   for (const layer of map.getStyle().layers.filter((layer) => layer.source === id)) map.removeLayer(layer.id);
@@ -83,12 +81,13 @@ async function load(tasks) {
   await checkTileAccess(tileUrl, tasks.features[0]);
   state.tasks = tasks;
   state.tileUrl = tileUrl;
-  state.subGridSize = Number(element("sub-grid").value);
+  state.subGridSize = chosenSubGrid();
   state.scenarios = [];
   state.active = -1;
   showImagery(taskBounds(tasks));
   showTasks(tasks);
-  setStatus(`${tasks.features.length} tasks loaded. Zoom in with the + button or the mouse wheel to see the features, then click a task to add it as a scenario.`);
+  foldSetup(`${tasks.features.length} tasks`);
+  setStatus("Click a task to add it as a scenario.");
   render();
 }
 
@@ -97,7 +96,7 @@ element("example").addEventListener("click", async () => {
     const response = await fetch(EXAMPLE.tasks);
     if (!response.ok) throw new Error(`The example tasks failed to load (HTTP ${response.status}).`);
     element("tile-url").value = EXAMPLE.tileUrl;
-    element("sub-grid").value = "4";
+    document.querySelector('input[name="sub-grid"][value="4"]').checked = true;
     await load(await response.json());
   } catch (error) {
     console.error(error);
@@ -105,10 +104,10 @@ element("example").addEventListener("click", async () => {
   }
 });
 
-element("sub-grid").addEventListener("change", () => {
-  state.subGridSize = Number(element("sub-grid").value);
+element("sub-grid-sizes").addEventListener("change", () => {
+  state.subGridSize = chosenSubGrid();
   for (const scenario of state.scenarios) scenario.references = emptyReferences(state.subGridSize);
-  if (state.scenarios.length) setStatus("Sub-grid size changed, so every scenario's answers were reset.");
+  if (state.scenarios.length) setStatus("Sub-grid changed, so every scenario's answers were reset.");
   render();
 });
 

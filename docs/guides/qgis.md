@@ -8,7 +8,7 @@ This page puts the cells volunteers marked on the map in QGIS, over the project 
 
 ## 1. Get the marked cells
 
-Open the [results helper](../builder/results.html). Paste the **Aggregated Results** link from [Download the results](download-results.md), or choose the downloaded file, and click **Load**. Move the slider to the share of volunteers a cell needs, for example 50%, and click **Download cells**.
+Open the [results helper](../builder/results.html). Paste the project link, the address of the project page on the MapSwipe website (see [Download the results](download-results.md)), and click **Load**. Move the **Volunteer share** slider to the share of volunteers a cell needs, for example 50%, and click **Download cells**.
 
 The file has one square per kept cell, with `tile_id`, `cell_index`, `majority_answer`, `single_feature_votes`, `multiple_features_votes`, `volunteers_total` and `feature_vote_percent`. The [helpers page](../helpers/index.md#results-helper) explains each property. Click a cell on the helper's map to see its values.
 

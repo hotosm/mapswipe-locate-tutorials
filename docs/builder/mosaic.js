@@ -1,4 +1,5 @@
 import { EXAMPLE_IMAGES, mosaicTileUrl, parseImageIds, unionBounds } from "./mosaic-tools.js";
+import { foldSetup, setStatus } from "./setup-card.js";
 
 const STAC_ITEMS = "https://api.imagery.hotosm.org/stac/collections/openaerialmap/items";
 const element = (id) => document.getElementById(id);
@@ -10,10 +11,6 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
-
-function setStatus(message) {
-  element("status").textContent = message;
-}
 
 function replaceSource(id, source, layer) {
   if (map.getLayer(id)) map.removeLayer(id);
@@ -34,7 +31,7 @@ function addImageInput(value = "") {
   const input = document.createElement("input");
   input.type = "text";
   input.value = value;
-  input.placeholder = "https://imagery.hotosm.org/browse?...&selected_id=...";
+  input.placeholder = "Browse link, TMS URL or image ID";
   input.setAttribute("aria-label", "Image link, Copy TMS URL or ID");
   const remove = document.createElement("button");
   remove.type = "button";
@@ -71,8 +68,6 @@ function showImageList(items) {
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
-  element("details").hidden = true;
-  element("copy").disabled = true;
   try {
     const ids = parseImageIds(imageValues());
     setStatus(`Merging ${ids.length} images...`);
@@ -89,7 +84,8 @@ element("setup").addEventListener("submit", async (event) => {
     showImageList(items);
     element("details").hidden = false;
     element("copy").disabled = false;
-    setStatus("The map shows the merged imagery. Red lines are the image outlines. Use the tile URL in the manager and the scenario builder.");
+    foldSetup(`${ids.length} images merged`);
+    setStatus("Red lines are the image outlines.");
   } catch (error) {
     console.error(error);
     setStatus(error.message);

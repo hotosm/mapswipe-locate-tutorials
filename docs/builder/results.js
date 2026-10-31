@@ -1,4 +1,6 @@
-import { EXAMPLE_RESULTS, checkResults, checkResultsLink, imageryTemplate, isGzip, resultsBounds, selectCells } from "./results-tools.js";
+import { EXAMPLE_PROJECT, imageryTemplate, resultsBounds, selectCells } from "./results-tools.js";
+import { loadProject } from "./results-file.js";
+import { foldSetup, setStatus } from "./setup-card.js";
 
 const state = { rows: null, name: "", cells: null };
 const element = (id) => document.getElementById(id);
@@ -10,23 +12,6 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
-
-function setStatus(message) {
-  element("status").textContent = message;
-}
-
-async function readText(blob) {
-  const bytes = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
-  if (!isGzip(bytes)) return blob.text();
-  return new Response(blob.stream().pipeThrough(new DecompressionStream("gzip"))).text();
-}
-
-function parseCsv(text) {
-  const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
-  if (parsed.errors.length > 0) throw new Error(`The CSV could not be read: ${parsed.errors[0].message} (row ${parsed.errors[0].row}).`);
-  checkResults(parsed.data);
-  return parsed.data;
-}
 
 function threshold() {
   return Number(element("threshold").value);
@@ -40,7 +25,7 @@ function showCells() {
   const tiles = new Set(state.rows.map((row) => row.task_id)).size;
   const multiple = state.cells.features.filter((cell) => cell.properties.majority_answer === "Multiple Features").length;
   element("answer-counts").textContent = `${state.cells.features.length - multiple} Single Feature, ${multiple} Multiple Features`;
-  setStatus(`${state.cells.features.length} of ${state.rows.length} cells in ${tiles} tiles were marked by at least ${threshold()}% of volunteers.`);
+  setStatus(`${state.cells.features.length} of ${state.rows.length} cells kept, in ${tiles} tiles.`);
   element("download").disabled = state.cells.features.length === 0;
 }
 
@@ -61,44 +46,30 @@ function showResults(rows) {
   map.fitBounds(bounds, { padding: 20 });
 }
 
-async function load(name, blob) {
+// The page address carries the link, so copying the address shares these results.
+async function load(link) {
   setStatus("Reading the results...");
-  const rows = parseCsv(await readText(blob));
+  const { name, fileName, rows } = await loadProject(link);
   showResults(rows);
   state.rows = rows;
-  state.name = name.replace(/\.gz$/, "").replace(/\.csv$/, "");
+  state.name = fileName;
   showCells();
+  foldSetup(name);
+  history.replaceState(null, "", `?project=${encodeURIComponent(link)}`);
 }
 
-// The page address carries the link, so copying the address shares these results.
-async function loadUrl(link) {
-  const url = checkResultsLink(link);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`The results file failed to load (HTTP ${response.status}).`);
-  await load(new URL(url).pathname.split("/").pop(), await response.blob());
-  history.replaceState(null, "", `?results=${encodeURIComponent(url)}`);
+function showError(error) {
+  console.error(error);
+  setStatus(error.message);
 }
 
-element("setup").addEventListener("submit", async (event) => {
+element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  try {
-    const file = element("results-file").files[0];
-    const url = element("results-url").value.trim();
-    if (url) await loadUrl(url);
-    else if (file) {
-      await load(file.name, file);
-      history.replaceState(null, "", location.pathname);
-    }
-    else throw new Error("Paste a results link or choose a file.");
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message);
-  }
+  load(element("project-link").value.trim()).catch(showError);
 });
 
 element("example").addEventListener("click", () => {
-  element("results-file").value = "";
-  element("results-url").value = EXAMPLE_RESULTS;
+  element("project-link").value = EXAMPLE_PROJECT;
   element("setup").requestSubmit();
 });
 
@@ -129,13 +100,10 @@ element("download").addEventListener("click", () => {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 });
 
-element("results-file").addEventListener("change", () => { element("results-url").value = ""; });
-
-const sharedLink = new URLSearchParams(location.search).get("results");
+// The results parameter carries a direct results link, which the project link field also reads.
+const params = new URLSearchParams(location.search);
+const sharedLink = params.get("project") ?? params.get("results");
 if (sharedLink) {
-  element("results-url").value = sharedLink;
-  loadUrl(sharedLink).catch((error) => {
-    console.error(error);
-    setStatus(error.message);
-  });
+  element("project-link").value = sharedLink;
+  load(sharedLink).catch(showError);
 }

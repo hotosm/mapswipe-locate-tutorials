@@ -5,38 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Locate mosaic helper</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
   <header>
     <h1>Locate mosaic helper</h1>
-    <nav><a href="area.html">Area helper</a> · <a href="index.html">Scenario builder</a> · <a href="results.html">Results helper</a> · <a href="../">Back to the guides</a></nav>
+    <nav><a href="area.html">Area helper</a><a href="index.html">Scenario builder</a><a href="mosaic.html" aria-current="page">Mosaic helper</a><a href="results.html">Results helper</a><a href="boxes.html">Box helper</a><a href="../">Back to the guides</a></nav>
   </header>
 
-  <form id="setup">
-    <fieldset>
-      <legend>1. Images from imagery.hotosm.org (link, Copy TMS URL or ID)</legend>
-      <div id="image-inputs"></div>
-      <button id="add-image" type="button" class="secondary">Add image</button>
-    </fieldset>
-    <button type="submit">Merge</button>
-    <button id="example" type="button" class="secondary">Load Banepa example</button>
-  </form>
-
   <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Merge images</h2>
+        <fieldset>
+          <legend>Images from imagery.hotosm.org</legend>
+          <div id="image-inputs"></div>
+          <button id="add-image" type="button" class="secondary">Add image</button>
+        </fieldset>
+        <div class="actions">
+          <button type="submit">Merge</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Banepa example</button>
+      </div>
+    </form>
     <div id="map"></div>
     <aside>
-      <p id="status">Add two or more images, then click Merge. The newest image is drawn on top where they overlap.</p>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p id="status" aria-live="polite"></p>
       <dl id="details" hidden>
         <dt>Tile URL for the manager</dt>
         <dd><code id="tile-url"></code></dd>
         <dt>Images</dt>
         <dd><ol id="image-list"></ol></dd>
       </dl>
-      <button id="copy" type="button" disabled>2. Copy tile URL</button>
+      <button id="copy" type="button" disabled>Copy tile URL</button>
     </aside>
   </main>
-
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script type="module" src="mosaic.js"></script>
 </body>

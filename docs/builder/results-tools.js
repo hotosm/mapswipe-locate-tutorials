@@ -1,16 +1,41 @@
-export const EXAMPLE_RESULTS = "https://backend.mapswipe.org/media/project/3451/asset/export/01M4XMNSMS88HMY96H3P356DR0/agg_results_by_task_3451.csv.gz";
+export const EXAMPLE_PROJECT = "https://mapswipe.org/en/projects/01M4XM3A1B2WV1T04A8SHV2DBK/";
 
 const REQUIRED_COLUMNS = ["task_id", "task_partition_index", "0_count", "1_count", "total_count", "tile_x", "tile_y", "tile_z", "url"];
 
 const RESULTS_HOSTS = ["backend.mapswipe.org", "backend-stage.mapswipe.org"];
+const WEBSITE_HOSTS = ["mapswipe.org", "website-stage.mapswipe.org"];
+const PROJECT_PATH = /^\/[a-z]{2}\/projects\/[0-9A-Za-z]+\/?$/;
 
-// A shared page address makes the viewer's browser fetch the link, so only MapSwipe export hosts are read.
-export function checkResultsLink(link) {
+function httpsUrl(link, hosts) {
   const url = URL.canParse(link) ? new URL(link) : null;
-  if (!url || url.protocol !== "https:" || !RESULTS_HOSTS.includes(url.hostname) || url.port || url.username || url.password) {
-    throw new Error(`Only results links from ${RESULTS_HOSTS.join(" or ")} are read. Download the file and choose it instead.`);
-  }
+  const plain = url && url.protocol === "https:" && !url.port && !url.username && !url.password;
+  return plain && hosts.includes(url.hostname) ? url : null;
+}
+
+// A shared page address makes the viewer's browser fetch the link, so only MapSwipe hosts are read.
+export function checkResultsLink(link) {
+  const url = httpsUrl(link, RESULTS_HOSTS);
+  if (!url) throw new Error(`Only results links from ${RESULTS_HOSTS.join(" or ")} are read.`);
   return url.href;
+}
+
+// Website project pages are static and readable from any site; stage projects are often missing there, so direct results links are read too.
+export function projectLink(link) {
+  const page = httpsUrl(link, WEBSITE_HOSTS);
+  if (page && PROJECT_PATH.test(page.pathname)) return { page: page.href };
+  if (httpsUrl(link, RESULTS_HOSTS)) return { results: checkResultsLink(link) };
+  throw new Error("Paste the project page link from mapswipe.org, for example https://mapswipe.org/en/projects/<id>/.");
+}
+
+// The website embeds each project's data, export links included, as JSON in the page.
+export function projectResults(html) {
+  const data = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s);
+  if (!data) throw new Error("This page has no project data.");
+  const project = JSON.parse(data[1]).props?.pageProps;
+  if (!project) throw new Error("This page has no project data.");
+  const link = project.exportAggregatedResults?.file?.url;
+  if (!link) throw new Error(`${project.name ?? "This project"} has no Aggregated Results yet.`);
+  return { name: project.name, results: checkResultsLink(link) };
 }
 
 export function isGzip(bytes) {
@@ -92,8 +117,17 @@ export function resultsBounds(rows) {
   return [tileFractionToLonLat(west, south + 1, zoom), tileFractionToLonLat(east + 1, north, zoom)];
 }
 
+const OPENAERIALMAP_TILES = /^https?:\/\/tiles\.openaerialmap\.org\/([0-9a-f]+\/\d+\/[0-9a-f]+)\/\{z\}\/\{x\}\/\{y\}(\.png)?$/;
+
+// tiles.openaerialmap.org answers with a redirect to this titiler address that carries no CORS header, so browsers stop there.
+function browserReadableTemplate(template) {
+  const openAerialMap = template.match(OPENAERIALMAP_TILES);
+  if (!openAerialMap) return template;
+  return `https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=https://oin-hotosm-temp.s3.us-east-1.amazonaws.com/${openAerialMap[1]}.tif`;
+}
+
 export function imageryTemplate({ url, tile_z: zoom, tile_x: x, tile_y: y }) {
   const tilePath = `/${zoom}/${x}/${y}`;
   if (!url.includes(tilePath)) throw new Error(`The imagery URL does not contain the tile path ${tilePath}.`);
-  return url.replace(tilePath, "/{z}/{x}/{y}");
+  return browserReadableTemplate(url.replace(tilePath, "/{z}/{x}/{y}"));
 }

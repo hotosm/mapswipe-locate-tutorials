@@ -1,4 +1,5 @@
 import { imageryMask, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
+import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
 const PREVIEW_SIZE = 1024;
@@ -8,6 +9,7 @@ const MIN_PATCH_SQUARE_METRES = 2000;
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?lat=27.6337&lon=85.5228&zoom=13.4&selected_id=62d86c65d8499800053796c4";
 const state = { footprint: null, area: null, zoom: 20 };
 const element = (id) => document.getElementById(id);
+const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
 
 const map = new maplibregl.Map({
   container: "map",
@@ -17,10 +19,6 @@ const map = new maplibregl.Map({
   canvasContextAttributes: { preserveDrawingBuffer: true },
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
-
-function setStatus(message) {
-  element("status").textContent = message;
-}
 
 function download(name, blob) {
   const link = document.createElement("a");
@@ -76,14 +74,10 @@ async function findFootprint(imageId, bbox) {
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
-  state.footprint = null;
-  state.area = null;
-  element("details").hidden = true;
-  for (const id of ["download-footprint", "draw", "download-area", "cover"]) element(id).disabled = true;
   try {
     const imageId = parseImageId(element("image").value);
-    state.zoom = Number(element("zoom").value);
-    setStatus("Loading the image and finding its footprint...");
+    state.zoom = chosenZoom();
+    setStatus("Loading the image...");
     const response = await fetch(`${API}/stac/collections/openaerialmap/items/${imageId}`);
     if (!response.ok) throw new Error(`Image ${imageId} was not found (HTTP ${response.status}).`);
     const item = await response.json();
@@ -107,7 +101,9 @@ element("setup").addEventListener("submit", async (event) => {
     element("area-size").textContent = "Not drawn yet";
     element("details").hidden = false;
     for (const id of ["download-footprint", "draw", "cover"]) element(id).disabled = false;
-    setStatus(`${item.properties?.title ?? imageId}: the red line is where the image has imagery. Draw the area volunteers will map inside it.`);
+    element("download-area").disabled = true;
+    foldSetup(item.properties?.title ?? imageId);
+    setStatus("The red line shows where the image has imagery.");
   } catch (error) {
     console.error(error);
     setStatus(error.message);
@@ -116,18 +112,18 @@ element("setup").addEventListener("submit", async (event) => {
 
 element("example").addEventListener("click", () => {
   element("image").value = EXAMPLE_IMAGE;
-  element("zoom").value = "20";
+  document.querySelector('input[name="zoom"][value="20"]').checked = true;
   element("setup").requestSubmit();
 });
 
-element("zoom").addEventListener("change", () => {
-  state.zoom = Number(element("zoom").value);
+element("zoom-levels").addEventListener("change", () => {
+  state.zoom = chosenZoom();
   if (state.footprint) element("footprint-size").textContent = describeSize(state.footprint);
   if (state.area) element("area-size").textContent = describeSize(state.area);
 });
 
 element("draw").addEventListener("click", () => {
-  setStatus("Press and drag on the map to draw a rectangle.");
+  setStatus("Drag on the map to draw a rectangle.");
   element("draw").disabled = true;
   map.dragPan.disable();
   map.getCanvas().style.cursor = "crosshair";
@@ -145,14 +141,14 @@ element("draw").addEventListener("click", () => {
     const clipped = turf.intersect(turf.featureCollection([rectangle(event.lngLat.wrap()), state.footprint]));
     if (!clipped) {
       showLayer("area", turf.featureCollection([]), {});
-      setStatus("The rectangle has no imagery inside it. Draw again inside the red line.");
+      setStatus("No imagery there. Draw inside the red line.");
       return;
     }
     state.area = clipped;
     showLayer("area", clipped, {});
     element("area-size").textContent = describeSize(clipped);
     element("download-area").disabled = false;
-    setStatus("The yellow line is the area of interest, cut to the imagery. Download it, or draw again.");
+    setStatus("The yellow line is the area of interest, cut to the imagery.");
   };
   map.once("mousedown", (event) => {
     start = event.lngLat.wrap();
