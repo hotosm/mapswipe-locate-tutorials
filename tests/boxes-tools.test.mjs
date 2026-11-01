@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, ringBox, rotatedBox, savedObjectsKey, segmentLabels, yoloLabels } from "../docs/builder/boxes-tools.js";
+import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -53,18 +53,13 @@ test("a small or straight-line movement is a click and a drag in any direction g
   assert.deepEqual(dragBox([900, 50], [1100, -20], 1024), [900, 0, 1024, 50]);
 });
 
-test("YOLO labels give the box centre and size as shares of the image side", () => {
-  assert.equal(yoloLabels([[0, 0, 512, 256], [256, 512, 1024, 1024]], 1024), "0 0.250000 0.125000 0.500000 0.250000\n0 0.625000 0.750000 0.750000 0.500000");
-  assert.equal(yoloLabels([], 1024), "");
-});
-
 test("the dataset file names the object as a quoted YAML string", () => {
   assert.equal(datasetYaml('solar "panel"'), 'train: images\nval: images\nnames:\n  0: "solar \\"panel\\""\n');
 });
 
 test("restored objects keep only listed tiles and reopen the saved tile, or the first tile when it is gone", () => {
   const tiles = [{ id: "20-1-1" }, { id: "20-2-1" }];
-  const object = { box: [0, 0, 10, 10], outline: [[0, 0], [10, 0], [10, 10], [0, 0]] };
+  const object = { outline: [[0, 0], [10, 0], [10, 10], [0, 0]] };
   const restored = restoredObjects({ tile: "20-2-1", objects: { "20-2-1": [object], "20-9-9": [object] } }, tiles);
   assert.deepEqual([...restored.objects], [["20-2-1", [object]]]);
   assert.equal(restored.index, 1);
@@ -114,28 +109,28 @@ const TILE = { id: "20-485848-499534", x: 485848, y: 499534, zoom: 20, size: 4, 
 const signedArea = (ring) => ring.slice(0, -1).reduce((sum, [x1, y1], index) => sum + x1 * ring[index + 1][1] - ring[index + 1][0] * y1, 0);
 
 test("a box covering the whole image becomes the tile's corners in longitude and latitude, as a closed ring", () => {
-  const objects = new Map([[TILE.id, [{ box: [0, 0, 1024, 1024], outline: [], source: "EdgeTAM" }]]]);
-  const [feature] = labelsGeojson([TILE], objects, { mode: "detect", objectName: "tank", pixels: 1024 }).features;
+  const objects = new Map([[TILE.id, [{ corners: [[0, 0], [1024, 0], [1024, 1024], [0, 1024]], source: "EdgeTAM" }]]]);
+  const [feature] = labelsGeojson([TILE], objects, { mode: "obb", objectName: "tank", pixels: 1024 }).features;
   const ring = feature.geometry.coordinates[0];
   const corners = ring.map(([lon, lat]) => `${lon.toFixed(9)},${lat.toFixed(9)}`);
   assert.ok(corners.includes("-13.197326660,8.467618188"));
   assert.ok(corners.includes("-13.196983337,8.467278608"));
   assert.deepEqual(ring[0], ring.at(-1));
-  assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
+  assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "rotated box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
 });
 
 test("boxes and outlines both come out with counterclockwise outer rings", () => {
   const clockwiseInImage = [[0, 0], [512, 0], [512, 512], [0, 0]];
   const counterclockwiseInImage = clockwiseInImage.toReversed();
   const corners = [[0, 0], [512, 0], [512, 512], [0, 512]];
-  for (const [mode, object] of [["detect", { box: [0, 0, 512, 512] }], ["segment", { outline: clockwiseInImage }], ["segment", { outline: counterclockwiseInImage }], ["obb", { corners }], ["obb", { corners: corners.toReversed() }]]) {
+  for (const [mode, object] of [["segment", { outline: clockwiseInImage }], ["segment", { outline: counterclockwiseInImage }], ["obb", { corners }], ["obb", { corners: corners.toReversed() }]]) {
     const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ ...object, source: "EdgeTAM" }]]]), { mode, objectName: "tank", pixels: 1024 }).features;
     assert.ok(signedArea(feature.geometry.coordinates[0]) > 0, `${mode} ${JSON.stringify(object)}`);
   }
 });
 
 test("outlines use the outline points and tiles without objects add nothing", () => {
-  const objects = new Map([[TILE.id, [{ box: [0, 0, 1, 1], outline: [[512, 256], [1024, 256], [1024, 512], [512, 256]], source: "drawn by hand" }]], ["other", []]]);
+  const objects = new Map([[TILE.id, [{ outline: [[512, 256], [1024, 256], [1024, 512], [512, 256]], source: "drawn by hand" }]], ["other", []]]);
   const { features } = labelsGeojson([TILE, { ...TILE, id: "other" }], objects, { mode: "segment", objectName: "tank", pixels: 1024 });
   assert.equal(features.length, 1);
   assert.ok(features[0].geometry.coordinates[0].some((point) => Math.abs(point[0] + 13.197154998779297) < 1e-9 && Math.abs(point[1] - 8.46753329333681) < 1e-9));
@@ -154,10 +149,10 @@ test("the readme lists each imagery URL once and the QGIS zoom of the stitched s
 
 test("with tiles on two imagery URLs the readme lists both and asks for one connection each", () => {
   const second = { ...TILE, id: "20-485849-499534", template: "https://other.example/{z}/{x}/{y}.png" };
-  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "detect", objectName: "tank", tiles: [TILE, second], objectCount: 2, pixels: 1024, detailLevels: 2 });
+  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE, second], objectCount: 2, pixels: 1024, detailLevels: 2 });
   assert.ok(readme.includes(TILE.template) && readme.includes(second.template));
   assert.match(readme, /paste one of these URLs/);
-  assert.match(readme, /YOLO detection dataset/);
+  assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset/);
 });
 
 const sortedPoints = (points) => points.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6]).toSorted(([ax, ay], [bx, by]) => ax - bx || ay - by);
@@ -166,9 +161,8 @@ test("the rotated box of a square turned 45 degrees is the square itself, half t
   const diamond = [[512, 312], [712, 512], [512, 712], [312, 512], [512, 312]];
   const corners = rotatedBox(diamond);
   assert.deepEqual(sortedPoints(corners), sortedPoints(diamond.slice(0, -1)));
-  const [x1, y1, x2, y2] = ringBox(diamond, 1024);
   const rotatedArea = Math.abs(signedArea([...corners, corners[0]])) / 2;
-  assert.ok(Math.abs((x2 - x1) * (y2 - y1) - 2 * rotatedArea) < 1e-6);
+  assert.ok(Math.abs(400 * 400 - 2 * rotatedArea) < 1e-6);
 });
 
 test("a repeated point in the ring does not break the rotated box", () => {
@@ -193,7 +187,7 @@ test("rotated box labels list four corners as shares of the image side, kept ins
 
 test("rotated boxes go in the GeoJSON as their four corners and the readme names an OBB dataset", () => {
   const corners = [[512, 0], [1024, 512], [512, 1024], [0, 512]];
-  const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ box: [0, 0, 1024, 1024], corners, source: "EdgeTAM" }]]]), { mode: "obb", objectName: "tank", pixels: 1024 }).features;
+  const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ corners, source: "EdgeTAM" }]]]), { mode: "obb", objectName: "tank", pixels: 1024 }).features;
   const ring = feature.geometry.coordinates[0];
   assert.equal(ring.length, 5);
   assert.ok(ring.some(([lon, lat]) => Math.abs(lon + 13.197154998779297) < 1e-9 && Math.abs(lat - 8.467618188) < 1e-9));

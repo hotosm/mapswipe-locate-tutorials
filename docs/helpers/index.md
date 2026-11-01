@@ -96,7 +96,7 @@ Use it on a finished project to mark each object on the tiles volunteers marked,
 
 1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and click **Load**. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
 2. Each tile is darker outside the cells volunteers marked, with a yellow line around them. For each group of touching objects, such as the panels of one array, tap its middle or drag a box close around it.
-3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: a drag then keeps the box as drawn, and a tap still asks the model. With **Rotated boxes**, a drawn box takes two steps: drag along one side of the object, then tap the opposite side.
+3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: drag along one side of the object, then tap the opposite side. A tap with no drag before it still asks the model. With **Outlines**, a drag keeps an upright box as drawn.
 4. Move between tiles with **Previous** and **Next**.
 5. Choose the **Output**, set the **Object name**, for example `solar panel`, and click **Download dataset**.
 
@@ -104,11 +104,10 @@ Use it on a finished project to mark each object on the tiles volunteers marked,
 
 | Output | Shape | YOLO task |
 |---|---|---|
-| **Boxes** | The upright box around each object | Detection ([format](https://docs.ultralytics.com/datasets/detect/)) |
-| **Rotated boxes** | The smallest box around the outline, at any angle | Oriented bounding boxes, OBB ([format](https://docs.ultralytics.com/datasets/obb/)) |
+| **Boxes** | The smallest box around the outline, at any angle | Oriented bounding boxes, OBB ([format](https://docs.ultralytics.com/datasets/obb/)) |
 | **Outlines** | The outline of each object | Segmentation ([format](https://docs.ultralytics.com/datasets/segment/)) |
 
-Every object keeps its box and its outline, so the **Output** can change at any time. The objects stay in the browser: loading the same project with the same share brings them back.
+Every object keeps its outline, and its box is worked out from the outline, so the **Output** can change at any time. The objects stay in the browser: loading the same project with the same share brings them back.
 
 **Try the Freetown example** loads the [Freetown solar panel project](../examples/freetown-solar-panels.md).
 
@@ -118,12 +117,12 @@ Every object keeps its box and its outline, so the **Output** can change at any 
     | File | Content |
     |---|---|
     | `images/<tile_id>.jpg` | The 1024 by 1024 pixel tile image |
-    | `labels/<tile_id>.txt` | One line per object, class `0` first, positions as shares of the image side. A rotated box corner past the image edge is moved onto it, because the format takes values between 0 and 1 |
+    | `labels/<tile_id>.txt` | One line per object, class `0` first, positions as shares of the image side. A box corner past the image edge is moved onto it, because the format takes values between 0 and 1 |
     | `data.yaml` | The image folders and the object name for Ultralytics. It uses all images for both training and validation; split them before a real training run |
     | `labels.geojson` | One polygon per object in longitude and latitude (EPSG:4326), in the chosen output |
     | `README.md` | The project, share, model and counts, the tile URL to add in QGIS as an XYZ connection, and the QGIS steps |
 
-    Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, `output` (`box`, `rotated box` or `outline`), `source` (the model, or `drawn by hand`), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
+    Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, `output` (`rotated box` or `outline`), `source` (the model, or `drawn by hand`), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
 
 ??? note "On a phone"
     [EdgeTAM](https://github.com/facebookresearch/EdgeTAM) is a version of SAM 2 (Segment Anything Model 2) made for devices: its README describes it as "an on-device executable variant of the SAM 2" that "achieves 16 FPS on iPhone 15 Pro Max without quantization" ([paper](https://arxiv.org/abs/2501.07256)). That figure comes from the EdgeTAM authors. The GIF below was recorded in desktop Chromium at phone size (390 by 844 pixels); the speed of the page on a real phone has not been measured.
@@ -139,7 +138,7 @@ Every object keeps its box and its outline, so the **Output** can change at any 
     2. **Image.** Each tile is shown two zoom levels deeper than the project zoom: 16 imagery tiles joined into one 1024 by 1024 pixel image. For a zoom 20 project, the imagery must serve zoom 22 and send CORS headers. Parts beyond the edge of the image are black.
     3. **Image embeddings.** The EdgeTAM image encoder (`vision_encoder.onnx` in the [model repository](https://huggingface.co/onnx-community/EdgeTAM-ONNX/tree/main/onnx)) turns the tile into embeddings once, when the tile opens. [Transformers.js](https://huggingface.co/docs/transformers.js) runs it on the CPU with WebAssembly: with the Freetown example in Chromium on an Intel Core i9-14900HX laptop, about 1 second, and about 6 seconds with the CPU slowed four times. On an HTTPS page the browser keeps the model files ([`useBrowserCache`](https://huggingface.co/docs/transformers.js/api/env)).
     4. **Prompt.** A tap is sent to `prompt_encoder_mask_decoder.onnx` as one point, and a drag as a box with its centre point. Each takes under a second. The page keeps the candidate mask with the highest predicted quality score. A box drawn with **Draw** skips the model.
-    5. **Shapes.** The box is the smallest upright rectangle around the mask. The outline is traced with [d3-contour](https://github.com/d3/d3-contour), keeps the largest shape and is simplified to within one pixel with [@turf/simplify](https://turfjs.org/docs/api/simplify). The rotated box is the smallest rectangle around the outline's convex hull ([@turf/convex](https://turfjs.org/docs/api/convex)).
+    5. **Shapes.** The outline is traced with [d3-contour](https://github.com/d3/d3-contour), keeps the largest shape and is simplified to within one pixel with [@turf/simplify](https://turfjs.org/docs/api/simplify). The box is the smallest rectangle around the outline's convex hull ([@turf/convex](https://turfjs.org/docs/api/convex)).
 
     The inputs were measured on 20 Freetown tiles with 36 hand-drawn reference boxes, counting a result as tight when it overlaps the reference box by at least 0.75. Simulated drags moved each edge of the reference box by a random share of its size.
 

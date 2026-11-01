@@ -106,12 +106,6 @@ export function dragBox(start, end, pixels) {
   return [x1, y1, x2, y2];
 }
 
-// YOLO detection labels: class, then box centre and size as shares of the image side.
-export function yoloLabels(boxes, pixels) {
-  const share = (value) => (value / pixels).toFixed(6);
-  return boxes.map(([x1, y1, x2, y2]) => `0 ${share((x1 + x2) / 2)} ${share((y1 + y2) / 2)} ${share(x2 - x1)} ${share(y2 - y1)}`).join("\n");
-}
-
 // A box drawn by hand has no mask, so its outline is the box itself.
 export function boxOutline([x1, y1, x2, y2]) {
   return [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
@@ -150,11 +144,6 @@ export function rectangleFromSide(start, end, point) {
   return [start, end, [end[0] + shiftX, end[1] + shiftY], [start[0] + shiftX, start[1] + shiftY], start];
 }
 
-export function ringBox(ring, pixels) {
-  const [xs, ys] = [ring.map(([x]) => x), ring.map(([, y]) => y)];
-  return clampedCorners([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], pixels).flat();
-}
-
 // YOLO OBB labels: class, then the four corners as shares of the image side.
 export function obbLabels(cornerSets, pixels) {
   const share = (value) => (value / pixels).toFixed(6);
@@ -187,16 +176,13 @@ function lonLatRing(tile, ring, pixels) {
 }
 
 const OUTPUTS = {
-  detect: { dataset: "detection", feature: "box" },
   segment: { dataset: "segmentation", feature: "outline" },
   obb: { dataset: "oriented bounding box (OBB)", feature: "rotated box" },
 };
 
 // Rotated boxes need each object's `corners`, which the page works out with a convex hull.
-function pixelRing({ box, outline, corners }, mode) {
-  if (mode === "segment") return outline;
-  if (mode === "obb") return [...corners, corners[0]];
-  return boxOutline(box);
+function pixelRing({ outline, corners }, mode) {
+  return mode === "segment" ? outline : [...corners, corners[0]];
 }
 
 export function labelsGeojson(tiles, objects, { mode, objectName, pixels }) {

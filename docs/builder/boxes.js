@@ -5,7 +5,7 @@ import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, ringBox, savedObjectsKey, segmentLabels, yoloLabels } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
@@ -79,8 +79,8 @@ function drawObjects() {
   context.lineWidth = 4;
   context.strokeStyle = "#d73f3f";
   const mode = outputMode();
-  for (const { box, outline } of currentObjects()) {
-    strokeRing(context, mode === "segment" ? outline : mode === "obb" ? orientedCorners(outline) : boxOutline(box));
+  for (const { outline } of currentObjects()) {
+    strokeRing(context, mode === "segment" ? outline : orientedCorners(outline));
   }
   updateControls();
 }
@@ -194,12 +194,11 @@ async function findObject({ point, box }) {
   const best = scores.indexOf(Math.max(...scores));
   const [, , height, width] = masks[0].dims;
   const mask = masks[0].data.subarray(best * height * width, (best + 1) * height * width);
-  const objectBox = maskBox(mask, width, height);
-  if (!objectBox) return null;
+  if (!maskBox(mask, width, height)) return null;
   const shape = contours().size([width, height]).smooth(false).thresholds([0.5])(mask)[0];
   const ring = largestRing(shape.coordinates);
   const outline = simplify({ type: "Polygon", coordinates: [ring] }, { tolerance: OUTLINE_TOLERANCE }).coordinates[0];
-  return { box: objectBox, outline };
+  return { outline };
 }
 
 function imagePoint(event) {
@@ -257,7 +256,7 @@ function drawRotated(start, end) {
     setStatus("That box has no width. Drag along one side of the object, then tap the opposite side.");
     return;
   }
-  currentObjects().push({ box: ringBox(outline, PIXELS), outline, source: "drawn by hand" });
+  currentObjects().push({ outline, source: "drawn by hand" });
   afterChange(`Drawn by hand. ${objectCount()}`);
 }
 
@@ -277,7 +276,7 @@ boxCanvas.addEventListener("pointerup", (event) => {
   const point = box ? [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] : start;
   const objects = currentObjects();
   if (box && drawing()) {
-    objects.push({ box, outline: boxOutline(box), source: "drawn by hand" });
+    objects.push({ outline: boxOutline(box), source: "drawn by hand" });
     afterChange(`Drawn by hand. ${objectCount()}`);
     return;
   }
@@ -405,7 +404,7 @@ async function download() {
   for (const tile of tiles) {
     const objects = shaped.get(tile.id);
     zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
-    const labels = { detect: () => yoloLabels(objects.map(({ box }) => box), PIXELS), segment: () => segmentLabels(objects.map(({ outline }) => outline), PIXELS), obb: () => obbLabels(objects.map(({ corners }) => corners), PIXELS) }[mode]();
+    const labels = mode === "segment" ? segmentLabels(objects.map(({ outline }) => outline), PIXELS) : obbLabels(objects.map(({ corners }) => corners), PIXELS);
     zip.file(`labels/${tile.id}.txt`, labels);
   }
   zip.file("data.yaml", datasetYaml(objectName));

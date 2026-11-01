@@ -63,7 +63,7 @@ The cells at 50% in QGIS, as in [Use the results in QGIS](../guides/qgis.md):
 
 ## Training data
 
-The auto labeller loads the same project at a 50% share and lists the 73 tiles. The dataset marks 36 solar panel arrays on 20 of those tiles: EdgeTAM found 32 from a tap or a drag, and 4 were drawn by hand. With **Rotated boxes**, each box follows the angle of the array:
+The auto labeller loads the same project at a 50% share and lists the 73 tiles. The dataset marks 36 solar panel arrays on 20 of those tiles: EdgeTAM found 32 from a tap or a drag, and 4 were drawn by hand. With **Boxes**, each box follows the angle of the array:
 
 ![Rotated boxes around solar panel arrays on a Freetown tile](../assets/examples/freetown-rotated-boxes.jpg)
 
