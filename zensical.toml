@@ -49,7 +49,6 @@ features = [
   "navigation.footer",
   "navigation.indexes",
   "navigation.instant",
-  "navigation.sections",
   "navigation.tabs",
   "navigation.top",
   "search.highlight",
