@@ -43,9 +43,17 @@
         <label><input type="radio" name="zoom" value="20" checked> 20</label>
         <label><input type="radio" name="zoom" value="21"> 21</label>
       </fieldset>
+      <fieldset id="sub-grid" class="choices">
+        <legend>Sub-grid</legend>
+        <label><input type="radio" name="cells" value="2"> 2x2</label>
+        <label><input type="radio" name="cells" value="4" checked> 4x4</label>
+        <label><input type="radio" name="cells" value="8"> 8x8</label>
+      </fieldset>
       <dl id="details" hidden>
         <dt>Tile URL for the manager</dt>
         <dd><code id="tile-url"></code></dd>
+        <dt>Cell size</dt>
+        <dd id="cell-size"></dd>
         <dt>Footprint</dt>
         <dd id="footprint-size"></dd>
         <dt>Area of interest</dt>

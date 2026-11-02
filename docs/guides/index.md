@@ -28,7 +28,7 @@ Follow them in order the first time. Each page starts where the previous one end
 
     Turn the answers into cell polygons over the imagery.
 
--   :lucide-database: **[Create a training dataset](training-data.md)**
+-   :lucide-database: **[Create a training dataset](training-data/index.md)**
 
     Label each object on the marked tiles with the auto labeller, QGIS, Label Studio or OpenStreetMap.
 

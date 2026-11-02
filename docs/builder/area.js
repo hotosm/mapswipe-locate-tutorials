@@ -1,4 +1,4 @@
-import { imageryMask, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
+import { cellMetres, gridLines, imageryMask, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
@@ -7,9 +7,12 @@ const PREVIEW_SIZE = 1024;
 const MIN_PATCH_SQUARE_METRES = 2000;
 
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
-const state = { footprint: null, area: null, zoom: 20 };
+// A map zoom three levels above the project zoom shows each tile 64 pixels wide; further out the lines merge.
+const GRID_ZOOM_SPAN = 3;
+const state = { footprint: null, area: null, zoom: 20, cells: 4 };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
+const chosenCells = () => Number(document.querySelector('input[name="cells"]:checked').value);
 
 const map = new maplibregl.Map({
   container: "map",
@@ -39,6 +42,21 @@ function showLayer(id, data, paint) {
   }
   map.addSource(id, { type: "geojson", data });
   map.addLayer({ id, type: "line", source: id, paint });
+}
+
+function showGrid() {
+  if (!state.footprint) return;
+  const visible = map.getZoom() >= state.zoom - GRID_ZOOM_SPAN;
+  const bounds = map.getBounds();
+  showLayer("grid", visible ? gridLines([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()], state.zoom, state.cells) : turf.featureCollection([]), {
+    "line-color": "#ffffff",
+    "line-opacity": ["match", ["get", "kind"], "tile", 0.9, 0.6],
+    "line-width": ["match", ["get", "kind"], "tile", 2, 1],
+  });
+  const [, latitude] = turf.centroid(state.footprint).geometry.coordinates;
+  const metres = cellMetres(latitude, state.zoom, state.cells).toFixed(1);
+  const hint = visible ? "" : ". Zoom in to see the grid";
+  element("cell-size").textContent = `about ${metres} m by ${metres} m at zoom ${state.zoom}, ${state.cells}x${state.cells}${hint}`;
 }
 
 function describeSize(feature) {
@@ -77,6 +95,7 @@ element("setup").addEventListener("submit", async (event) => {
   try {
     const imageId = parseImageId(element("image").value);
     state.zoom = chosenZoom();
+    state.cells = chosenCells();
     setStatus("Loading the image...");
     const response = await fetch(`${API}/stac/collections/openaerialmap/items/${imageId}`);
     if (!response.ok) throw new Error(`Image ${imageId} was not found (HTTP ${response.status}).`);
@@ -97,6 +116,7 @@ element("setup").addEventListener("submit", async (event) => {
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     showLayer("area", turf.featureCollection([]), { "line-color": "#ffdd00", "line-width": 3 });
 
+    showGrid();
     element("tile-url").textContent = tileUrl;
     element("footprint-size").textContent = describeSize(state.footprint);
     element("area-size").textContent = "Not drawn yet";
@@ -117,8 +137,16 @@ element("example").addEventListener("click", () => {
   element("setup").requestSubmit();
 });
 
+element("sub-grid").addEventListener("change", () => {
+  state.cells = chosenCells();
+  showGrid();
+});
+
+map.on("moveend", showGrid);
+
 element("zoom-levels").addEventListener("change", () => {
   state.zoom = chosenZoom();
+  showGrid();
   if (state.footprint) element("footprint-size").textContent = describeSize(state.footprint);
   if (state.area) element("area-size").textContent = describeSize(state.area);
 });
@@ -161,7 +189,7 @@ element("draw").addEventListener("click", () => {
 element("download-footprint").addEventListener("click", () => downloadGeoJson("imagery-footprint.geojson", state.footprint));
 element("download-area").addEventListener("click", () => downloadGeoJson("area-of-interest.geojson", state.area));
 element("cover").addEventListener("click", () => {
-  const outlines = ["footprint", "area"];
+  const outlines = ["footprint", "area", "grid"];
   for (const id of outlines) map.setLayoutProperty(id, "visibility", "none");
   map.once("idle", () => {
     map.getCanvas().toBlob((blob) => download("cover-image.jpg", blob), "image/jpeg", 0.9);

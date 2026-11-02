@@ -10,7 +10,7 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
 -   :lucide-crop: **[Area finder](../builder/area.html)**
 
-    Paste an image from imagery.hotosm.org. Get its real footprint, an area of interest cut to the imagery with a tile estimate, the tile URL and a cover image.
+    Paste an image from imagery.hotosm.org. Get its real footprint, an area of interest cut to the imagery with a tile estimate, the tile URL and a cover image. Preview the tiles and cells for each project zoom and sub-grid size.
 
 -   :lucide-layout-grid: **[Tutorial builder](../builder/index.html)**
 
@@ -100,7 +100,7 @@ Use it on a finished project to mark each object on the tiles volunteers marked,
 4. Move between tiles with **Previous** and **Next**.
 5. Choose the **Output**, set the **Object name**, for example `solar panel`, and click **Download dataset**.
 
-**Download tile images** saves every marked tile image, to label in another tool. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the marked tiles, as in [Create a training dataset](../guides/training-data.md#how-the-auto-labeller-loads-a-geojson-file).
+**Download tile images** saves every marked tile image, to label in another tool. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the marked tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
 
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 

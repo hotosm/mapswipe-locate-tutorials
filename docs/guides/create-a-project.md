@@ -22,9 +22,11 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 
     Keep one shape per place: a single rectangle around places far apart also covers the ground between them, outside the images, and volunteers see blank tiles there. Some tiles at the edges of each shape still fall outside the imagery, because MapSwipe groups tiles into rectangles three tiles tall and an even number of tiles wide, and every tile in a rectangle becomes a task ([grouping](https://github.com/mapswipe/mapswipe-backend/blob/develop/utils/geo/tile_grouping.py), [tasks](https://github.com/mapswipe/mapswipe-backend/blob/develop/project_types/tile_map_service/base/project.py)).
 
-Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as solar panels, see step 5); the tile estimates follow it.
+Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as solar panels, see step 5); the tile estimates follow it. Choose the **Sub-grid** too and zoom in on the map: white lines show the tiles and the cells, the mini-tiles volunteers tap, and **Cell size** gives a cell's width. Compare it with the objects volunteers look for.
 
 ![Area finder with the imagery footprint](../assets/create/area-helper-footprint.png)
+
+![Tiles and 4x4 cells over Freetown at zoom 20 in the area finder](../assets/create/area-finder-grid.jpg)
 
 Then:
 
@@ -94,7 +96,7 @@ The map preview on the right shows the imagery once the URL is right. Below it, 
 
 ## 6. Choose the grid and answers
 
-- **Sub grid Size**: the form starts without a selected size. Select how many cells each tile is split into: 4x4 (16 cells) suits most rooftop objects; use 8x8 for very small objects.
+- **Sub grid Size**: the form starts without a selected size. Select how many cells each tile is split into: 2x2, 4x4 or 8x8. Use the size you checked in the area finder in step 1.
 - **Include 'Multiple Features' option**: keep it ticked when one cell can hold several objects. Without it, volunteers only choose between **No** and **Feature Exists**: the manager and the web app show the Single Feature answer under that name, and the results still count it as answer `1` ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditProject/UpdateProjectForm/LocateObjectProjectSpecifics/index.tsx)). For trees, keep it: Multiple Features shows where trees grow in groups. Untick it when knowing whether a cell has the object is enough.
 - **Export Meta**: a key and a value that describe the feature, for example its OpenStreetMap tag. The MapSwipe documentation describes it as an "additional metadata entry attached to exports" ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)). Both fields are required. Examples:
 

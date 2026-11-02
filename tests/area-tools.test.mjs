@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { imageryMask, isEmptyPixel, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
+import { cellMetres, gridLines, imageryMask, isEmptyPixel, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -57,4 +57,37 @@ test("an odd column count rounds up to even, as MapSwipe groups do", () => {
 test("a single tile counts as two columns and three rows", () => {
   const oneTile = [85.52051, 27.62951, 85.52052, 27.62952];
   assert.equal(tileCount(oneTile, 20), 6);
+});
+
+test("a view inside one tile draws the cell lines around it, and twice as many with 8x8", () => {
+  const zoom = 20;
+  const west = ((485854 + 0.3) / 2 ** zoom) * 360 - 180;
+  const east = ((485854 + 0.6) / 2 ** zoom) * 360 - 180;
+  const latitude = (y) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** zoom))) * 180) / Math.PI;
+  const lines = gridLines([west, latitude(499537 + 0.6), east, latitude(499537 + 0.3)], zoom, 4).features;
+  const vertical = lines.filter((line) => line.geometry.coordinates[0][0] === line.geometry.coordinates[1][0]);
+  const horizontal = lines.filter((line) => line.geometry.coordinates[0][1] === line.geometry.coordinates[1][1]);
+  assert.deepEqual(vertical.map((line) => line.properties.kind), ["cell", "cell", "cell"]);
+  assert.deepEqual(horizontal.map((line) => line.properties.kind), ["cell", "cell", "cell"]);
+  const tileWest = (485854 / 2 ** zoom) * 360 - 180;
+  const cellWidth = 360 / 2 ** zoom / 4;
+  assert.ok(Math.abs(vertical[0].geometry.coordinates[0][0] - (tileWest + cellWidth)) < 1e-12);
+  const fine = gridLines([west, latitude(499537 + 0.6), east, latitude(499537 + 0.3)], zoom, 8).features;
+  const fineVertical = fine.filter((line) => line.geometry.coordinates[0][0] === line.geometry.coordinates[1][0]);
+  assert.equal(fineVertical.length, 4);
+  assert.ok(Math.abs(fineVertical[0].geometry.coordinates[0][0] - (tileWest + 2 * (cellWidth / 2))) < 1e-12);
+});
+
+test("in a 4x4 grid, the lines marked as tile edges fall on whole tiles and the others do not", () => {
+  const verticals = gridLines([-13.186, 8.46, -13.184, 8.462], 20, 4).features.filter((line) => line.geometry.coordinates[0][0] === line.geometry.coordinates[1][0]);
+  const tilePosition = (line) => ((line.geometry.coordinates[0][0] + 180) / 360) * 2 ** 20;
+  const onWholeTile = (line) => Math.abs(tilePosition(line) - Math.round(tilePosition(line))) < 1e-6;
+  assert.ok(verticals.some((line) => line.properties.kind === "tile"));
+  for (const line of verticals) assert.equal(onWholeTile(line), line.properties.kind === "tile");
+});
+
+test("a cell at zoom 20 is about 9.5 m wide on the equator with 4x4, and smaller further from it", () => {
+  assert.ok(Math.abs(cellMetres(0, 20, 4) - 9.5546) < 0.001);
+  assert.ok(Math.abs(cellMetres(0, 20, 2) - 2 * cellMetres(0, 20, 4)) < 1e-9);
+  assert.ok(Math.abs(cellMetres(60, 20, 4) - cellMetres(0, 20, 4) / 2) < 1e-9);
 });
