@@ -46,7 +46,8 @@ function currentObjects() {
 }
 
 function objectCount() {
-  return `${currentObjects().length} objects on this tile.`;
+  const count = currentObjects().length;
+  return `${count} ${count === 1 ? "object" : "objects"} on this tile.`;
 }
 
 function drawObjects() {

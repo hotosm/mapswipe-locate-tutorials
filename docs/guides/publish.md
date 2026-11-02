@@ -34,7 +34,7 @@ Open the web app for the same environment (<https://web.mapswipe.org/dev/> for s
 
 ![Project details in the web app](../assets/publish/web-project.png)
 
-The tutorial opens with tabs along the top: **How to contribute?**, one tab per information page, and **Tutorial**. Move between them with the arrows at the bottom. **Close** skips the tutorial at any time.
+The tutorial opens with tabs along the top: **How to contribute?**, one tab per information page, and **Tutorial**. Move between them with the arrows at the bottom. **Close** skips the tutorial at any time. On stage, once an account had saved results for the project, **Contribute** opened mapping directly, without the tutorial; check the tutorial before you map.
 
 ![How to contribute tab](../assets/publish/web-how-to-contribute.png)
 

@@ -11,13 +11,13 @@ The tutorial runs the first time a volunteer opens the project. It has informati
 
 ## 1. Create the tutorial
 
-In the manager, open **Tutorials** and click **New Tutorial**. Enter a title, select the processed project under **Reference Project**, and click **Submit**. The tutorial copies the instruction, imagery and grid settings from that project.
+In the manager, open **Tutorials** and click **New Tutorial**. Enter a title, for example `fAIrSwipe - Solar Panels - Freetown`, select the processed project under **Reference Project**, and click **Submit**. The tutorial copies the instruction, imagery and grid settings from that project.
 
 ![New tutorial with its reference project](../assets/tutorial/new-tutorial.png)
 
 ## 2. Download the processed tasks
 
-On the tutorial page, under **Project Assets**, click **Download GeoJSON** next to **Processed Tasks**. The file lists every tile of the project with its `tile_x`, `tile_y` and `tile_z`. If it opens in a new browser tab instead of downloading, save that tab with ++ctrl+s++ as `processed_geometry.geojson`.
+On the tutorial page, under **Project Assets**, click **Download GeoJSON** next to **Processed Tasks**. The file lists every tile of the project with its `tile_x`, `tile_y` and `tile_z`. If it opens in a new browser tab, save that tab with ++ctrl+s++ as `processed_geometry.geojson`.
 
 ![Project assets with the processed tasks download](../assets/tutorial/project-assets.png)
 
@@ -39,7 +39,7 @@ Open the [tutorial builder](../builder/index.html) in a new browser tab.
 
 ![Tutorial builder with the tile URL and tasks file](../assets/tutorial/builder-setup.png)
 
-In the side panel, select the same **Sub-grid** size as the project. Zoom in with the **+** button or the mouse wheel until the features are clear, then click a tile to add it as a scenario. The tile opens on the right with its grid. Click each cell to set its answer: one click for **Single Feature** (green), two for **Multiple Features** (yellow), three to go back to **No**.
+In the side panel, select the same **Sub-grid** size as the project. Zoom in with the mouse wheel over the part you want until the features are clear (the **+** button zooms toward the centre of the map, which can fall between two places), then click a tile to add it as a scenario. Pick tiles that the imagery covers edge to edge. The tile opens on the right with its grid. Click each cell to set its answer: one click for **Single Feature** (green), two for **Multiple Features** (yellow), three to go back to **No**.
 
 ![Clicking a tile, then its cells, in the tutorial builder](../assets/tutorial/tutorial-builder.gif){ loading=lazy }
 
@@ -47,11 +47,11 @@ Add three to five scenarios that cover the cases volunteers will meet:
 
 - a tile with one or two clear objects,
 - a tile with several objects close together,
-- a tile with no object, ideally with things that look similar, so volunteers learn what to leave out.
+- a tile without the object, ideally with things that look similar, so volunteers learn what to leave out.
 
 Click **Download scenarios**. The file has one feature per scenario, numbered in the order you added them, with the answer of every cell.
 
-If the project leaves out **Multiple Features**, mark cells only as **Single Feature**. The manager rejects a file with Multiple Features answers for such a project.
+If the project leaves out **Multiple Features**, mark cells only as **Single Feature** (one click). The manager and the web app show this answer as **Feature Exists**. The manager rejects a file with Multiple Features answers for such a project.
 
 !!! tip "Check what you mark"
     Volunteers cannot leave a scenario until their taps match your answers exactly. Leave out tiles where you are unsure whether something is the object.
@@ -73,6 +73,6 @@ The phone preview on the right shows the result, with the tile imagery under the
 ![Scenario with messages, icons and cell answers](../assets/tutorial/scenario.png)
 
 !!! note "Preview without imagery"
-    When the phone preview shows the cells on a dark background, the reference project's tile URL usually sends no CORS headers (see the warning in [Add the area and imagery](create-a-project.md#5-add-the-area-and-imagery)). The tile URL and the reference project cannot be changed later. Create the project again with the `api.imagery.hotosm.org` tile URL and make the tutorial from that project.
+    When the phone preview shows the cells on a dark background, the reference project's tile URL usually doesn't send CORS headers (see the warning in [Add the area and imagery](create-a-project.md#5-add-the-area-and-imagery)). The tile URL and the reference project cannot be changed later. Create the project again with the `api.imagery.hotosm.org` tile URL and make the tutorial from that project.
 
 Click **Update tutorial**, then continue with [Publish and check the project](publish.md).

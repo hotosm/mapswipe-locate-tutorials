@@ -22,9 +22,9 @@ The website is rebuilt every six hours ([source](https://github.com/mapswipe/web
 
 ### From the MapSwipe API (stage and production)
 
-The stage website (<https://website-stage.mapswipe.org/>) may not list new stage projects. Any project's file links are also available from the MapSwipe API without signing in. Open this link in the browser, after changing `894` in it to your project number (the number in the manager address, `/project/<number>/edit`):
+The stage website (<https://website-stage.mapswipe.org/>) may not list new stage projects. Any project's file links are also available from the MapSwipe API without signing in. Open this link in the browser, after changing `923` in it to your project number (the number in the manager address, `/project/<number>/edit`):
 
-[List the result files of stage project 894](https://backend-stage.mapswipe.org/graphql/?query=%7B%20publicProject%28id%3A%20%22894%22%29%20%7B%20exportAggregatedResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportAggregatedResultsWithGeometry%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportTasks%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportGroups%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportUsers%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportHistory%20%7B%20file%20%7B%20url%20%7D%20%7D%20%7D%20%7D)
+[List the result files of stage project 923](https://backend-stage.mapswipe.org/graphql/?query=%7B%20publicProject%28id%3A%20%22923%22%29%20%7B%20exportAggregatedResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportAggregatedResultsWithGeometry%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportResults%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportTasks%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportGroups%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportUsers%20%7B%20file%20%7B%20url%20%7D%20%7D%20exportHistory%20%7B%20file%20%7B%20url%20%7D%20%7D%20%7D%20%7D)
 
 The browser shows a short JSON text with one `url` per file. Open a `url` to download that file. For production projects, change `backend-stage.mapswipe.org` in the link to `backend.mapswipe.org`.
 

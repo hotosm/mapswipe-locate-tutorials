@@ -49,9 +49,9 @@ Use it when the project area needs more than one image.
     The tile URL lists the image IDs (`/raster/collections/openaerialmap/tiles/...?ids=<id>,<id>`), and the HOT imagery API merges those images on every tile request ([titiler-pgstac documentation](https://stac-utils.github.io/titiler-pgstac/latest/endpoints/collections_endpoints/)). To change the mosaic, edit the IDs in the URL.
 
     - Where images overlap, the newest is drawn on top: pgstac sorts items by `datetime` descending by default ([source](https://github.com/stac-utils/pgstac/blob/main/src/pgstac/sql/002d_keyset.sql)).
-    - The URL sets `exitwhenfull=false` and `skipcovered=false`, so an older image still fills the parts of a tile where a newer image has no pixels.
+    - The URL sets `exitwhenfull=false` and `skipcovered=false`, so an older image still fills the parts of a tile where a newer image doesn't have pixels.
     - White or near-black edges of a newer image are drawn on top of older imagery. When they hide what volunteers need to see, leave that image out.
-    - The area finder reads one image at a time. For an area across several images, draw the area of interest in a tool such as <https://geojson.io>.
+    - The area finder reads one image at a time. For an area across several images, download an area of interest for each image and combine them into one file, as in [Create a Locate project](../guides/create-a-project.md#1-prepare-the-area-tile-url-and-cover-image).
 
 ## Results map
 
@@ -96,7 +96,7 @@ Use it on a finished project to mark each object on the tiles volunteers marked,
 
 1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and click **Load**. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
 2. Each tile is darker outside the cells volunteers marked, with a yellow line around them. For each group of touching objects, such as the panels of one array, tap its middle or drag a box close around it.
-3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: drag along one side of the object, then tap the opposite side. A tap with no drag before it still asks the model. With **Outlines**, a drag keeps an upright box as drawn.
+3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: drag along one side of the object, then tap the opposite side. A tap before any drag still asks the model. With **Outlines**, a drag keeps an upright box as drawn.
 4. Move between tiles with **Previous** and **Next**.
 5. Choose the **Output**, set the **Object name**, for example `solar panel`, and click **Download dataset**.
 
