@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "../docs/builder/boxes-tools.js";
+import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -194,4 +194,49 @@ test("rotated boxes go in the GeoJSON as their four corners and the readme names
   assert.equal(feature.properties.output, "rotated box");
   const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
   assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset of "tank"/);
+});
+
+test("a point labelled in longitude and latitude lands on the same pixel the GeoJSON export gives it", () => {
+  const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ outline: [[256, 768], [900, 768], [900, 900], [256, 768]], source: "EdgeTAM" }]]]), { mode: "segment", objectName: "tank", pixels: 1024 }).features;
+  const pixels = feature.geometry.coordinates[0].map((point) => lonLatToPixel(TILE, point, 1024));
+  assert.ok(pixels.some(([x, y]) => Math.abs(x - 256) < 1e-6 && Math.abs(y - 768) < 1e-6));
+  assert.ok(pixels.some(([x, y]) => Math.abs(x - 900) < 1e-6 && Math.abs(y - 900) < 1e-6));
+});
+
+test("a point east and south of the tile gets pixels past the tile size", () => {
+  const [x, y] = lonLatToPixel(TILE, labelsGeojson([{ ...TILE, x: TILE.x + 1, y: TILE.y + 1 }], new Map([[TILE.id, [{ outline: [[0, 0], [10, 0], [10, 10], [0, 0]], source: "EdgeTAM" }]]]), { mode: "segment", objectName: "tank", pixels: 1024 }).features[0].geometry.coordinates[0][0], 1024);
+  assert.ok(Math.abs(x - 1024) < 1e-6 && Math.abs(y - 1024) < 1e-6);
+});
+
+test("loaded labels keep each polygon's outer ring, one per part of a multipolygon, and count points and lines as left out", () => {
+  const square = [[0, 0], [1, 0], [1, 1], [0, 0]];
+  const hole = [[0.2, 0.2], [0.4, 0.2], [0.4, 0.4], [0.2, 0.2]];
+  const geojson = { type: "FeatureCollection", features: [
+    { type: "Feature", geometry: { type: "Polygon", coordinates: [square, hole] } },
+    { type: "Feature", geometry: { type: "MultiPolygon", coordinates: [[square], [square.map(([x, y]) => [x + 5, y])]] } },
+    { type: "Feature", geometry: { type: "Point", coordinates: [0, 0] } },
+    { type: "Feature", geometry: { type: "LineString", coordinates: square } },
+  ] };
+  const { rings, skipped } = polygonRings(geojson);
+  assert.deepEqual(rings, [square, square, square.map(([x, y]) => [x + 5, y])]);
+  assert.equal(skipped, 2);
+  assert.deepEqual(polygonRings({ type: "Polygon", coordinates: [square] }), { rings: [square], skipped: 0 });
+});
+
+test("a file saved in Web Mercator metres is refused with a message naming EPSG:4326", () => {
+  const mercator = [[-1469166, 945612], [-1469100, 945612], [-1469100, 945680], [-1469166, 945612]];
+  assert.throws(() => polygonRings({ type: "Polygon", coordinates: [mercator] }), /EPSG:4326/);
+});
+
+test("a shape cut at the tile edge is kept from a tenth of its whole area up, and a smaller piece is dropped", () => {
+  const whole = [[-90, 0], [10, 0], [10, 100], [-90, 100], [-90, 0]];
+  assert.equal(keepsCutLabel([[0, 0], [10, 0], [10, 100], [0, 100], [0, 0]], whole), true);
+  assert.equal(keepsCutLabel([[0, 0], [9, 0], [9, 100], [0, 100], [0, 0]], whole), false);
+});
+
+test("a whole shape smaller than the smallest drag box is dropped", () => {
+  const speck = [[0, 0], [5, 0], [5, 5], [0, 5], [0, 0]];
+  assert.equal(keepsCutLabel(speck, speck), false);
+  const square = [[0, 0], [6, 0], [6, 6], [0, 6], [0, 0]];
+  assert.equal(keepsCutLabel(square, square), true);
 });

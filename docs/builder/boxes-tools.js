@@ -169,6 +169,28 @@ function pixelToLonLat(tile, [x, y], pixels) {
   return tileFractionToLonLat(tile.x + x / pixels, tile.y + y / pixels, tile.zoom);
 }
 
+export function lonLatToPixel(tile, [longitude, latitude], pixels) {
+  const size = 2 ** tile.zoom;
+  const x = ((longitude + 180) / 360) * size;
+  const y = ((1 - Math.asinh(Math.tan((latitude * Math.PI) / 180)) / Math.PI) / 2) * size;
+  return [(x - tile.x) * pixels, (y - tile.y) * pixels];
+}
+
+// Labels drawn in QGIS or exported from OpenStreetMap are polygons in longitude and latitude; each outer ring becomes one object.
+export function polygonRings(geojson) {
+  const geometries = (geojson.type === "FeatureCollection" ? geojson.features : [geojson]).map((feature) => feature.geometry ?? feature);
+  const polygons = geometries.filter((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon");
+  const rings = polygons.flatMap((geometry) => (geometry.type === "Polygon" ? [geometry.coordinates[0]] : geometry.coordinates.map((polygon) => polygon[0])));
+  const outside = rings.flat().find(([longitude, latitude]) => Math.abs(longitude) > 180 || Math.abs(latitude) > 90);
+  if (outside) throw new Error(`The position ${outside.join(", ")} is outside longitude and latitude. Save the file again in EPSG:4326.`);
+  return { rings, skipped: geometries.length - polygons.length };
+}
+
+// A shape cut at the tile edge is kept when it holds at least a tenth of the whole shape, the default of SAHI's min_area_ratio, and is no smaller than the smallest drag box.
+export function keepsCutLabel(cut, whole) {
+  return ringArea(cut) >= Math.max(0.1 * ringArea(whole), DRAG_PIXELS ** 2);
+}
+
 // RFC 7946 asks for counterclockwise outer rings, so a clockwise ring is reversed.
 function lonLatRing(tile, ring, pixels) {
   const lonLat = ring.map((point) => pixelToLonLat(tile, point, pixels));

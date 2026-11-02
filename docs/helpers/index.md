@@ -100,6 +100,8 @@ Use it on a finished project to mark each object on the tiles volunteers marked,
 4. Move between tiles with **Previous** and **Next**.
 5. Choose the **Output**, set the **Object name**, for example `solar panel`, and click **Download dataset**.
 
+**Download tile images** saves every marked tile image, to label in another tool. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the marked tiles, as in [Create a training dataset](../guides/training-data.md#how-the-auto-labeller-loads-a-geojson-file).
+
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 
 | Output | Shape | YOLO task |
@@ -122,7 +124,7 @@ Every object keeps its outline, and its box is worked out from the outline, so t
     | `labels.geojson` | One polygon per object in longitude and latitude (EPSG:4326), in the chosen output |
     | `README.md` | The project, share, model and counts, the tile URL to add in QGIS as an XYZ connection, and the QGIS steps |
 
-    Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, `output` (`rotated box` or `outline`), `source` (the model, or `drawn by hand`), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
+    Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, `output` (`rotated box` or `outline`), `source` (the model, `drawn by hand`, or the name of a loaded GeoJSON file), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
 
 ??? note "On a phone"
     [EdgeTAM](https://github.com/facebookresearch/EdgeTAM) is a version of SAM 2 (Segment Anything Model 2) made for devices: its README describes it as "an on-device executable variant of the SAM 2" that "achieves 16 FPS on iPhone 15 Pro Max without quantization" ([paper](https://arxiv.org/abs/2501.07256)). That figure comes from the EdgeTAM authors. The GIF below was recorded in desktop Chromium at phone size (390 by 844 pixels); the speed of the page on a real phone has not been measured.

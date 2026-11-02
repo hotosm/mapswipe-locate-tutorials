@@ -2,10 +2,11 @@ import { AutoProcessor, EdgeTamModel, RawImage, Tensor } from "https://cdn.jsdel
 import { contours } from "https://cdn.jsdelivr.net/npm/d3-contour@4.0.2/+esm";
 import { simplify } from "https://cdn.jsdelivr.net/npm/@turf/simplify@7.4.0/+esm";
 import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
+import { bboxClip } from "https://cdn.jsdelivr.net/npm/@turf/bbox-clip@7.4.0/+esm";
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, labelsGeojson, largestRing, markedAreaEdges, maskBox, obbLabels, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
@@ -94,6 +95,8 @@ function updateControls() {
   element("undo").disabled = state.busy || !loaded || currentObjects().length === 0;
   element("draw").disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
+  element("download-images").disabled = state.busy || !loaded;
+  element("labels-file").disabled = state.busy || !loaded;
   for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"]')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
 }
@@ -412,12 +415,50 @@ async function download() {
   zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, pixels: PIXELS })));
   const objectCount = tiles.reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
+  await saveZip(zip, `${state.name}_yolo_${mode}_${state.threshold}.zip`);
+  setStatus(`Downloaded ${tiles.length} tiles with objects.`);
+}
+
+async function saveZip(zip, fileName) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(await zip.generateAsync({ type: "blob" }));
-  link.download = `${state.name}_yolo_${mode}_${state.threshold}.zip`;
+  link.download = fileName;
   link.click();
-  setStatus(`Downloaded ${tiles.length} tiles with objects.`);
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
+// Every marked tile goes in, so the images can be labelled in another tool.
+async function downloadImages() {
+  setStatus(`Preparing ${state.tiles.length} images...`);
+  const zip = new JSZip();
+  for (const tile of state.tiles) zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
+  await saveZip(zip, `${state.name}_images_${state.threshold}.zip`);
+  setStatus(`Downloaded ${state.tiles.length} tile images.`);
+}
+
+// Each ring is cut to every marked tile it crosses, so a shape across two tiles becomes one object on each.
+async function loadLabels(file) {
+  const { rings, skipped } = polygonRings(JSON.parse(await file.text()));
+  if (rings.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
+  for (const [id, objects] of state.objects) state.objects.set(id, objects.filter((object) => object.source !== file.name));
+  let count = 0;
+  for (const tile of state.tiles) {
+    for (const ring of rings) {
+      const pixelRing = ring.map((point) => lonLatToPixel(tile, point, PIXELS));
+      const outline = bboxClip({ type: "Polygon", coordinates: [pixelRing] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
+      if (!outline || !keepsCutLabel(outline, pixelRing)) continue;
+      state.objects.set(tile.id, [...(state.objects.get(tile.id) ?? []), { outline, source: file.name }]);
+      count += 1;
+    }
+  }
+  const leftOut = skipped > 0 ? ` ${skipped} features without a polygon were left out.` : "";
+  afterChange(`Loaded ${count} objects from ${file.name} onto the marked tiles.${leftOut} ${objectCount()}`);
+}
+
 element("download").addEventListener("click", () => work(download));
+element("download-images").addEventListener("click", () => work(downloadImages));
+element("labels-file").addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  event.target.value = "";
+  if (file) work(() => loadLabels(file));
+});

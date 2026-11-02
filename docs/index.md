@@ -12,7 +12,7 @@ In a Locate Objects project, volunteers see one imagery tile at a time, split in
 
 -   :lucide-book-open: **[Guides](guides/index.md)**
 
-    Create a project, build its tutorial, publish it, and get the results into QGIS.
+    Create a project, build its tutorial, publish it, get the results into QGIS, and create a training dataset.
 
 -   :lucide-wrench: **[Helpers](helpers/index.md)**
 

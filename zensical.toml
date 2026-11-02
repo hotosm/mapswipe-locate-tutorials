@@ -20,6 +20,7 @@ nav = [
     { "Publish and check the project" = "guides/publish.md" },
     { "Download the results" = "guides/download-results.md" },
     { "Use the results in QGIS" = "guides/qgis.md" },
+    { "Create a training dataset" = "guides/training-data.md" },
   ] },
   { "Helpers" = [
     "helpers/index.md",
