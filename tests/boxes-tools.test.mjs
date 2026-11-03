@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "../docs/builder/boxes-tools.js";
+import { boxOutline, cellRectangle, clampedCorners, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -239,4 +239,20 @@ test("a whole shape smaller than the smallest drag box is dropped", () => {
   assert.equal(keepsCutLabel(speck, speck), false);
   const square = [[0, 0], [6, 0], [6, 6], [0, 6], [0, 0]];
   assert.equal(keepsCutLabel(square, square), true);
+});
+
+test("the dataset count adds objects over the listed tiles and ignores objects stored for other tiles", () => {
+  const tiles = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  const objects = new Map([["a", [{}, {}]], ["b", []], ["c", [{}]], ["gone", [{}, {}, {}]]]);
+  assert.deepEqual(datasetCounts(tiles, objects), { objects: 3, tilesWithObjects: 2, tiles: 3 });
+});
+
+test("a tile not yet opened counts as a tile without objects", () => {
+  assert.deepEqual(datasetCounts([{ id: "a" }], new Map()), { objects: 0, tilesWithObjects: 0, tiles: 1 });
+});
+
+test("the target line is reached at the target and stays full past it", () => {
+  assert.deepEqual(targetProgress(999, 1000), { percent: 99.9, reached: false });
+  assert.deepEqual(targetProgress(1000, 1000), { percent: 100, reached: true });
+  assert.deepEqual(targetProgress(1500, 1000), { percent: 100, reached: true });
 });

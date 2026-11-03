@@ -39,7 +39,7 @@ Before training, check every tile:
 - Each label matches its object. Ultralytics describes annotation accuracy as "how close the annotated data is to the true values" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)).
 - The same rule applies on every tile. Ultralytics describes annotation precision as "giving the same label to the same object or feature throughout the dataset" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)). For solar panels: one box per array of touching panels, a separate box where a clear gap splits two arrays, and a skipped tile where the object cannot be told apart from the roof.
 
-Step through the tiles one by one in the auto labeller. The `README.md` in its download shows how to open `labels.geojson` over the imagery in QGIS.
+Step through the tiles one by one in the auto labeller. Above the **Previous** and **Next** buttons, the bold line shows how many objects are labelled so far, and the bar under it fills toward a target of 1,000 objects and turns green when the dataset reaches it. The tile line below shows how many tiles have labels. The `README.md` in its download shows how to open `labels.geojson` over the imagery in QGIS.
 
 `data.yaml` uses all images for both training and validation. Before a real training run, move some images and their labels into separate validation folders and point `val` at them.
 

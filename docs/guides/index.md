@@ -20,13 +20,13 @@ Follow them in order the first time. Each page starts where the previous one end
 
     Attach the tutorial, publish, try it as a volunteer and finish the project.
 
+-   :lucide-map: **[View the results](view-results.md)**
+
+    Open the results map, choose the volunteer share and download the marked cells.
+
 -   :lucide-download: **[Download the results](download-results.md)**
 
     Find the export files and read the per-cell answers.
-
--   :lucide-layers: **[Use the results in QGIS](qgis.md)**
-
-    Turn the answers into cell polygons over the imagery.
 
 -   :lucide-database: **[Create a training dataset](training-data/index.md)**
 

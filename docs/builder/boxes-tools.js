@@ -79,6 +79,15 @@ export function restoredObjects(saved, tiles) {
   return { objects, index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
+export function datasetCounts(tiles, objects) {
+  const counts = tiles.map((tile) => objects.get(tile.id)?.length ?? 0);
+  return { objects: counts.reduce((sum, count) => sum + count, 0), tilesWithObjects: counts.filter((count) => count > 0).length, tiles: tiles.length };
+}
+
+export function targetProgress(objectCount, target) {
+  return { percent: Math.min(100, (objectCount / target) * 100), reached: objectCount >= target };
+}
+
 function signedRingArea(ring) {
   return ring.reduce((sum, [x1, y1], index) => {
     const [x2, y2] = ring[(index + 1) % ring.length];

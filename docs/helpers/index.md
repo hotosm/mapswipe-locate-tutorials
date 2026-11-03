@@ -61,7 +61,7 @@ Use it on a finished project to get only the cells volunteers marked, as GeoJSON
 
 1. In the [results map](../builder/results.html), paste the project link, the address of the project page on the MapSwipe website (see [Download the results](../guides/download-results.md#from-the-mapswipe-website-production)), and click **Load**.
 2. Move the **Volunteer share** slider to the share of volunteers a cell needs, for example 50%. Click a cell to see its votes.
-3. Click **Download cells**. [Use the results in QGIS](../guides/qgis.md) continues from this file.
+3. Click **Download cells**. [Label in QGIS](../guides/training-data/qgis.md) and [Label in OpenStreetMap](../guides/training-data/openstreetmap.md) continue from this file.
 
 To share the results, copy the page address. It opens at 50%, so tell others the share you used.
 

@@ -15,7 +15,7 @@ This example follows one finished production project from the imagery to a train
 | [Processed tasks](files/freetown-solar-panels-processed-tasks.geojson) | The 2,964 project tiles, built from the project's **Tasks** export, for the [tutorial builder](../builder/index.html) |
 | [Aggregated results](files/freetown-solar-panels-aggregated-results.csv.gz) | The project's **Aggregated Results** export |
 | [Cells at 50%](files/freetown-solar-panels-cells-50.geojson) | The cells marked by at least 50% of volunteers, downloaded from the [results map](../builder/results.html) |
-| [Rotated box dataset](files/freetown-solar-panels-yolo-obb-50.zip) | A YOLO oriented bounding box dataset from the [auto labeller](../builder/boxes.html), with `labels.geojson` and a `README.md` for QGIS |
+| [Results training dataset](files/freetown-solar-panels-yolo-obb-50.zip) | A YOLO oriented bounding box dataset from the [auto labeller](../builder/boxes.html), with `labels.geojson` and a `README.md` for QGIS |
 
 ## Project settings
 
@@ -57,7 +57,7 @@ https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de4
 | Volunteers per cell | 19 to 21 |
 | Cells marked by at least 50% of volunteers | 152, on 73 tiles, all Single Feature |
 
-The cells at 50% in QGIS, as in [Use the results in QGIS](../guides/qgis.md):
+The cells at 50% in QGIS, as in [Label in QGIS](../guides/training-data/qgis.md#3-colour-the-cells-by-answer):
 
 ![Cells marked by at least 50% of volunteers over the Freetown imagery in QGIS](../assets/results/qgis-map.jpg)
 

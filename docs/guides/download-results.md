@@ -4,11 +4,20 @@ icon: lucide/download
 
 # Download the results
 
+There are two ways to get the results:
+
+| You need | Get it from |
+|---|---|
+| The cells that reach your volunteer share, as GeoJSON, for labelling | **Download cells** in the [results map](../builder/results.html), see [View the results](view-results.md) |
+| The project's export files, with every answer of every volunteer | The MapSwipe website for production projects, or the MapSwipe API for stage and production, see [Get the export files](#get-the-export-files) |
+
+The results map reads the Aggregated Results export file of the project, so its cells come from the same counts.
+
 ## When the results appear
 
 After a volunteer saves a group, MapSwipe updates the project's export files. On stage the files were updated two minutes after the group was saved.
 
-## Get the files
+## Get the export files
 
 ### From the MapSwipe website (production)
 
@@ -43,8 +52,6 @@ Most files are compressed (`.gz`). Unzip them before use.
 | History | Daily progress |
 
 The [MapSwipe data documentation](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/about_data.md) describes each file.
-
-The [results map](../builder/results.html) takes the project page link, or an Aggregated Results link, and downloads the cells volunteers marked as GeoJSON.
 
 ## Reading Locate results
 

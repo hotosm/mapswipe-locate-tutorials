@@ -6,12 +6,13 @@ import { bboxClip } from "https://cdn.jsdelivr.net/npm/@turf/bbox-clip@7.4.0/+es
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, boxOutline, cellRectangle, clampedCorners, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
 // One pixel keeps the label files small; on 36 Freetown objects the outline area changed by at most 2%.
 const OUTLINE_TOLERANCE = 1;
+const TARGET_OBJECTS = 1000;
 
 const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false };
 const element = (id) => document.getElementById(id);
@@ -49,6 +50,18 @@ function currentObjects() {
 function objectCount() {
   const count = currentObjects().length;
   return `${count} ${count === 1 ? "object" : "objects"} on this tile.`;
+}
+
+function showCounts() {
+  const { objects, tilesWithObjects, tiles } = datasetCounts(state.tiles, state.objects);
+  const tile = currentTile();
+  element("dataset-count").textContent = `${objects.toLocaleString("en")} ${objects === 1 ? "object" : "objects"}, target ${TARGET_OBJECTS.toLocaleString("en")}`;
+  element("tile-position").textContent = `Tile ${state.index + 1} of ${tiles}, ${tilesWithObjects} ${tilesWithObjects === 1 ? "tile" : "tiles"} labelled`;
+  element("tile-id").textContent = `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
+  const { percent, reached } = targetProgress(objects, TARGET_OBJECTS);
+  const bar = element("target-bar");
+  bar.style.width = `${percent}%`;
+  bar.classList.toggle("reached", reached);
 }
 
 function drawObjects() {
@@ -167,7 +180,7 @@ async function showTile(index) {
   state.prompt = null;
   clearSide();
   const tile = currentTile();
-  element("position").textContent = `Tile ${index + 1} of ${state.tiles.length}: ${tile.id}, ${tile.cells.length} marked cells`;
+  showCounts();
   tileCanvas.getContext("2d").clearRect(0, 0, PIXELS, PIXELS);
   drawObjects();
   setStatus("Loading the imagery...");
@@ -312,6 +325,7 @@ boxCanvas.addEventListener("pointercancel", () => {
 // A full or blocked storage throws a DOMException; the object stays on the page and the status says it was not saved.
 function afterChange(message) {
   drawObjects();
+  showCounts();
   try {
     saveObjects();
     setStatus(message);
@@ -413,7 +427,7 @@ async function download() {
   }
   zip.file("data.yaml", datasetYaml(objectName));
   zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, pixels: PIXELS })));
-  const objectCount = tiles.reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
+  const objectCount = datasetCounts(tiles, state.objects).objects;
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   await saveZip(zip, `${state.name}_yolo_${mode}_${state.threshold}.zip`);
   setStatus(`Downloaded ${tiles.length} tiles with objects.`);

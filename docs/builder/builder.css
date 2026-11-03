@@ -14,6 +14,7 @@
   --no: rgba(255, 255, 255, 0.05);
   --single: rgba(46, 160, 67, 0.55);
   --multiple: rgba(255, 221, 0, 0.6);
+  --reached: #2ea043;
   --text: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
@@ -158,7 +159,11 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #stage #draw[aria-pressed="true"]:where(:hover:not(:disabled)) { background: var(--ink-hover); border-color: var(--ink-hover); }
 #tile-bar { display: flex; flex-direction: column; gap: 6px; }
 #tile-bar p { margin: 0; font-size: 13px; }
-#position { font-family: var(--mono); font-size: 12px; }
+#tile-bar #dataset-count { font-size: 15px; font-weight: 700; }
+#tile-bar #target-track { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+#tile-bar #target-bar { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
+#tile-bar #target-bar.reached { background: var(--reached); }
+#tile-id { font-family: var(--mono); font-size: 12px; }
 #tile-bar div { display: flex; gap: 8px; }
 #tile-bar button { flex: 1; }
 body.working #tile-canvas { opacity: 0.6; }
@@ -180,7 +185,7 @@ body.working #tile-canvas { opacity: 0.6; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
   #stage-area { padding: 0; }
   #stage { width: 100%; height: auto; }
-  body.loaded:not(.editing):has(#tile-bar) { padding-bottom: 160px; }
+  body.loaded:not(.editing):has(#tile-bar) { padding-bottom: 220px; }
   body:not(.loaded) #tile-bar, body.editing #tile-bar { display: none; }
   #tile-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--line); }
 }

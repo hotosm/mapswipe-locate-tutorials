@@ -16,7 +16,7 @@ Open iD from <https://www.openstreetmap.org/edit> and log in. Open the **Backgro
 
 ## 2. Find the objects
 
-Drag the file saved with **Download cells** in [Use the results in QGIS](../qgis.md) onto the map. iD shows it under **Map Data** (++u++) > **Custom Map Data**. Zoom to a marked cell. Check that each area already mapped there matches the object in the image.
+Drag the file saved with **Download cells** in [View the results](../view-results.md) onto the map. iD shows it under **Map Data** (++u++) > **Custom Map Data**. Zoom to a marked cell. Check that each area already mapped there matches the object in the image.
 
 ![Drone imagery of Freetown in iD at zoom 20](../../assets/dataset/id-imagery-shown.jpg)
 
