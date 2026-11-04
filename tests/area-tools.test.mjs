@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { cellMetres, gridLines, imageryMask, isEmptyPixel, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -90,4 +90,39 @@ test("a cell at zoom 20 is about 9.5 m wide on the equator with 4x4, and smaller
   assert.ok(Math.abs(cellMetres(0, 20, 4) - 9.5546) < 0.001);
   assert.ok(Math.abs(cellMetres(0, 20, 2) - 2 * cellMetres(0, 20, 4)) < 1e-9);
   assert.ok(Math.abs(cellMetres(60, 20, 4) - cellMetres(0, 20, 4) / 2) < 1e-9);
+});
+
+test("MapSwipe's area limit is 320 km² at zoom 20 and shrinks fourfold per zoom level", () => {
+  assert.equal(maxAreaSquareKm(20), 320);
+  assert.equal(maxAreaSquareKm(21), 80);
+  assert.equal(maxAreaSquareKm(18), 5120);
+});
+
+test("an area at the limit passes, and one over it or over 1 MB is reported", () => {
+  assert.deepEqual(areaProblems(320, 20, 1024 * 1024), []);
+  assert.match(areaProblems(320.01, 20, 1000)[0], /up to 320 km² at zoom 20/);
+  assert.match(areaProblems(1, 20, 1024 * 1024 + 1)[0], /accepts up to 1 MB/);
+  assert.equal(areaProblems(321, 20, 2 * 1024 * 1024).length, 2);
+});
+
+const tileEdgeLatitude = (y, zoom) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** zoom))) * 180) / Math.PI;
+const tileEdgeLongitude = (x, zoom) => (x / 2 ** zoom) * 360 - 180;
+// A rectangle inside columns x to x + columns - 1 and rows y to y + rows - 1 at zoom 20.
+const partOverTiles = (x, y, rows, columns = 2) => {
+  const [west, east] = [tileEdgeLongitude(x + 0.1, 20), tileEdgeLongitude(x + columns - 0.1, 20)];
+  const [north, south] = [tileEdgeLatitude(y + 0.1, 20), tileEdgeLatitude(y + rows - 0.1, 20)];
+  return [[[west, south], [east, south], [east, north], [west, north], [west, south]]];
+};
+
+test("separate parts are counted one by one, not over the rectangle around them all", () => {
+  const near = partOverTiles(485800, 499501, 3);
+  const far = partOverTiles(486000, 499702, 3);
+  assert.equal(multiPolygonTileCount([near], 20), 6);
+  assert.ok(multiPolygonTileCount([near, far], 20) < tileCount([tileEdgeLongitude(485800, 20), tileEdgeLatitude(499705, 20), tileEdgeLongitude(486002, 20), tileEdgeLatitude(499501, 20)], 20));
+});
+
+test("a part that crosses a strip boundary of the whole area counts both strips", () => {
+  const first = partOverTiles(485800, 499501, 3);
+  const second = partOverTiles(486000, 499502, 3, 4);
+  assert.equal(multiPolygonTileCount([first, second], 20), 2 * 3 + 4 * 6);
 });

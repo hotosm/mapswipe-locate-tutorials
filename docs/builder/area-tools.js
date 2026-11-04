@@ -56,6 +56,23 @@ export function tileCount([west, south, east, north], zoom) {
   return (columns + (columns % 2)) * Math.ceil(rows / 3) * 3;
 }
 
+function ringBounds(ring) {
+  const longitudes = ring.map(([longitude]) => longitude);
+  const latitudes = ring.map(([, latitude]) => latitude);
+  return [Math.min(...longitudes), Math.min(...latitudes), Math.max(...longitudes), Math.max(...latitudes)];
+}
+
+// Processing cuts the area into strips three rows tall from its northmost tile, then each part into its own columns.
+export function multiPolygonTileCount(coordinates, zoom) {
+  const bounds = coordinates.map(([outer]) => ringBounds(outer));
+  const firstRow = tileY(Math.max(...bounds.map(([, , , north]) => north)), zoom);
+  const strip = (latitude) => Math.floor((tileY(latitude, zoom) - firstRow) / 3);
+  return bounds.reduce((sum, [west, south, east, north]) => {
+    const columns = tileX(east, zoom) - tileX(west, zoom) + 1;
+    return sum + (columns + (columns % 2)) * (strip(south) - strip(north) + 1) * 3;
+  }, 0);
+}
+
 function tileLongitude(x, zoom) {
   return (x / 2 ** zoom) * 360 - 180;
 }
@@ -86,4 +103,18 @@ export function gridLines([west, south, east, north], zoom, cellsPerSide) {
 // A Web Mercator tile is 40,075,016.686 m (the equator) wide at zoom 0, and shrinks with the cosine of the latitude.
 export function cellMetres(latitude, zoom, cellsPerSide) {
   return (40075016.686 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom / cellsPerSide;
+}
+
+// The backend refuses an area larger than 5·4^(23−zoom) km², and the manager a file over 1 MB.
+const MAX_FILE_BYTES = 1024 * 1024;
+
+export function maxAreaSquareKm(zoom) {
+  return 5 * 4 ** (23 - zoom);
+}
+
+export function areaProblems(squareKm, zoom, fileBytes) {
+  const problems = [];
+  if (squareKm > maxAreaSquareKm(zoom)) problems.push(`MapSwipe accepts up to ${maxAreaSquareKm(zoom).toLocaleString("en")} km² at zoom ${zoom}. Draw a smaller area or choose a lower zoom.`);
+  if (fileBytes > MAX_FILE_BYTES) problems.push(`The file is ${(fileBytes / MAX_FILE_BYTES).toFixed(1)} MB and MapSwipe accepts up to 1 MB. Draw a simpler area.`);
+  return problems;
 }

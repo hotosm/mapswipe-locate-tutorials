@@ -54,15 +54,16 @@
         <dd><code id="tile-url"></code></dd>
         <dt>Cell size</dt>
         <dd id="cell-size"></dd>
-        <dt>Footprint</dt>
-        <dd id="footprint-size"></dd>
         <dt>Area of interest</dt>
-        <dd id="area-size">Not drawn yet</dd>
+        <dd id="area-size"></dd>
       </dl>
-      <button id="draw" type="button" disabled>Draw area of interest</button>
+      <p id="area-problems" class="problems" aria-live="polite"></p>
       <button id="download-area" type="button" disabled>Download area of interest</button>
-      <button id="cover" type="button" disabled>Save map view as cover image</button>
-      <button id="download-footprint" type="button" class="secondary" disabled>Download footprint</button>
+      <div class="actions">
+        <button id="draw" type="button" class="secondary" aria-pressed="false" disabled>Draw area</button>
+        <button id="use-footprint" type="button" class="secondary" disabled>Use footprint</button>
+      </div>
+      <button id="cover" type="button" class="secondary" disabled>Save map view as cover image</button>
     </aside>
   </main>
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>

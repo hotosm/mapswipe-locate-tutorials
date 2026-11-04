@@ -1,4 +1,6 @@
-import { cellMetres, gridLines, imageryMask, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "./area-tools.js";
+import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
+import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
+import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat } from "./area-tools.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
@@ -23,6 +25,22 @@ const map = new maplibregl.Map({
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
 
+const DRAWN_STYLE = { fillColor: "#ffffff", fillOpacity: 0, outlineColor: "#ffffff", outlineWidth: 2 };
+let draw = null;
+const drawReady = new Promise((resolve) => map.on("load", () => {
+  draw = new TerraDraw({
+    adapter: new TerraDrawMapLibreGLAdapter({ map }),
+    modes: [
+      new TerraDrawPolygonMode({ styles: DRAWN_STYLE }),
+      new TerraDrawSelectMode({ flags: { polygon: { feature: { draggable: true, coordinates: { draggable: true, midpoints: true, deletable: true } } } } }),
+    ],
+  });
+  draw.start();
+  draw.on("finish", showArea);
+  draw.on("change", (ids, type) => type === "delete" && showArea());
+  resolve();
+}));
+
 function download(name, blob) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -31,8 +49,9 @@ function download(name, blob) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-function downloadGeoJson(name, feature) {
-  download(name, new Blob([JSON.stringify(turf.featureCollection([feature]))], { type: "application/geo+json" }));
+// Terra Draw's layers stay on top, so drawn shapes and their corners can be seen and grabbed.
+function drawingLayer() {
+  return map.getStyle().layers.find(({ id }) => id.startsWith("td-"))?.id;
 }
 
 function showLayer(id, data, paint) {
@@ -41,7 +60,7 @@ function showLayer(id, data, paint) {
     return;
   }
   map.addSource(id, { type: "geojson", data });
-  map.addLayer({ id, type: "line", source: id, paint });
+  map.addLayer({ id, type: "line", source: id, paint }, drawingLayer());
 }
 
 function showGrid() {
@@ -59,8 +78,52 @@ function showGrid() {
   element("cell-size").textContent = `about ${metres} m by ${metres} m at zoom ${state.zoom}, ${state.cells}x${state.cells}${hint}`;
 }
 
-function describeSize(feature) {
-  return `${(turf.area(feature) / 1e6).toFixed(2)} km², about ${tileCount(turf.bbox(feature), state.zoom)} tiles at zoom ${state.zoom}`;
+function areaFile(feature) {
+  return new Blob([JSON.stringify(turf.featureCollection([feature]))], { type: "application/geo+json" });
+}
+
+function drawnPolygons() {
+  return draw.getSnapshot().filter((feature) => feature.properties.mode === "polygon" && feature.geometry.type === "Polygon" && !feature.properties.currentlyDrawing);
+}
+
+// Every drawn shape is cut to the footprint, and the pieces together form one MultiPolygon feature.
+function chosenArea() {
+  const drawn = drawnPolygons();
+  if (drawn.length === 0) return state.footprint;
+  const merged = drawn.length === 1 ? drawn[0] : turf.union(turf.featureCollection(drawn));
+  const clipped = turf.intersect(turf.featureCollection([merged, state.footprint]));
+  return clipped && turf.multiPolygon(clipped.geometry.type === "Polygon" ? [clipped.geometry.coordinates] : clipped.geometry.coordinates);
+}
+
+function showArea() {
+  state.area = chosenArea();
+  element("use-footprint").disabled = drawnPolygons().length === 0;
+  element("download-area").disabled = !state.area;
+  showFill("area", state.area ?? turf.featureCollection([]));
+  if (!state.area) {
+    element("area-size").textContent = "Outside the imagery. Draw inside the red line.";
+    element("area-problems").textContent = "";
+    return;
+  }
+  const squareKm = turf.area(state.area) / 1e6;
+  element("area-size").textContent = `${squareKm.toFixed(2)} km², about ${multiPolygonTileCount(state.area.geometry.coordinates, state.zoom).toLocaleString("en")} tiles at zoom ${state.zoom}`;
+  element("area-problems").textContent = areaProblems(squareKm, state.zoom, areaFile(state.area).size).join(" ");
+}
+
+function showFill(id, data) {
+  if (map.getSource(id)) {
+    map.getSource(id).setData(data);
+    return;
+  }
+  map.addSource(id, { type: "geojson", data });
+  map.addLayer({ id: `${id}-fill`, type: "fill", source: id, paint: { "fill-color": "#ffdd00", "fill-opacity": 0.2 } }, drawingLayer());
+  map.addLayer({ id, type: "line", source: id, paint: { "line-color": "#ffdd00", "line-width": 3 } }, drawingLayer());
+}
+
+function stopDrawing() {
+  draw.setMode("select");
+  element("draw").textContent = "Draw area";
+  element("draw").setAttribute("aria-pressed", "false");
 }
 
 function dropSmallPatches(multiPolygon) {
@@ -93,6 +156,7 @@ async function findFootprint(imageId, bbox) {
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    await drawReady;
     const imageId = parseImageId(element("image").value);
     state.zoom = chosenZoom();
     state.cells = chosenCells();
@@ -108,23 +172,21 @@ element("setup").addEventListener("submit", async (event) => {
       map.removeSource("imagery");
     }
     map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds });
-    map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getLayer("footprint") ? "footprint" : undefined);
+    map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getStyle().layers[1]?.id);
     map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
 
     state.footprint = await findFootprint(imageId, bounds);
-    state.area = null;
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
-    showLayer("area", turf.featureCollection([]), { "line-color": "#ffdd00", "line-width": 3 });
+    draw.clear();
+    stopDrawing();
+    showArea();
 
     showGrid();
     element("tile-url").textContent = tileUrl;
-    element("footprint-size").textContent = describeSize(state.footprint);
-    element("area-size").textContent = "Not drawn yet";
     element("details").hidden = false;
-    for (const id of ["download-footprint", "draw", "cover"]) element(id).disabled = false;
-    element("download-area").disabled = true;
+    for (const id of ["draw", "cover"]) element(id).disabled = false;
     foldSetup(item.properties?.title ?? imageId);
-    setStatus("The red line shows where the image has imagery.");
+    setStatus("The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.");
   } catch (error) {
     console.error(error);
     setStatus(error.message);
@@ -147,49 +209,31 @@ map.on("moveend", showGrid);
 element("zoom-levels").addEventListener("change", () => {
   state.zoom = chosenZoom();
   showGrid();
-  if (state.footprint) element("footprint-size").textContent = describeSize(state.footprint);
-  if (state.area) element("area-size").textContent = describeSize(state.area);
+  if (state.footprint) showArea();
 });
 
 element("draw").addEventListener("click", () => {
-  setStatus("Drag on the map to draw a rectangle.");
-  element("draw").disabled = true;
-  map.dragPan.disable();
-  map.getCanvas().style.cursor = "crosshair";
-  let start = null;
-
-  const rectangle = (end) => turf.bboxPolygon([
-    Math.min(start.lng, end.lng), Math.min(start.lat, end.lat), Math.max(start.lng, end.lng), Math.max(start.lat, end.lat),
-  ]);
-  const onMove = (event) => showLayer("area", rectangle(event.lngLat.wrap()), {});
-  const onUp = (event) => {
-    map.off("mousemove", onMove);
-    map.dragPan.enable();
-    map.getCanvas().style.cursor = "";
-    element("draw").disabled = false;
-    const clipped = turf.intersect(turf.featureCollection([rectangle(event.lngLat.wrap()), state.footprint]));
-    if (!clipped) {
-      showLayer("area", turf.featureCollection([]), {});
-      setStatus("No imagery there. Draw inside the red line.");
-      return;
-    }
-    state.area = clipped;
-    showLayer("area", clipped, {});
-    element("area-size").textContent = describeSize(clipped);
-    element("download-area").disabled = false;
-    setStatus("The yellow line is the area of interest, cut to the imagery.");
-  };
-  map.once("mousedown", (event) => {
-    start = event.lngLat.wrap();
-    map.on("mousemove", onMove);
-    map.once("mouseup", onUp);
-  });
+  if (draw.getMode() === "polygon") {
+    stopDrawing();
+    setStatus("Click a shape to move it or drag its corners.");
+    return;
+  }
+  draw.setMode("polygon");
+  element("draw").textContent = "Done";
+  element("draw").setAttribute("aria-pressed", "true");
+  setStatus("Click to add corners, and click the first corner to close the shape. Draw more shapes for separate places.");
 });
 
-element("download-footprint").addEventListener("click", () => downloadGeoJson("imagery-footprint.geojson", state.footprint));
-element("download-area").addEventListener("click", () => downloadGeoJson("area-of-interest.geojson", state.area));
+element("use-footprint").addEventListener("click", () => {
+  draw.clear();
+  stopDrawing();
+  showArea();
+  setStatus("The yellow area is the imagery footprint.");
+});
+
+element("download-area").addEventListener("click", () => download("area-of-interest.geojson", areaFile(state.area)));
 element("cover").addEventListener("click", () => {
-  const outlines = ["footprint", "area", "grid"];
+  const outlines = ["footprint", "area", "area-fill", "grid", ...map.getStyle().layers.map(({ id }) => id).filter((id) => id.startsWith("td-"))];
   for (const id of outlines) map.setLayoutProperty(id, "visibility", "none");
   map.once("idle", () => {
     map.getCanvas().toBlob((blob) => download("cover-image.jpg", blob), "image/jpeg", 0.9);

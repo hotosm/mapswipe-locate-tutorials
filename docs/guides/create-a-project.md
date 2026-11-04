@@ -22,7 +22,7 @@ Find the image on <https://imagery.hotosm.org/browse> and click it. Its details 
 
     Keep one shape per place: a single rectangle around places far apart also covers the ground between them, outside the images, and volunteers see blank tiles there. Some tiles at the edges of each shape still fall outside the imagery, because MapSwipe groups tiles into rectangles three tiles tall and an even number of tiles wide, and every tile in a rectangle becomes a task ([grouping](https://github.com/mapswipe/mapswipe-backend/blob/develop/utils/geo/tile_grouping.py), [tasks](https://github.com/mapswipe/mapswipe-backend/blob/develop/project_types/tile_map_service/base/project.py)).
 
-Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as solar panels, see step 5); the tile estimates follow it. Choose the **Sub-grid** too and zoom in on the map: white lines show the tiles and the cells, the mini-tiles volunteers tap, and **Cell size** gives a cell's width. Compare it with the objects volunteers look for.
+Open the [area finder](../builder/area.html), paste the address and click **Load**. The red line shows where the image has imagery; white and black edges are left out. The yellow area inside it is the area of interest, the whole footprint at first. In the side panel, choose the **Project zoom** the project will use (20 for small objects such as solar panels, see step 5); the tile estimates follow it. Choose the **Sub-grid** too and zoom in on the map: white lines show the tiles and the cells, the mini-tiles volunteers tap, and **Cell size** gives a cell's width. Compare it with the objects volunteers look for.
 
 ![Area finder with the imagery footprint](../assets/create/area-helper-footprint.png)
 
@@ -30,14 +30,13 @@ Open the [area finder](../builder/area.html), paste the address and click **Load
 
 Then:
 
-1. Click **Draw area of interest** and drag a rectangle over the part volunteers will map. The helper cuts it to the imagery and shows its size and an upper estimate of how many tiles MapSwipe will create, counted over the rectangle around the area.
-2. Click **Download area of interest** to save `area-of-interest.geojson`.
-3. Zoom the map to a view that shows the object well and click **Save map view as cover image** to save `cover-image.jpg`.
-4. Copy the **Tile URL for the manager**.
+1. To map only part of the image, click **Draw area**. Click the corners of a shape, and click the first corner to close it. Draw more shapes for separate places, then click **Done**; a shape that is not closed yet is dropped. Click a shape to move it or drag its corners. Drag the point between two corners to add a corner, right-click a corner to remove it, and press ++delete++ to remove the selected shape. The helper cuts the shapes to the imagery; **Use footprint** removes them.
+2. Check **Area of interest**: its size and an estimate of how many tiles MapSwipe will create. A red note appears when the area is larger than MapSwipe accepts at the project zoom, for example 320 km² at zoom 20 and 80 km² at zoom 21 ([source](https://github.com/mapswipe/mapswipe-backend/blob/develop/project_types/tile_map_service/base/project.py)), or when the file is larger than 1 MB, the limit of the manager's upload ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/components/domain/AssetInput/index.tsx), [limit](https://github.com/mapswipe/manager-dashboard/blob/develop/app/utils/common.ts)).
+3. Click **Download area of interest** to save `area-of-interest.geojson`. It holds one MultiPolygon feature with one part per place, and MapSwipe makes tasks for each part ([grouping](https://github.com/mapswipe/mapswipe-backend/blob/develop/utils/geo/tile_grouping.py)).
+4. Zoom the map to a view that shows the object well and click **Save map view as cover image** to save `cover-image.jpg`.
+5. Copy the **Tile URL for the manager**.
 
-**Download footprint** saves the outline of the whole image, if you want to keep it.
-
-![Drawing an area of interest, which the area finder cuts to the imagery](../assets/create/area-finder.gif){ loading=lazy }
+![Two drawn shapes cut to the imagery in the area finder](../assets/create/area-finder-draw.jpg)
 
 ## 2. Start a new project
 

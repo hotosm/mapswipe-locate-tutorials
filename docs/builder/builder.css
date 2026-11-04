@@ -189,3 +189,8 @@ body.working #tile-canvas { opacity: 0.6; }
   body:not(.loaded) #tile-bar, body.editing #tile-bar { display: none; }
   #tile-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--line); }
 }
+
+aside .actions { display: flex; gap: 8px; }
+aside .actions button { flex: 1; }
+.problems { margin: 0; color: var(--overlay); font-size: 13px; }
+.problems:empty { display: none; }
