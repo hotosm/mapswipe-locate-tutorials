@@ -124,6 +124,7 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #details dd { margin: 0 0 8px; overflow-wrap: anywhere; }
 #details code { font-size: 12px; }
 #image-list { margin: 0; padding-left: 20px; }
+#image-list button.link { text-align: left; }
 #image-inputs { display: flex; flex-direction: column; gap: 6px; align-self: stretch; }
 .image-row { display: flex; gap: 6px; }
 .image-row input { flex: 1; min-width: 0; }

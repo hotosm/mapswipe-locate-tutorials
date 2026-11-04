@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { mosaicTileUrl, parseImageIds, unionBounds } from "../docs/builder/mosaic-tools.js";
+import { imageTitle, mosaicTileUrl, parseImageIds, parseImageIdsFromLink, unionBounds } from "../docs/builder/mosaic-tools.js";
 import { tileImageUrl } from "../docs/builder/scenarios.js";
 
 const BANEPA = "62d86c65d8499800053796c4";
@@ -33,4 +33,18 @@ test("the mosaic tile URL lists every image and fills in to a tile request in th
 test("the combined bounds cover every image", () => {
   assert.deepEqual(unionBounds([[85.49, 27.61, 85.54, 27.65], [85.54, 27.6, 85.55, 27.62]]), [85.49, 27.6, 85.55, 27.65]);
   assert.deepEqual(unionBounds([[-13.2991565, 8.5004312, -13.1252206, 8.3971738]]), [-13.2991565, 8.3971738, -13.1252206, 8.5004312]);
+});
+
+test("the merger's tile URL gives each of its images once, with or without spaces or an encoded comma, and any other link gives one image", () => {
+  assert.deepEqual(parseImageIdsFromLink(mosaicTileUrl([BANEPA, TRAINING_CENTER, BANEPA])), [BANEPA, TRAINING_CENTER]);
+  assert.deepEqual(parseImageIdsFromLink(mosaicTileUrl([BANEPA, TRAINING_CENTER]).replace(",", ", ")), [BANEPA, TRAINING_CENTER]);
+  assert.deepEqual(parseImageIdsFromLink(mosaicTileUrl([BANEPA, TRAINING_CENTER]).replace(",", "%2C")), [BANEPA, TRAINING_CENTER]);
+  assert.deepEqual(parseImageIdsFromLink(`https://imagery.hotosm.org/browse?selected_id=${BANEPA}`), [BANEPA]);
+  assert.throws(() => parseImageIdsFromLink(`https://api.imagery.hotosm.org/raster/tiles?ids=${BANEPA},not-an-image`), /image ID/);
+});
+
+test("an image is named by its title and capture date, or by its ID when it has neither", () => {
+  assert.equal(imageTitle({ id: BANEPA, properties: { title: "Banepa", datetime: "2022-04-15T00:00:00Z" } }), "Banepa (2022-04-15)");
+  assert.equal(imageTitle({ id: BANEPA, properties: { start_datetime: "2023-09-07T05:00:00Z" } }), `${BANEPA} (2023-09-07)`);
+  assert.equal(imageTitle({ id: BANEPA, properties: {} }), `${BANEPA} (no date)`);
 });

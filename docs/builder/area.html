@@ -21,8 +21,8 @@
       <div class="card">
         <h2>Load an image</h2>
         <label>
-          <span>Image from imagery.hotosm.org</span>
-          <input id="image" type="text" placeholder="Browse link, TMS URL or image ID" required>
+          <span>Image from imagery.hotosm.org, or the tile URL of the imagery merger</span>
+          <input id="image" type="text" placeholder="Browse link, TMS URL, image ID or merger tile URL" required>
         </label>
         <div class="actions">
           <button type="submit">Load</button>
@@ -54,6 +54,8 @@
         <dd><code id="tile-url"></code></dd>
         <dt>Cell size</dt>
         <dd id="cell-size"></dd>
+        <dt id="images-label">Images</dt>
+        <dd id="images"><ol id="image-list"></ol></dd>
         <dt>Area of interest</dt>
         <dd id="area-size"></dd>
       </dl>

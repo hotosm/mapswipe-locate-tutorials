@@ -1,6 +1,7 @@
 import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
 import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
-import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat } from "./area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat } from "./area-tools.js";
+import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
@@ -86,13 +87,20 @@ function drawnPolygons() {
   return draw.getSnapshot().filter((feature) => feature.properties.mode === "polygon" && feature.geometry.type === "Polygon" && !feature.properties.currentlyDrawing);
 }
 
+function asMultiPolygon({ geometry }) {
+  return turf.multiPolygon(geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates);
+}
+
+function joined(features) {
+  return features.length === 1 ? features[0] : turf.union(turf.featureCollection(features));
+}
+
 // Every drawn shape is cut to the footprint, and the pieces together form one MultiPolygon feature.
 function chosenArea() {
   const drawn = drawnPolygons();
   if (drawn.length === 0) return state.footprint;
-  const merged = drawn.length === 1 ? drawn[0] : turf.union(turf.featureCollection(drawn));
-  const clipped = turf.intersect(turf.featureCollection([merged, state.footprint]));
-  return clipped && turf.multiPolygon(clipped.geometry.type === "Polygon" ? [clipped.geometry.coordinates] : clipped.geometry.coordinates);
+  const clipped = turf.intersect(turf.featureCollection([joined(drawn), state.footprint]));
+  return clipped && asMultiPolygon(clipped);
 }
 
 function showArea() {
@@ -126,18 +134,18 @@ function stopDrawing() {
   element("draw").setAttribute("aria-pressed", "false");
 }
 
-function dropSmallPatches(multiPolygon) {
+function dropSmallPatches(multiPolygon, imageId) {
   const largeEnough = (ring) => turf.area(turf.polygon([ring])) >= MIN_PATCH_SQUARE_METRES;
   const polygons = multiPolygon.coordinates
     .filter(([outer]) => largeEnough(outer))
     .map(([outer, ...holes]) => [outer, ...holes.filter(largeEnough)]);
-  if (polygons.length === 0) throw new Error("No imagery found in this image.");
+  if (polygons.length === 0) throw new Error(`No imagery found in image ${imageId}.`);
   return turf.multiPolygon(polygons);
 }
 
 async function findFootprint(imageId, bbox) {
   const response = await fetch(`${API}/raster/collections/openaerialmap/items/${imageId}/preview.png?assets=visual&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
-  if (!response.ok) throw new Error(`The imagery preview failed with HTTP ${response.status}.`);
+  if (!response.ok) throw new Error(`The preview of image ${imageId} failed with HTTP ${response.status}.`);
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const context = canvas.getContext("2d");
@@ -149,24 +157,39 @@ async function findFootprint(imageId, bbox) {
   const [outline] = d3.contours().size([width, height]).thresholds([0.5])(mask);
   const toLonLat = pixelToLonLat(bbox, width, height);
   const coordinates = outline.coordinates.map((polygon) => polygon.map((ring) => ring.map(toLonLat)));
-  const footprint = dropSmallPatches({ type: "MultiPolygon", coordinates });
+  const footprint = dropSmallPatches({ type: "MultiPolygon", coordinates }, imageId);
   return turf.simplify(footprint, { tolerance: (bbox[2] - bbox[0]) / width, highQuality: true });
+}
+
+// Images can lie far apart, so each one in the list zooms the map to its footprint.
+function showImageList(items, footprints) {
+  element("image-list").replaceChildren(...items.map((item, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "link";
+    button.textContent = imageTitle(item);
+    button.addEventListener("click", () => map.fitBounds(turf.bbox(footprints[index]), { padding: 20 }));
+    const entry = document.createElement("li");
+    entry.append(button);
+    return entry;
+  }));
+  for (const id of ["images-label", "images"]) element(id).hidden = items.length === 1;
 }
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     await drawReady;
-    const imageId = parseImageId(element("image").value);
+    const ids = parseImageIdsFromLink(element("image").value);
     state.zoom = chosenZoom();
     state.cells = chosenCells();
-    setStatus("Loading the image...");
-    const response = await fetch(`${API}/stac/collections/openaerialmap/items/${imageId}`);
-    if (!response.ok) throw new Error(`Image ${imageId} was not found (HTTP ${response.status}).`);
-    const item = await response.json();
-    const bounds = orderedBounds(item.bbox);
+    setStatus(ids.length === 1 ? "Loading the image..." : `Loading ${ids.length} images...`);
+    const items = await Promise.all(ids.map(fetchItem));
+    const bounds = unionBounds(items.map((item) => item.bbox));
 
-    const tileUrl = `${API}/raster/collections/openaerialmap/items/${imageId}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`;
+    const tileUrl = ids.length === 1
+      ? `${API}/raster/collections/openaerialmap/items/${ids[0]}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`
+      : mosaicTileUrl(ids);
     if (map.getSource("imagery")) {
       map.removeLayer("imagery");
       map.removeSource("imagery");
@@ -175,7 +198,8 @@ element("setup").addEventListener("submit", async (event) => {
     map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getStyle().layers[1]?.id);
     map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
 
-    state.footprint = await findFootprint(imageId, bounds);
+    const footprints = await Promise.all(items.map((item, index) => findFootprint(ids[index], orderedBounds(item.bbox))));
+    state.footprint = asMultiPolygon(joined(footprints));
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     draw.clear();
     stopDrawing();
@@ -183,15 +207,24 @@ element("setup").addEventListener("submit", async (event) => {
 
     showGrid();
     element("tile-url").textContent = tileUrl;
+    showImageList(items, footprints);
     element("details").hidden = false;
     for (const id of ["draw", "cover"]) element(id).disabled = false;
-    foldSetup(item.properties?.title ?? imageId);
-    setStatus("The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.");
+    foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
+    const imageListHint = items.length === 1 ? "" : " Click an image under Images to go to it.";
+    setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
   } catch (error) {
     console.error(error);
     setStatus(error.message);
   }
 });
+
+const linkedImage = new URLSearchParams(location.search).get("image");
+if (linkedImage) {
+  element("image").value = linkedImage;
+  history.replaceState(null, "", location.pathname);
+  element("setup").requestSubmit();
+}
 
 element("example").addEventListener("click", () => {
   element("image").value = EXAMPLE_IMAGE;

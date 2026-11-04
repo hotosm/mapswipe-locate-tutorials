@@ -10,7 +10,7 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
 -   :lucide-crop: **[Area finder](../builder/area.html)**
 
-    Paste an image from imagery.hotosm.org. Get its real footprint as the area of interest, or draw one or more shapes cut to the imagery, with a tile estimate and MapSwipe's size limit. Get the tile URL and a cover image too. Preview the tiles and cells for each project zoom and sub-grid size.
+    Paste an image from imagery.hotosm.org, or open merged images from the imagery merger. Get their real footprint as the area of interest, or draw one or more shapes cut to the imagery, with a tile estimate and MapSwipe's size limit. Get the tile URL and a cover image too. Preview the tiles and cells for each project zoom and sub-grid size.
 
 -   :lucide-layout-grid: **[Tutorial builder](../builder/index.html)**
 
@@ -42,6 +42,7 @@ Use it when the project area needs more than one image.
 2. In the [imagery merger](../builder/mosaic.html), paste one image per field under **Images**. **Add image** adds a field and **Remove** drops one. Click **Merge**.
 3. Zoom in where the images meet. Each image has a red outline, and the list on the right shows its date.
 4. Click **Copy tile URL** and use it in the manager and in the tutorial builder.
+5. Click **Open in area finder** to find the footprint of all the images and draw the area of interest across them.
 
 **Try the Banepa example** merges two images over Banepa, Nepal.
 
@@ -51,7 +52,6 @@ Use it when the project area needs more than one image.
     - Where images overlap, the newest is drawn on top: pgstac sorts items by `datetime` descending by default ([source](https://github.com/stac-utils/pgstac/blob/main/src/pgstac/sql/002d_keyset.sql)).
     - The URL sets `exitwhenfull=false` and `skipcovered=false`, so an older image still fills the parts of a tile where a newer image doesn't have pixels.
     - White or near-black edges of a newer image are drawn on top of older imagery. When they hide what volunteers need to see, leave that image out.
-    - The area finder reads one image at a time. For an area across several images, download an area of interest for each image and combine them into one file, as in [Create a Locate project](../guides/create-a-project.md#1-prepare-the-area-tile-url-and-cover-image).
 
 ## Results map
 

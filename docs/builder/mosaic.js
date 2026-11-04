@@ -1,7 +1,6 @@
-import { EXAMPLE_IMAGES, mosaicTileUrl, parseImageIds, unionBounds } from "./mosaic-tools.js";
+import { EXAMPLE_IMAGES, fetchItem, imageTitle, mosaicTileUrl, parseImageIds, unionBounds } from "./mosaic-tools.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 
-const STAC_ITEMS = "https://api.imagery.hotosm.org/stac/collections/openaerialmap/items";
 const element = (id) => document.getElementById(id);
 
 const map = new maplibregl.Map({
@@ -17,12 +16,6 @@ function replaceSource(id, source, layer) {
   if (map.getSource(id)) map.removeSource(id);
   map.addSource(id, source);
   map.addLayer({ id, source: id, ...layer });
-}
-
-async function fetchItem(id) {
-  const response = await fetch(`${STAC_ITEMS}/${id}`);
-  if (!response.ok) throw new Error(`Image ${id} was not found (HTTP ${response.status}).`);
-  return response.json();
 }
 
 function addImageInput(value = "") {
@@ -60,8 +53,7 @@ function imageValues() {
 function showImageList(items) {
   element("image-list").replaceChildren(...items.map((item) => {
     const entry = document.createElement("li");
-    const date = item.properties?.datetime ?? item.properties?.start_datetime;
-    entry.textContent = `${item.properties?.title ?? item.id} (${date?.slice(0, 10) ?? "no date"})`;
+    entry.textContent = imageTitle(item);
     return entry;
   }));
 }
@@ -83,7 +75,7 @@ element("setup").addEventListener("submit", async (event) => {
     element("tile-url").textContent = tileUrl;
     showImageList(items);
     element("details").hidden = false;
-    element("copy").disabled = false;
+    for (const id of ["copy", "open-area"]) element(id).disabled = false;
     foldSetup(`${ids.length} images merged`);
     setStatus("Red lines are the image outlines.");
   } catch (error) {
@@ -106,4 +98,8 @@ addImageInput();
 element("copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText(element("tile-url").textContent);
   setStatus("Tile URL copied.");
+});
+
+element("open-area").addEventListener("click", () => {
+  location.href = `area.html?image=${encodeURIComponent(element("tile-url").textContent)}`;
 });
