@@ -188,14 +188,17 @@ function clearArea() {
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
+  // A newer Load replaces this one while its requests are still running.
+  const load = ++state.load;
+  const isCurrent = () => load === state.load;
   try {
     await drawReady;
-    const load = ++state.load;
     const ids = parseImageIdsFromLink(element("image").value);
     state.zoom = chosenZoom();
     state.cells = chosenCells();
     setStatus(ids.length === 1 ? "Loading the image..." : `Loading ${ids.length} images...`);
     const items = await Promise.all(ids.map(fetchItem));
+    if (!isCurrent()) return;
     const bounds = unionBounds(items.map((item) => item.bbox));
 
     const tileUrl = ids.length === 1
@@ -219,11 +222,10 @@ element("setup").addEventListener("submit", async (event) => {
     const footprints = await Promise.all(items.map(async (item, index) => {
       const footprint = await findFootprint(ids[index], orderedBounds(item.bbox));
       found += 1;
-      if (load === state.load) showProgress();
+      if (isCurrent()) showProgress();
       return footprint;
     }));
-    // A newer Load replaces this one while its previews are still rendering.
-    if (load !== state.load) return;
+    if (!isCurrent()) return;
     state.footprint = asMultiPolygon(joined(footprints));
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     showArea();
@@ -237,7 +239,7 @@ element("setup").addEventListener("submit", async (event) => {
     setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
   } catch (error) {
     console.error(error);
-    setStatus(error.message);
+    if (isCurrent()) setStatus(error.message);
   }
 });
 
