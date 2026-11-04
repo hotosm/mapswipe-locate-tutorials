@@ -5,14 +5,15 @@ import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBound
 import { foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
-const PREVIEW_SIZE = 1024;
+// The imagery API can take minutes to render a 1024 px preview it has not made before, and 512 px takes seconds.
+const PREVIEW_SIZE = 512;
 // Patches smaller than 2000 m² are white roofs or specks, not gaps in the imagery.
 const MIN_PATCH_SQUARE_METRES = 2000;
 
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
 // A map zoom three levels above the project zoom shows each tile 64 pixels wide; further out the lines merge.
 const GRID_ZOOM_SPAN = 3;
-const state = { footprint: null, area: null, zoom: 20, cells: 4 };
+const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0 };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
 const chosenCells = () => Number(document.querySelector('input[name="cells"]:checked').value);
@@ -176,10 +177,20 @@ function showImageList(items, footprints) {
   for (const id of ["images-label", "images"]) element(id).hidden = items.length === 1;
 }
 
+function clearArea() {
+  state.footprint = null;
+  state.area = null;
+  for (const id of ["footprint", "area", "grid"]) map.getSource(id)?.setData(turf.featureCollection([]));
+  for (const id of ["draw", "cover", "download-area", "use-footprint"]) element(id).disabled = true;
+  element("details").hidden = true;
+  element("area-problems").textContent = "";
+}
+
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     await drawReady;
+    const load = ++state.load;
     const ids = parseImageIdsFromLink(element("image").value);
     state.zoom = chosenZoom();
     state.cells = chosenCells();
@@ -197,12 +208,24 @@ element("setup").addEventListener("submit", async (event) => {
     map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds });
     map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getStyle().layers[1]?.id);
     map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
-
-    const footprints = await Promise.all(items.map((item, index) => findFootprint(ids[index], orderedBounds(item.bbox))));
-    state.footprint = asMultiPolygon(joined(footprints));
-    showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     draw.clear();
     stopDrawing();
+    clearArea();
+    foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
+
+    let found = 0;
+    const showProgress = () => setStatus(ids.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${ids.length} images done...`);
+    showProgress();
+    const footprints = await Promise.all(items.map(async (item, index) => {
+      const footprint = await findFootprint(ids[index], orderedBounds(item.bbox));
+      found += 1;
+      if (load === state.load) showProgress();
+      return footprint;
+    }));
+    // A newer Load replaces this one while its previews are still rendering.
+    if (load !== state.load) return;
+    state.footprint = asMultiPolygon(joined(footprints));
+    showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     showArea();
 
     showGrid();
@@ -210,7 +233,6 @@ element("setup").addEventListener("submit", async (event) => {
     showImageList(items, footprints);
     element("details").hidden = false;
     for (const id of ["draw", "cover"]) element(id).disabled = false;
-    foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
     const imageListHint = items.length === 1 ? "" : " Click an image under Images to go to it.";
     setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
   } catch (error) {
