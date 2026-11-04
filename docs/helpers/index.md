@@ -10,7 +10,7 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
 -   :lucide-crop: **[Area finder](../builder/area.html)**
 
-    Paste an image from imagery.hotosm.org, or open merged images from the imagery merger. Get their real footprint as the area of interest, or draw one or more shapes cut to the imagery, with a tile estimate and MapSwipe's size limit. Get the tile URL and a cover image too. Preview the tiles and cells for each project zoom and sub-grid size.
+    Paste an image from imagery.hotosm.org, or open merged images from the imagery merger. Download the imagery footprint or shapes you draw as the area of interest, and save a cover image.
 
 -   :lucide-layout-grid: **[Tutorial builder](../builder/index.html)**
 
