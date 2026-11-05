@@ -15,6 +15,7 @@ nav = [
   { "Home" = "index.md" },
   { "Guides" = [
     "guides/index.md",
+    { "Check that your object fits" = "guides/check-your-object.md" },
     { "Create a Locate project" = "guides/create-a-project.md" },
     { "Create the tutorial" = "guides/create-the-tutorial.md" },
     { "Publish and check the project" = "guides/publish.md" },

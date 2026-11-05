@@ -8,23 +8,14 @@ Step-by-step guides for creating a MapSwipe **Locate Objects** project, adding i
 
 In a Locate Objects project, volunteers see one imagery tile at a time, split into a grid of 2x2, 4x4 or 8x8 cells. They tap each cell that contains the object the project asks for: once for one object, twice for several. The results record which cells of each tile hold the object, intended as training data for AI models such as fAIr ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)).
 
-## When Locate Objects fits
-
-Check this before you create a project. Locate Objects records which cells of each tile hold the object, so it fits objects that volunteers can spot from above, each one covering part of a tile. For example:
-
-- rooftop solar panels
-- zebra crossings
-- piles of solid waste
-- road surface damage, such as potholes
-
-It fits poorly in two cases:
-
-- **Line features**, such as roads for highway segmentation. A road crosses many cells, and the cell answers record which cells it touches without its path or width (inferred from the result format, [source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)).
-- **Classification**, such as the type or material of each roof. The manager offers the answers No, Single Feature and Multiple Features ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)), and lets you drop Multiple Features ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditProject/UpdateProjectForm/LocateObjectProjectSpecifics/index.tsx)). The results record whether the object is in a cell, and leave out which kind it is.
-
-For these, narrow the question to one object volunteers can spot, for example one project for each roof type, or create the training data another way, for example by [mapping it in OpenStreetMap](guides/training-data/openstreetmap.md).
+!!! warning "Check that your object fits"
+    Locate Objects suits separate objects you can point at from above, such as solar panels, water tanks, fishing boats or solid waste. It fits partly for areas such as green spaces, and poorly for lines such as roads, for kinds such as roof types, and for two objects in one project. [Check your object](guides/check-your-object.md) before you start.
 
 <div class="grid cards" markdown>
+
+-   :lucide-list-checks: **[Check that your object fits](guides/check-your-object.md)**
+
+    A four-question check and examples of objects that fit well, partly or poorly.
 
 -   :lucide-book-open: **[Guides](guides/index.md)**
 

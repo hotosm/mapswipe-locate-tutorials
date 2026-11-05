@@ -8,6 +8,10 @@ Follow them in order the first time. Each page starts where the previous one end
 
 <div class="grid cards" markdown>
 
+-   :lucide-list-checks: **[Check that your object fits](check-your-object.md)**
+
+    Make sure Locate Objects suits your object before you create a project.
+
 -   :lucide-map-plus: **[Create a Locate project](create-a-project.md)**
 
     Prepare the area, add the imagery, choose the grid and process the project.
