@@ -100,7 +100,7 @@ The Pemba project merges several images, so its `imagery_url` lists them all aft
 
 Boxes around the waste, piles and single items alike, so every patch of waste on the ground has a label. A large dump gets several boxes.
 
-![Solid waste on open ground and along a road, with a yellow box around each pile and around each small item](../assets/dataset/deliver-waste.jpg)
+![Solid waste on open ground and along a road, with a yellow box around each pile and around each small item](../assets/dataset/deliver-waste.webp)
 
 Each feature has the same shape as the solar panel example, with:
 
