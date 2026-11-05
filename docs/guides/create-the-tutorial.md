@@ -13,7 +13,7 @@ The tutorial runs the first time a volunteer opens the project. It has informati
 
 1. In the manager, click **Tutorials** in the top menu.
 2. Click **New Tutorial**.
-3. **Tutorial title**: enter a title, for example `fAIrSwipe - Solar Panels - Freetown`.
+3. **Title**: enter a title, for example `fAIrSwipe - Solar Panels - Freetown`.
 4. **Reference Project**: type part of the project name, for example `Sierra Leone`, and click your processed project in the list.
 5. Click **Submit**. The message **Tutorial created successfully!** appears and the page opens as **Update Tutorial**. The tutorial copies the instruction, imagery and grid settings from the reference project.
 
@@ -34,7 +34,7 @@ The file lists every tile of the project.
 1. Scroll down to **Information Pages** and click **New page**.
 2. Enter a title, for example `Solar panels`. In the web app, the title becomes a tab name in the tutorial.
 3. Click **Add text block** and describe what the object looks like from above.
-4. To show an example picture, click **Add image block** and choose an image.
+4. To show an example picture, click **Add image block** and choose an image of the object seen from above, for example a screenshot of the area finder zoomed in on one.
 5. Click **Update tutorial** at the bottom of the page to save your work so far.
 
 <video src="../assets/tutorial/tutorial-information.mp4" autoplay loop muted playsinline aria-label="Adding an information page with a text block"></video>
@@ -64,7 +64,7 @@ Pick tiles that the imagery covers edge to edge.
 
 For each scenario:
 
-1. Put the mouse over the place you want and turn the mouse wheel to zoom in, until you can see the objects.
+1. The map opens on all the tiles. Put the mouse over the place you want and turn the mouse wheel to zoom in, until you can see the objects.
 2. Click a red square. The tile opens large in the middle of the page, with its cells.
 3. Click each cell that holds the object. One click marks **Single Feature** (green), two clicks **Multiple Features** (yellow), and a third click goes back to **No**.
 4. Click **Done**. The tile has a yellow outline on the map and is listed in the side panel.

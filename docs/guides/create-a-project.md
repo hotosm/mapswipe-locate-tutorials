@@ -6,12 +6,16 @@ icon: lucide/map-plus
 
 This guide takes you from an image on imagery.hotosm.org to a processed project in the MapSwipe manager. Follow the steps in order. You need a manager account on stage or production (see the [home page](../index.md)). Create and check the project on stage first, then create it again on production.
 
+!!! warning "Check that the object fits Locate Objects"
+    Locate Objects fits objects volunteers can spot from above, such as solar panels, zebra crossings or solid waste. It fits poorly for line features, such as roads, and for classifying each object, such as roof types. See [When Locate Objects fits](../index.md#when-locate-objects-fits).
+
 ## 1. Copy the image link
 
 1. Open <https://imagery.hotosm.org/browse>.
-2. Zoom the map to your area: turn the mouse wheel over the map, or click **+** and **-** on the map. The list on the left shows the images in view.
-3. Under the image you want, click **Show Details**.
-4. Check that the details that opened belong to the image you chose, then click **Copy TMS**.
+2. Find your area: click the magnifier on the map, type the city and country, for example `Freetown, Sierra Leone`, and click **Go** (observed on imagery.hotosm.org). You can also turn the mouse wheel over the map, or click **+** and **-**.
+3. The list on the left shows the images in view. When the image you want isn't listed, click **Load More** at the bottom of the list (observed on imagery.hotosm.org). The examples in these guides use **Freetown Urban with Sensitive Areas Blurred**.
+4. Under the image you want, click **Show Details**.
+5. Check that the details that opened belong to the image you chose, then click **Copy TMS**.
 
 <video src="../assets/create/imagery-copy-tms.mp4" autoplay loop muted playsinline aria-label="Show Details and Copy TMS on imagery.hotosm.org"></video>
 
@@ -37,6 +41,11 @@ The red line shows where the image has imagery. White and black edges are left o
 The **Volunteer view** in the side panel shows the tile under the white square in the middle of the map, with its cells. Volunteers see one tile like this on each screen of the app (observed in the web app). Volunteers tap the cells that contain the object.
 
 1. Turn the mouse wheel over the map to zoom in until you can see the objects volunteers will look for, for example solar panels. Then drag the map so the white square sits on one of them.
+
+    ![Two rows of rooftop solar panels in the Freetown image, light grey with white frames on a brown roof](../assets/create/solar-panels-from-above.jpg)
+
+    In the Freetown image, rooftop solar panels show as light grey rectangles with white frames, set in rows, as in the picture above.
+
 2. Under **Project zoom**, click **18**, **19**, **20** and **21** in turn, and look at the **Volunteer view** each time. Choose the lowest zoom where you can still recognise the object. Each step down in zoom covers the same area with four times fewer tiles, so volunteers finish sooner. A red note under **Area of interest** means the area is too large at that zoom (see step 4).
 3. Under **Sub-grid**, click **2x2**, **4x4** and **8x8** in turn. Choose the size where one object fits inside about one cell.
 4. Write down the zoom and the sub-grid. You enter them in the manager in steps 8 and 9.
@@ -52,7 +61,7 @@ Check **Area of interest** in the side panel: it gives the size and an estimate 
 
 To use the whole image, click **Download area of interest**. The file `area-of-interest.geojson` is saved.
 
-To use only part of the image:
+To use only part of the image, draw around places where you saw the object, so the tutorial has clear examples to show:
 
 1. Click **Draw area**.
 2. Click on the map to add the corners of a shape. Click the first corner again to close it.
@@ -128,7 +137,7 @@ Scroll down to **Locate Objects**.
 3. **Custom Imagery Server URL**: paste the tile URL from step 5. It starts with `https://api.imagery.hotosm.org/`. If you type the URL, a red note about `{x}`, `{y}` and `{z}` shows until the URL is complete.
 4. **Imagery Credits**: the image provider and licence, for example `OpenAerialMap, DroneTM, CC-BY-4.0`. The image record lists the provider under `providers` and the licence under `license`, for example `DroneTM` and `CC-BY-4.0` in the [Freetown image record](https://api.imagery.hotosm.org/stac/collections/openaerialmap/items/69075f1de47603686de24fe8).
 5. **Min zoom**: leave it empty. **Max zoom**: enter `22`.
-6. **Zoom level**: click the field and choose the zoom from step 3, for example **20 Close-up View**.
+6. **Zoom level**: click the field and choose the zoom from step 3, for example the item that starts with **20** (**Close-up View**).
 7. Look at the map preview on the right. Click **AOI bounds** to see the whole area. Check that it shows the imagery.
 
 <video src="../assets/create/manager-imagery.mp4" autoplay loop muted playsinline aria-label="Uploading the area and entering the imagery settings"></video>
@@ -143,7 +152,7 @@ Scroll down to **Locate Objects**.
 ## 9. Set the grid, answers and export meta
 
 1. **Sub grid Size**: click the size from step 3, for example **4x4**.
-2. **Include 'Multiple Features' option**: keep it ticked when one cell can hold several objects, for example trees in groups. Untick it when knowing whether a cell has the object is enough.
+2. **Include 'Multiple Features' option**: keep it ticked when one cell can hold several objects, for example trees in groups. Untick it when knowing whether a cell has the object is enough. The solar panel example unticks it.
 3. **Export Meta**: enter a **Key** and a **Value** that describe the object, for example its OpenStreetMap tag:
 
     | Object | Key | Value |
@@ -170,7 +179,7 @@ Scroll down to **Locate Objects**.
 1. At the top right, click **Process**.
 2. Click **Confirm**. The message **Project status updated successfully!** appears and the left panel shows **Processing Project**.
 3. Wait, and reload the page now and then. An area of a few hundred tiles takes under a minute (observed in the manager).
-4. When the left panel shows **Processed**, a **Publish** button appears at the top right.
+4. When **Processed** is highlighted in the left panel, a **Publish** button appears at the top right.
 
 <video src="../assets/create/manager-process.mp4" autoplay loop muted playsinline aria-label="Processing the project"></video>
 

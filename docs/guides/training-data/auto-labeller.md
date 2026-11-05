@@ -12,7 +12,7 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 2. **Project link**: paste the project link, as in [View the results](../view-results.md#1-load-the-project).
 3. **Volunteer share (%)**: enter the share you chose in the results map, for example `50`.
 4. Leave **Model** as it is and click **Load**. The first marked tile opens.
-5. Wait until the status line says **Ready**. The first load downloads the EdgeTAM model (41 MB), which can take about a minute (observed in the auto labeller).
+5. Wait until the status line says **Ready**. The first load downloads the EdgeTAM model (41 MB), which can take up to a minute (observed in the auto labeller).
 
 **Try the Freetown example** loads the example project.
 

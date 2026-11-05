@@ -10,7 +10,7 @@ This guide publishes the tutorial and the project, and checks both in the web ap
 
 1. In the manager, open the tutorial: click **Tutorials** in the top menu and click its title.
 2. Click **Publish** at the top right.
-3. Click **Confirm**. The tutorial is published.
+3. Click **Confirm**. The **Publish** and **Discard** buttons disappear, and the tutorial is published (observed in the manager).
 
 Only a published tutorial can be attached to a project. Skip this step when you reuse a published tutorial.
 
@@ -45,7 +45,7 @@ The project moves to **Published**, and the top right shows **Withdraw**, **Fini
 ## 4. Open the project in the web app
 
 1. Open the web app of the same environment: <https://web.mapswipe.org/dev/> for stage, <https://web.mapswipe.org/> for production.
-2. To sign in, click the person icon at the top right and sign in with your MapSwipe account, the same one as for the manager (observed in the web app).
+2. To sign in, click the person icon at the top right (**Sign In/Sign Up**) and sign in with your MapSwipe account, the same one as for the manager (observed in the web app).
 3. Click **Projects** at the top. Scroll to your project; new projects are near the end of the list (observed in the web app).
 4. Click **Contribute** on your project. The project details open.
 5. Click **Contribute** again. The tutorial opens on the **How to contribute?** tab.

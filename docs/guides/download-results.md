@@ -21,7 +21,7 @@ After a volunteer saves a group, MapSwipe updates the project's export files. On
 
 ### From the MapSwipe website (production)
 
-Each production project has a page at `https://mapswipe.org/en/projects/<firebase id>/` with a **Download the data** section. The Firebase ID is in the web app address when you open the project, and in the manager on the **Projects** page, where the project's entry lists it as **Firebase ID**.
+Each production project has a page at `https://mapswipe.org/en/projects/<firebase id>/` with a **Download the data** section. The Firebase ID is in the web app address when you open the project, and in the manager on the **Projects** page, where **Show details** on the project's entry lists it as **Firebase ID**.
 
 ![Firebase ID on the manager Projects page](../assets/results/manager-project-details.png)
 
@@ -66,7 +66,7 @@ Each tile is exploded into one row per cell. These columns matter most:
 | `total_count` | How many volunteers answered this cell |
 | `url` | The imagery tile |
 
-A row from the [Freetown example](../examples/freetown-solar-panels.md), where 17 of 20 volunteers marked solar panels in cell 1. The project leaves out Multiple Features, so the file has no `2_count` column. The row shows only the columns above; the file has more:
+A row from the [Freetown example](../examples/freetown-solar-panels.md), where 17 of 20 volunteers marked solar panels in cell 1. The project leaves out Multiple Features, so the file leaves out the `2_count` column. The row shows only the columns above; the file has more:
 
 ```text
 task_id,task_partition_index,0_count,1_count,total_count

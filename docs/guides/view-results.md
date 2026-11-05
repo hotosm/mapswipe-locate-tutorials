@@ -21,7 +21,7 @@ Drag the **Volunteer share** slider to the share of volunteers a cell needs, for
 ## 3. Check the cells
 
 1. Scroll or pinch over the map to zoom in on the red cells.
-2. Click a cell to see its votes. The [helpers page](../helpers/index.md#results-map) explains each value.
+2. Zoom in until the cells are clearly visible, then click a cell. Its votes open in a popup on the map. The [helpers page](../helpers/index.md#results-map) explains each value.
 
 ## 4. Download the cells
 
