@@ -6,6 +6,11 @@ export function setStatus(message) {
   element("setup-status").textContent = message;
 }
 
+export async function copyText(text, label) {
+  await navigator.clipboard.writeText(text);
+  setStatus(`${label} copied.`);
+}
+
 export function foldSetup(summary) {
   element("summary-text").textContent = summary;
   element("summary-text").title = summary;
@@ -27,5 +32,5 @@ element("change").addEventListener("click", () => {
 element("cancel").addEventListener("click", closeSetup);
 document.addEventListener("keydown", (event) => {
   const { classList } = document.body;
-  if (event.key === "Escape" && classList.contains("loaded") && !classList.contains("working")) closeSetup();
+  if (event.key === "Escape" && classList.contains("editing") && !classList.contains("working")) closeSetup();
 });

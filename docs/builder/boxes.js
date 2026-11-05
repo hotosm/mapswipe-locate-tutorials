@@ -430,7 +430,7 @@ async function download() {
   const objectCount = datasetCounts(tiles, state.objects).objects;
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   await saveZip(zip, `${state.name}_yolo_${mode}_${state.threshold}.zip`);
-  setStatus(`Downloaded ${tiles.length} tiles with objects.`);
+  setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.`);
 }
 
 async function saveZip(zip, fileName) {

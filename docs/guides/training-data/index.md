@@ -10,7 +10,7 @@ Every method ends in the same layout, which [Ultralytics](https://docs.ultralyti
 
 | File | Content |
 |---|---|
-| `images/<tile_id>.jpg` | One 1024 by 1024 pixel image per tile, two zoom levels deeper than the project zoom |
+| `images/<tile_id>.jpg` | One 1024 by 1024 pixel image per labelled tile, two zoom levels deeper than the project zoom |
 | `labels/<tile_id>.txt` | One line per object: class `0`, then the four corners of its box as shares of the image side ([YOLO OBB format](https://docs.ultralytics.com/datasets/obb/)) |
 | `data.yaml` | The image folders and the object name |
 
@@ -28,6 +28,8 @@ The auto labeller also writes `labels.geojson` (every label in longitude and lat
 QGIS and OpenStreetMap labels end as a GeoJSON file, which the auto labeller turns into the dataset with **Load labels (GeoJSON)**. The methods can be combined: load labels from a file, then add the missing objects with a tap.
 
 ## How the auto labeller loads a GeoJSON file
+
+In short, each shape in the file becomes a label on every marked tile it covers.
 
 **Load labels (GeoJSON)** reads every polygon in the file, in longitude and latitude (EPSG:4326), and cuts it to each marked tile it crosses, so an array across two tiles becomes one label on each. A shape, or the part of it on a tile, is kept when it holds at least a tenth of the whole shape, the default of `min_area_ratio` in the [SAHI](https://github.com/obss/sahi/blob/main/sahi/slicing.py) tiling library, and covers at least 36 square pixels, the area of the smallest box a drag makes. Only the outer ring of each polygon is used, so holes are filled. Features without a polygon are left out, and the status line counts them. A shape that crosses the tile edge twice, such as a U, becomes one box over both arms in **Boxes**. Loaded labels show on the tiles like the model's, and **Undo** removes them one by one. Loading the same file again replaces the labels it loaded before.
 

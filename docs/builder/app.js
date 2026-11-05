@@ -1,5 +1,5 @@
-import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "./scenarios.js";
-import { foldSetup, setStatus } from "./setup-card.js";
+import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, scenarioMessages, taskBounds, tileImageUrl } from "./scenarios.js";
+import { copyText, foldSetup, setStatus } from "./setup-card.js";
 
 const state = { tileUrl: "", tasks: null, subGridSize: 4, scenarios: [], active: -1 };
 const element = (id) => document.getElementById(id);
@@ -48,6 +48,7 @@ function render() {
   }));
 
   const scenario = state.scenarios[state.active];
+  const opening = element("editor").hidden && scenario;
   element("editor").hidden = !scenario;
   if (!scenario) return;
   element("editor-title").textContent = `Screen ${state.active + 1}`;
@@ -62,7 +63,49 @@ function render() {
     button.addEventListener("click", () => { scenario.references[cell] = nextAnswer(answer); render(); });
     return button;
   }));
+  if (opening) element("done").focus();
 }
+
+function messageField(caption, label, text, multiline) {
+  const field = document.createElement("div");
+  field.className = "message-field";
+  const heading = document.createElement("span");
+  heading.textContent = caption;
+  const box = document.createElement(multiline ? "textarea" : "input");
+  if (multiline) box.rows = 3;
+  box.value = text;
+  box.setAttribute("aria-label", label);
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "secondary";
+  copy.textContent = "Copy";
+  copy.setAttribute("aria-label", `Copy ${label.toLowerCase()}`);
+  copy.addEventListener("click", () => copyText(box.value, label));
+  const row = document.createElement("div");
+  row.className = "field-row";
+  row.append(box, copy);
+  field.append(heading, row);
+  return field;
+}
+
+function showMessages() {
+  element("message-list").replaceChildren(...scenarioMessages(element("object-name").value).map(({ name, icon, title, description }) => {
+    const message = document.createElement("details");
+    message.className = "message";
+    const summary = document.createElement("summary");
+    const iconName = document.createElement("span");
+    iconName.className = "message-icon";
+    iconName.textContent = `Icon: ${icon}`;
+    summary.append(name, iconName);
+    const body = document.createElement("div");
+    body.className = "message-body";
+    body.append(messageField("Title", `${name} title`, title, false), messageField("Description", `${name} description`, description, true));
+    message.append(summary, body);
+    return message;
+  }));
+}
+
+element("object-name").addEventListener("input", showMessages);
 
 element("setup").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -87,6 +130,8 @@ async function load(tasks) {
   showImagery(taskBounds(tasks));
   showTasks(tasks);
   foldSetup(`${tasks.features.length} tasks`);
+  element("messages").hidden = false;
+  showMessages();
   setStatus("Click a task to add it as a scenario.");
   render();
 }
@@ -125,10 +170,19 @@ map.on("click", "tasks-fill", (event) => {
   render();
 });
 
+function closeEditor() {
+  state.active = -1;
+  render();
+  map.getCanvas().focus();
+}
+
 element("remove").addEventListener("click", () => {
   state.scenarios.splice(state.active, 1);
-  state.active = state.scenarios.length - 1;
-  render();
+  closeEditor();
+});
+element("done").addEventListener("click", closeEditor);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.active >= 0) closeEditor();
 });
 
 element("download").addEventListener("click", () => {

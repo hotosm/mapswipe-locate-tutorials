@@ -1,8 +1,9 @@
 import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
 import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
-import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat } from "./area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat, tileAt } from "./area-tools.js";
+import { tileImageUrl } from "./scenarios.js";
 import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
-import { foldSetup, setStatus } from "./setup-card.js";
+import { copyText, foldSetup, setStatus } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
 // The imagery API can take minutes to render a 1024 px preview it has not made before, and 512 px takes seconds.
@@ -13,7 +14,7 @@ const MIN_PATCH_SQUARE_METRES = 2000;
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
 // A map zoom three levels above the project zoom shows each tile 64 pixels wide; further out the lines merge.
 const GRID_ZOOM_SPAN = 3;
-const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0 };
+const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0, tileUrl: "" };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
 const chosenCells = () => Number(document.querySelector('input[name="cells"]:checked').value);
@@ -78,6 +79,28 @@ function showGrid() {
   const metres = cellMetres(latitude, state.zoom, state.cells).toFixed(1);
   const hint = visible ? "" : ". Zoom in to see the grid";
   element("cell-size").textContent = `about ${metres} m by ${metres} m at zoom ${state.zoom}, ${state.cells}x${state.cells}${hint}`;
+}
+
+function showVolunteerView() {
+  element("volunteer-view").hidden = !state.footprint;
+  if (!state.footprint) return;
+  const { lng, lat } = map.getCenter();
+  const { x, y } = tileAt(lng, lat, state.zoom);
+  element("view-hint").hidden = turf.booleanPointInPolygon([lng, lat], state.footprint);
+  element("view-image").src = tileImageUrl(state.tileUrl, x, y, state.zoom);
+  const cells = element("view-cells");
+  cells.style.gridTemplateColumns = `repeat(${state.cells}, 1fr)`;
+  cells.replaceChildren(...Array.from({ length: state.cells ** 2 }, () => document.createElement("span")));
+}
+
+// The middle of the image bounds can fall on a gap or an edge, so the map starts on the point deepest inside the imagery.
+function centreOnImagery() {
+  const [west, south, east, north] = turf.bbox(state.footprint);
+  const spacing = Math.max(east - west, north - south) / 20;
+  const candidates = turf.pointGrid([west, south, east, north], spacing, { units: "degrees", mask: state.footprint }).features;
+  const depths = [turf.pointOnFeature(state.footprint), ...candidates].map((point) => [point, turf.pointToPolygonDistance(point, state.footprint)]);
+  const [deepest] = depths.reduce((best, entry) => (entry[1] < best[1] ? entry : best));
+  map.jumpTo({ ...map.cameraForBounds([[west, south], [east, north]], { padding: 20 }), center: deepest.geometry.coordinates });
 }
 
 function areaFile(feature) {
@@ -183,6 +206,7 @@ function clearArea() {
   for (const id of ["footprint", "area", "grid"]) map.getSource(id)?.setData(turf.featureCollection([]));
   for (const id of ["draw", "cover", "download-area", "use-footprint"]) element(id).disabled = true;
   element("details").hidden = true;
+  element("volunteer-view").hidden = true;
   element("area-problems").textContent = "";
 }
 
@@ -229,8 +253,9 @@ element("setup").addEventListener("submit", async (event) => {
     state.footprint = asMultiPolygon(joined(footprints));
     showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
     showArea();
+    state.tileUrl = tileUrl;
+    centreOnImagery();
 
-    showGrid();
     element("tile-url").textContent = tileUrl;
     showImageList(items, footprints);
     element("details").hidden = false;
@@ -259,13 +284,18 @@ element("example").addEventListener("click", () => {
 element("sub-grid").addEventListener("change", () => {
   state.cells = chosenCells();
   showGrid();
+  showVolunteerView();
 });
 
-map.on("moveend", showGrid);
+map.on("moveend", () => {
+  showGrid();
+  showVolunteerView();
+});
 
 element("zoom-levels").addEventListener("change", () => {
   state.zoom = chosenZoom();
   showGrid();
+  showVolunteerView();
   if (state.footprint) showArea();
 });
 
@@ -288,6 +318,7 @@ element("use-footprint").addEventListener("click", () => {
   setStatus("The yellow area is the imagery footprint.");
 });
 
+element("copy-tile-url").addEventListener("click", () => copyText(element("tile-url").textContent, "Tile URL"));
 element("download-area").addEventListener("click", () => download("area-of-interest.geojson", areaFile(state.area)));
 element("cover").addEventListener("click", () => {
   const outlines = ["footprint", "area", "area-fill", "grid", ...map.getStyle().layers.map(({ id }) => id).filter((id) => id.startsWith("td-"))];

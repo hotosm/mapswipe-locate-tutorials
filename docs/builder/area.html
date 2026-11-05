@@ -32,7 +32,7 @@
         <button id="example" type="button" class="link">Try the Freetown example</button>
       </div>
     </form>
-    <div id="map"></div>
+    <div id="map" class="centre-mark"></div>
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <p id="status" aria-live="polite"></p>
@@ -49,9 +49,18 @@
         <label><input type="radio" name="cells" value="4" checked> 4x4</label>
         <label><input type="radio" name="cells" value="8"> 8x8</label>
       </fieldset>
+      <figure id="volunteer-view" hidden>
+        <figcaption>Volunteer view</figcaption>
+        <p class="hint">One screen in the app: the tile under the white square in the middle of the map.</p>
+        <div id="view-tile">
+          <img id="view-image" alt="Tile at the centre of the map">
+          <div id="view-cells"></div>
+        </div>
+        <p id="view-hint" class="hint" hidden>Move the map so the square is over the imagery.</p>
+      </figure>
       <dl id="details" hidden>
         <dt>Tile URL for the manager</dt>
-        <dd><code id="tile-url"></code></dd>
+        <dd><code id="tile-url"></code><button id="copy-tile-url" type="button" class="secondary">Copy tile URL</button></dd>
         <dt>Cell size</dt>
         <dd id="cell-size"></dd>
         <dt id="images-label">Images</dt>

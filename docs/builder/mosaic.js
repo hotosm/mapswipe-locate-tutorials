@@ -1,5 +1,5 @@
 import { EXAMPLE_IMAGES, fetchItem, imageTitle, mosaicTileUrl, parseImageIds, unionBounds } from "./mosaic-tools.js";
-import { foldSetup, setStatus } from "./setup-card.js";
+import { copyText, foldSetup, setStatus } from "./setup-card.js";
 
 const element = (id) => document.getElementById(id);
 
@@ -95,10 +95,7 @@ element("example").addEventListener("click", () => {
 addImageInput();
 addImageInput();
 
-element("copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText(element("tile-url").textContent);
-  setStatus("Tile URL copied.");
-});
+element("copy").addEventListener("click", () => copyText(element("tile-url").textContent, "Tile URL"));
 
 element("open-area").addEventListener("click", () => {
   location.href = `area.html?image=${encodeURIComponent(element("tile-url").textContent)}`;

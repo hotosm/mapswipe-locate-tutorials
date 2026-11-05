@@ -38,7 +38,7 @@ Use it when the project area needs more than one image.
 
 ![Two Banepa images merged, zoomed in, and the tile URL copied](../assets/helpers/imagery-merger.gif){ loading=lazy }
 
-1. Copy the page address or **Copy TMS** of each image on <https://imagery.hotosm.org/browse>, as in [step 1 of Create a Locate project](../guides/create-a-project.md#1-prepare-the-area-tile-url-and-cover-image).
+1. Copy the page address or **Copy TMS** of each image on <https://imagery.hotosm.org/browse>, as in [step 1 of Create a Locate project](../guides/create-a-project.md#1-copy-the-image-link).
 2. In the [imagery merger](../builder/mosaic.html), paste one image per field under **Images**. **Add image** adds a field and **Remove** drops one. Click **Merge**.
 3. Zoom in where the images meet. Each image has a red outline, and the list on the right shows its date.
 4. Click **Copy tile URL** and use it in the manager and in the tutorial builder.

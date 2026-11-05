@@ -18,3 +18,6 @@
 .md-nav__link[href$="builder/mosaic.html"] { --helper-icon: url("../icons/images.svg"); }
 .md-nav__link[href$="builder/results.html"] { --helper-icon: url("../icons/map.svg"); }
 .md-nav__link[href$="builder/boxes.html"] { --helper-icon: url("../icons/scan-search.svg"); }
+
+/* Step recordings in the guides scale with the page. */
+.md-typeset video { display: block; max-width: 100%; height: auto; margin: 1em 0; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 4px; }

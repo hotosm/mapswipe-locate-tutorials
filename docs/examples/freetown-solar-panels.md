@@ -26,7 +26,7 @@ This example follows one finished production project from the imagery to a train
 | Project description | `Please help us to locate solar panels in Freetown to train AI` |
 | Project region | `Sierra Leone` |
 | Organization | HOT |
-| Imagery | [Freetown Urban with Sensitive Areas Blurred](https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8) on OpenAerialMap: DroneTM, DJI Mini 4 Pro, 22 October 2025, about 4 cm per pixel, CC-BY 4.0 |
+| Imagery | [Freetown Urban with Sensitive Areas Blurred](https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8) on OpenAerialMap: DroneTM, DJI Mini 4 Pro, 22 October 2025, about 4 cm per pixel, CC-BY-4.0 |
 | Zoom level | 20 |
 | Sub-grid size | 4x4 |
 | Multiple Features | Left out: the results have no `2_count` column, since the results list one column per answer the project offers ([source](https://github.com/mapswipe/python-mapswipe-workers/blob/main/mapswipe_workers/mapswipe_workers/generate_stats/project_stats.py)) |

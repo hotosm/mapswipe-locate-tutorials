@@ -49,6 +49,10 @@ function tileY(latitude, zoom) {
   return Math.floor(((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2) * 2 ** zoom);
 }
 
+export function tileAt(longitude, latitude, zoom) {
+  return { x: tileX(longitude, zoom), y: tileY(latitude, zoom) };
+}
+
 // An estimate: MapSwipe groups tiles in strips three rows tall and an even number of columns wide.
 export function tileCount([west, south, east, north], zoom) {
   const columns = tileX(east, zoom) - tileX(west, zoom) + 1;

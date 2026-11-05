@@ -69,3 +69,14 @@ export function scenarioFile(scenarios) {
     })),
   };
 }
+
+// The manager asks for these three messages on every scenario page, each with an icon from its list.
+export function scenarioMessages(objectName) {
+  const object = objectName.trim();
+  if (!object) return [];
+  return [
+    { name: "Instruction", icon: "Tap", title: `Find the ${object}`, description: `Tap each square that shows ${object}.` },
+    { name: "Hint", icon: "Information", title: "Keep going", description: `Tap every square that shows ${object}.` },
+    { name: "Success", icon: "Check", title: "Well done", description: `You found all the ${object} in this image.` },
+  ];
+}

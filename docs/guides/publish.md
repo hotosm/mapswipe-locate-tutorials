@@ -4,67 +4,90 @@ icon: lucide/rocket
 
 # Publish and check the project
 
+This guide publishes the tutorial and the project, and checks both in the web app as a volunteer. Follow the steps in order, first on stage (see [Stage and production](../index.md#stage-and-production)). You need the tutorial from [Create the tutorial](create-the-tutorial.md) and your manager account.
+
 ## 1. Publish the tutorial
 
-On the tutorial page, click **Publish** and **Confirm**. Only a published tutorial can be attached to a project. Skip this step when you reuse a tutorial that is already published.
+1. In the manager, open the tutorial: click **Tutorials** in the top menu and click its title.
+2. Click **Publish** at the top right.
+3. Click **Confirm**. The tutorial is published.
 
-![Confirm tutorial publishing](../assets/publish/tutorial-publish.png)
+Only a published tutorial can be attached to a project. Skip this step when you reuse a published tutorial.
+
+<video src="../assets/publish/tutorial-publish.mp4" autoplay loop muted playsinline aria-label="Publishing the tutorial"></video>
 
 ## 2. Attach the tutorial to the project
 
-Open the project. Under **Tutorial**, select the tutorial you created or reused and click **Update project**. Only tutorials of the same project type are listed.
+1. Click **Projects** in the top menu and open your project.
+2. Scroll down to **Tutorial** and click the field **Select a tutorial for this project**.
+3. Click your tutorial. Only tutorials of the same project type are listed.
+4. Click **Update project** at the bottom of the page.
 
-![Tutorial selected on the project](../assets/publish/select-tutorial.png)
+<video src="../assets/publish/project-tutorial.mp4" autoplay loop muted playsinline aria-label="Selecting the tutorial and updating the project"></video>
+
+??? note "Two tutorials with the same title"
+    The manager accepts several tutorials with the same title (observed in the manager), and the list shows them all. Give each tutorial its own title, for example with the area or the date, so you can pick the right one.
 
 ## 3. Publish the project
 
-Click **Publish** at the top right and **Confirm**.
+1. Click **Publish** at the top right.
+2. Click **Confirm**.
 
-![Confirm project publishing](../assets/publish/project-publish.png)
+The project moves to **Published**, and the top right shows **Withdraw**, **Finish** and **Pause**.
 
-The project moves to **Published**, and the top right now shows **Withdraw**, **Finish** and **Pause**.
+<video src="../assets/publish/project-publish.mp4" autoplay loop muted playsinline aria-label="Publishing the project"></video>
 
 ![Published project](../assets/publish/published.png)
 
-**Pause** hides the project from volunteers without losing anything; publish it again to bring it back. This is useful for preparing projects ahead of a mapathon.
+??? note "Pause the project"
+    **Pause** hides the project from volunteers and keeps everything (observed in the manager); publish it again to bring it back. This helps when you prepare a project ahead of a mapathon.
 
-## 4. Check it as a volunteer
+## 4. Open the project in the web app
 
-Open the web app for the same environment (<https://web.mapswipe.org/dev/> for stage). To sign in, click the person icon at the top right. Under **Projects**, scroll to your project (new projects are near the end of the list) and click **Contribute**. The project details open; click **Contribute** again.
+1. Open the web app of the same environment: <https://web.mapswipe.org/dev/> for stage, <https://web.mapswipe.org/> for production.
+2. To sign in, click the person icon at the top right and sign in with your MapSwipe account, the same one as for the manager (observed in the web app).
+3. Click **Projects** at the top. Scroll to your project; new projects are near the end of the list (observed in the web app).
+4. Click **Contribute** on your project. The project details open.
+5. Click **Contribute** again. The tutorial opens on the **How to contribute?** tab.
 
-![Project details in the web app](../assets/publish/web-project.png)
+<video src="../assets/publish/web-open.mp4" autoplay loop muted playsinline aria-label="Finding the project in the web app and opening it"></video>
 
-The tutorial opens with tabs along the top: **How to contribute?**, one tab per information page, and **Tutorial**. Move between them with the arrows at the bottom. **Close** skips the tutorial at any time. On stage, once an account had saved results for the project, **Contribute** opened mapping directly, without the tutorial; check the tutorial before you map.
+## 5. Check the tutorial
 
-![How to contribute tab](../assets/publish/web-how-to-contribute.png)
+The tutorial has a tab for **How to contribute?**, one tab per information page, and **Tutorial**. **Close** leaves the tutorial at any time (observed in the web app).
 
-The **Tutorial** tab shows the scenarios with your instruction.
+1. Click the tab of your information page, for example **Solar panels**, and check the text and the image.
+2. Click **Tutorial**. The first scenario shows your **Instruction** message above the tile.
 
-![A scenario in the web app](../assets/publish/web-tutorial.png)
+    <video src="../assets/publish/web-tutorial-tabs.mp4" autoplay loop muted playsinline aria-label="The information page tab and the first scenario"></video>
 
-A wrong tap shows the hint.
+3. Tap a cell. The **Hint** message replaces the instruction. Each tap on a cell moves it to the project's next answer, for example **Single Feature**, **Multiple Features**, then **No** ([source](https://github.com/mapswipe/mapswipe-web/blob/main/src/components/LocateFeaturesProjectTutorial.vue)).
+4. Tap the cells that hold the object, the same cells you marked in the tutorial builder. When all cells match, the **Success** message and **Next task** appear.
 
-![Hint after a wrong tap](../assets/publish/web-hint.png)
+    <video src="../assets/publish/web-scenario.mp4" autoplay loop muted playsinline aria-label="A tap shows the hint, and the right cells show the success message"></video>
 
-When the cells match the answers, the success message and **Next task** appear.
+    The web app shows the hint after the first tap, until all cells are right, and **Show answer** after two taps while a cell is still wrong ([source](https://github.com/mapswipe/mapswipe-web/blob/main/src/components/LocateFeaturesProjectTutorial.vue)). A scenario without the object shows the success message right away (observed in the web app).
 
-![Scenario answered correctly](../assets/publish/web-tutorial-answered.png)
+5. Click **Next task** for each scenario. After the last one, the app shows "You're ready to start MapSwiping!".
+6. Click **Start mapping**. The project tiles follow, one per screen. Tap cells, move with the arrows, and click the save icon at the end of the group (observed in the web app).
 
-After the last scenario, the app shows "You're ready to start MapSwiping!". Click **Start mapping**.
+    <video src="../assets/publish/web-finish.mp4" autoplay loop muted playsinline aria-label="The end of the tutorial and the first project tile"></video>
 
-![End of the tutorial](../assets/publish/web-tutorial-end.png)
+??? note "The tutorial doesn't open"
+    On stage, once an account had saved results for the project, **Contribute** opened mapping directly, without the tutorial (observed in the web app). Check the tutorial before you save any results.
 
-The project tiles follow, one per screen. Tap cells, move with the arrows, and press **Save** at the end of the group.
+## 6. Create the project on production
 
-![Mapping a project tile](../assets/publish/web-mapping.png)
+When the project and the tutorial work on stage, create them again on production with the same steps, from [Create a Locate project](create-a-project.md). Under **Organization**, pick **fAIrSwipe Grantees** there too. Volunteers map on production.
 
-When the project works on stage, create it again on production for volunteers.
+## 7. Finish the project
 
-## 5. Finish the project
+A project reaches 100% when every tile has been seen by as many volunteers as the verification number. The manager accepts 3 or more (observed in the manager), so one account alone can't complete a project.
 
-A project reaches 100% when every tile has been seen by as many volunteers as the verification number. The manager accepts 3 or more, so one account alone cannot complete a project.
+1. Open the project in the manager.
+2. Click **Finish** at the top right and **Confirm**. The confirmation says the action is irreversible. **Finish** works before the project reaches 100% (observed in the manager).
 
-To close a project, open it in the manager, click **Finish** at the top right and **Confirm**. **Finish** is available before the project reaches 100%. It moves to **Finished** and leaves the volunteers' project list. Its results stay available.
+The project moves to **Finished** and leaves the volunteers' project list. Its results stay available.
 
 ![Confirm finishing the project](../assets/results/finish-confirm.png)
 

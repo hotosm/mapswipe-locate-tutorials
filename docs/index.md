@@ -26,7 +26,7 @@ In a Locate Objects project, volunteers see one imagery tile at a time, split in
 
 ## Stage and production
 
-MapSwipe runs two environments. Learn and test on stage first; volunteers only see production.
+MapSwipe runs two environments. Volunteers map on production. Create and check every project on stage first, and create it on production once it works on stage.
 
 | | Manager dashboard | Where volunteers map |
 |---|---|---|
@@ -41,4 +41,4 @@ The screenshots in these guides come from stage. The production manager has the 
 - The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area finder](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
 
 !!! note "Project naming"
-    Set the **Project topic** as `fAIrSwipe - Country - Org/Name - Feature`, for example `fAIrSwipe - Sierra Leone - HOT - Solar Panels`.
+    Set the **Project topic** as `fAIrSwipe - Country - Feature`, for example `fAIrSwipe - Sierra Leone - Solar Panels`.

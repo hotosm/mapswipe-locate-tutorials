@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { areaProblems, cellMetres, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, tileCount } from "../docs/builder/area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, tileAt, tileCount } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -125,4 +125,11 @@ test("a part that crosses a strip boundary of the whole area counts both strips"
   const first = partOverTiles(485800, 499501, 3);
   const second = partOverTiles(486000, 499502, 3, 4);
   assert.equal(multiPolygonTileCount([first, second], 20), 2 * 3 + 4 * 6);
+});
+
+test("the tile at a point is the slippy map tile that contains it, changing exactly at the tile edges", () => {
+  assert.deepEqual(tileAt(-13.19063, 8.46711, 20), { x: 485867, y: 499535 });
+  assert.deepEqual(tileAt(-13.1908034, 8.4672785, 20), { x: 485867, y: 499535 });
+  assert.deepEqual(tileAt(-13.1908037, 8.4672787, 20), { x: 485866, y: 499534 });
+  assert.deepEqual(tileAt(-13.19063, 8.46711, 18), { x: 121466, y: 124883 });
 });

@@ -37,6 +37,25 @@
       </div>
     </form>
     <div id="map"></div>
+    <div id="editor" hidden>
+      <div class="editor-card" role="dialog" aria-labelledby="editor-title">
+        <h2 id="editor-title"></h2>
+        <p class="legend">
+          <span>Click a cell to change its answer:</span>
+          <span><span class="swatch answer-0"></span>No</span>
+          <span><span class="swatch answer-1"></span>Single Feature</span>
+          <span><span class="swatch answer-2"></span>Multiple Features</span>
+        </p>
+        <div id="tile">
+          <img id="tile-image" alt="Imagery of the selected task">
+          <div id="cells"></div>
+        </div>
+        <div class="actions">
+          <button id="done" type="button">Done</button>
+          <button id="remove" type="button" class="secondary">Remove scenario</button>
+        </div>
+      </div>
+    </div>
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <p id="status" aria-live="polite"></p>
@@ -46,22 +65,19 @@
         <label><input type="radio" name="sub-grid" value="4" checked> 4x4</label>
         <label><input type="radio" name="sub-grid" value="8"> 8x8</label>
       </fieldset>
-      <div id="editor" hidden>
-        <h2 id="editor-title"></h2>
-        <div id="tile">
-          <img id="tile-image" alt="Imagery of the selected task">
-          <div id="cells"></div>
-        </div>
-        <p class="legend">
-          <span>Click a cell to change it:</span>
-          <span><span class="swatch answer-0"></span>No</span>
-          <span><span class="swatch answer-1"></span>Single Feature</span>
-          <span><span class="swatch answer-2"></span>Multiple Features</span>
-        </p>
-        <button id="remove" type="button" class="secondary">Remove scenario</button>
-      </div>
       <ol id="scenario-list"></ol>
       <button id="download" type="button" disabled>Download scenarios</button>
+      <details id="messages" hidden>
+        <summary>Texts for the manager</summary>
+        <div class="messages-body">
+          <label>
+            <span>Object volunteers look for</span>
+            <input id="object-name" type="text" value="solar panels">
+          </label>
+          <p class="hint">Every scenario page in the manager asks for these three messages. Copy each text into its field and pick the icon shown.</p>
+          <div id="message-list"></div>
+        </div>
+      </details>
     </aside>
   </main>
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>

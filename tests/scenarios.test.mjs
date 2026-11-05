@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
+import { checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, scenarioMessages, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
 
 test("a click cycles a cell from No to Single to Multiple and back to No", () => {
   assert.deepEqual([0, 1, 2].map(nextAnswer), [1, 2, 0]);
@@ -66,4 +66,12 @@ test("the tile check requests the first task's tile, explains a CORS block and l
 
   await assert.rejects(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => { throw new TypeError("Failed to fetch"); }), /no CORS headers/);
   await assert.doesNotReject(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => ({ ok: false, status: 404 })));
+});
+
+test("the three scenario messages name the object and the manager icon each one uses, and an empty name gives none", () => {
+  const messages = scenarioMessages("  solar panels ");
+  assert.deepEqual(messages.map(({ name, icon }) => [name, icon]), [["Instruction", "Tap"], ["Hint", "Information"], ["Success", "Check"]]);
+  assert.equal(messages[0].title, "Find the solar panels");
+  for (const { description } of messages) assert.match(description, /solar panels/);
+  assert.deepEqual(scenarioMessages("   "), []);
 });
