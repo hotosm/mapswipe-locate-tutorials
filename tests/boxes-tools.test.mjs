@@ -119,6 +119,11 @@ test("a box covering the whole image becomes the tile's corners in longitude and
   assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "rotated box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
 });
 
+test("the labels file states the imagery URL at the top", () => {
+  const objects = new Map([[TILE.id, [{ corners: [[0, 0], [512, 0], [512, 512], [0, 512]], source: "EdgeTAM" }]]]);
+  assert.equal(labelsGeojson([TILE], objects, { mode: "obb", objectName: "tank", pixels: 1024 }).imagery_url, TILE.template);
+});
+
 test("boxes and outlines both come out with counterclockwise outer rings", () => {
   const clockwiseInImage = [[0, 0], [512, 0], [512, 512], [0, 0]];
   const counterclockwiseInImage = clockwiseInImage.toReversed();

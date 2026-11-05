@@ -1,5 +1,6 @@
 import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, scenarioMessages, taskBounds, tileImageUrl } from "./scenarios.js";
-import { copyText, foldSetup, setStatus } from "./setup-card.js";
+import { showMapLoading } from "./map-loading.js";
+import { copyText, foldSetup, setStatus, working } from "./setup-card.js";
 
 const state = { tileUrl: "", tasks: null, subGridSize: 4, scenarios: [], active: -1 };
 const element = (id) => document.getElementById(id);
@@ -12,6 +13,7 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+showMapLoading(map);
 
 function replaceSource(id, source) {
   for (const layer of map.getStyle().layers.filter((layer) => layer.source === id)) map.removeLayer(layer.id);
@@ -107,14 +109,16 @@ function showMessages() {
 
 element("object-name").addEventListener("input", showMessages);
 
-element("setup").addEventListener("submit", async (event) => {
+element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  try {
-    await load(JSON.parse(await element("tasks-file").files[0].text()));
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message);
-  }
+  working(async () => {
+    try {
+      await load(JSON.parse(await element("tasks-file").files[0].text()));
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message);
+    }
+  });
 });
 
 async function load(tasks) {
@@ -136,17 +140,19 @@ async function load(tasks) {
   render();
 }
 
-element("example").addEventListener("click", async () => {
-  try {
-    const response = await fetch(EXAMPLE.tasks);
-    if (!response.ok) throw new Error(`The example tasks failed to load (HTTP ${response.status}).`);
-    element("tile-url").value = EXAMPLE.tileUrl;
-    document.querySelector('input[name="sub-grid"][value="4"]').checked = true;
-    await load(await response.json());
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message);
-  }
+element("example").addEventListener("click", () => {
+  working(async () => {
+    try {
+      const response = await fetch(EXAMPLE.tasks);
+      if (!response.ok) throw new Error(`The example tasks failed to load (HTTP ${response.status}).`);
+      element("tile-url").value = EXAMPLE.tileUrl;
+      document.querySelector('input[name="sub-grid"][value="4"]').checked = true;
+      await load(await response.json());
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message);
+    }
+  });
 });
 
 element("sub-grid-sizes").addEventListener("change", () => {

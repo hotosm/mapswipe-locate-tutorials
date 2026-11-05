@@ -6,6 +6,17 @@ icon: lucide/database
 
 The results show which cells of each tile hold the object. A model learns from a label around each object, so this section turns the marked tiles into a training dataset: tile images and one label per object.
 
+## From marked cells to labels
+
+![Left: the red cells volunteers marked on a Pemba tile with fishing boats. Right: the same tile with a yellow box around each fully visible boat](../../assets/dataset/cells-to-labels.jpg)
+
+- **Red, from MapSwipe:** the cells volunteers marked. They show roughly where the objects are, one cell at a time.
+- **Yellow, what you make:** one box around each object, which may extend past the red cells. Every object gets its own box, including two objects in the same cell.
+
+The picture boxes the fully visible boats. Boats cut off at the tile edge, like the two in the top row, still need a label, as [Check the dataset](#check-the-dataset) explains.
+
+Each method below turns the red cells into the yellow boxes. [What to deliver](../what-to-deliver.md) lists what the final file needs.
+
 Every method ends in the same layout, which [Ultralytics](https://docs.ultralytics.com/datasets/obb/) trains on directly:
 
 | File | Content |
@@ -41,7 +52,7 @@ Before training, check every tile:
 - Each label matches its object. Ultralytics describes annotation accuracy as "how close the annotated data is to the true values" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)).
 - The same rule applies on every tile. Ultralytics describes annotation precision as "giving the same label to the same object or feature throughout the dataset" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)). For solar panels: one box per array of touching panels, a separate box where a clear gap splits two arrays, and a skipped tile where the object cannot be told apart from the roof.
 
-Step through the tiles one by one in the auto labeller. Above the **Previous** and **Next** buttons, the bold line shows how many objects are labelled so far, and the bar under it fills toward a target of 1,000 objects and turns green when the dataset reaches it. The tile line below shows how many tiles have labels. The `README.md` in its download shows how to open `labels.geojson` over the imagery in QGIS.
+Step through the tiles one by one in the auto labeller. Above the **Previous** and **Next** buttons, the bold line shows how many objects are labelled so far, and the bar under it fills toward a target of 1,000 objects and turns green when the dataset reaches it. The target applies to each object type: a dataset with several types needs 1,000 of each (see [What to deliver](../what-to-deliver.md#how-much-is-enough)). The tile line below shows how many tiles have labels. The `README.md` in its download shows how to open `labels.geojson` over the imagery in QGIS.
 
 `data.yaml` uses all images for both training and validation. Before a real training run, move some images and their labels into separate validation folders and point `val` at them.
 

@@ -36,4 +36,8 @@ Follow them in order the first time. Each page starts where the previous one end
 
     Label each object on the marked tiles with the auto labeller, QGIS, Label Studio or OpenStreetMap.
 
+-   :lucide-package-check: **[What to deliver](what-to-deliver.md)**
+
+    The labels file, the imagery URL, how many objects, and examples for objects, roads and roof types.
+
 </div>

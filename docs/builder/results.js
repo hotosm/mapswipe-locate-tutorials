@@ -1,6 +1,7 @@
 import { EXAMPLE_PROJECT, imageryTemplate, resultsBounds, selectCells } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
-import { foldSetup, setStatus } from "./setup-card.js";
+import { showMapLoading } from "./map-loading.js";
+import { foldSetup, setStatus, working } from "./setup-card.js";
 
 const state = { rows: null, name: "", cells: null };
 const element = (id) => document.getElementById(id);
@@ -12,6 +13,7 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+showMapLoading(map);
 
 function threshold() {
   return Number(element("threshold").value);
@@ -48,8 +50,7 @@ function showResults(rows) {
 
 // The page address carries the link, so copying the address shares these results.
 async function load(link) {
-  setStatus("Reading the results...");
-  const { name, fileName, rows } = await loadProject(link);
+  const { name, fileName, rows } = await loadProject(link, setStatus);
   showResults(rows);
   state.rows = rows;
   state.name = fileName;
@@ -65,7 +66,7 @@ function showError(error) {
 
 element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  load(element("project-link").value.trim()).catch(showError);
+  working(() => load(element("project-link").value.trim())).catch(showError);
 });
 
 element("example").addEventListener("click", () => {
@@ -105,5 +106,5 @@ const params = new URLSearchParams(location.search);
 const sharedLink = params.get("project") ?? params.get("results");
 if (sharedLink) {
   element("project-link").value = sharedLink;
-  load(sharedLink).catch(showError);
+  working(() => load(sharedLink)).catch(showError);
 }

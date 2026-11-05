@@ -223,7 +223,8 @@ export function labelsGeojson(tiles, objects, { mode, objectName, pixels }) {
       geometry: { type: "Polygon", coordinates: [lonLatRing(tile, pixelRing(object, mode), pixels)] },
       properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
     })));
-  return { type: "FeatureCollection", features };
+  // A Locate project has one tile URL, so it is stated once at the top as well as on each object.
+  return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features };
 }
 
 export function datasetReadme({ projectName, projectLink, threshold, modelName, mode, objectName, tiles, objectCount, pixels, detailLevels }) {

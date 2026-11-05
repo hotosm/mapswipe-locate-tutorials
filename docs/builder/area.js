@@ -3,7 +3,8 @@ import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-d
 import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat, tileAt } from "./area-tools.js";
 import { tileImageUrl } from "./scenarios.js";
 import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
-import { copyText, foldSetup, setStatus } from "./setup-card.js";
+import { showMapLoading } from "./map-loading.js";
+import { copyText, foldSetup, setStatus, working } from "./setup-card.js";
 
 const API = "https://api.imagery.hotosm.org";
 // The imagery API can take minutes to render a 1024 px preview it has not made before, and 512 px takes seconds.
@@ -27,6 +28,7 @@ const map = new maplibregl.Map({
   canvasContextAttributes: { preserveDrawingBuffer: true },
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+showMapLoading(map);
 
 const DRAWN_STYLE = { fillColor: "#ffffff", fillOpacity: 0, outlineColor: "#ffffff", outlineWidth: 2 };
 let draw = null;
@@ -210,62 +212,64 @@ function clearArea() {
   element("area-problems").textContent = "";
 }
 
-element("setup").addEventListener("submit", async (event) => {
+element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  // A newer Load replaces this one while its requests are still running.
-  const load = ++state.load;
-  const isCurrent = () => load === state.load;
-  try {
-    await drawReady;
-    const ids = parseImageIdsFromLink(element("image").value);
-    state.zoom = chosenZoom();
-    state.cells = chosenCells();
-    setStatus(ids.length === 1 ? "Loading the image..." : `Loading ${ids.length} images...`);
-    const items = await Promise.all(ids.map(fetchItem));
-    if (!isCurrent()) return;
-    const bounds = unionBounds(items.map((item) => item.bbox));
+  working(async () => {
+    // A newer Load replaces this one while its requests are still running.
+    const load = ++state.load;
+    const isCurrent = () => load === state.load;
+    try {
+      await drawReady;
+      const ids = parseImageIdsFromLink(element("image").value);
+      state.zoom = chosenZoom();
+      state.cells = chosenCells();
+      setStatus(ids.length === 1 ? "Loading the image..." : `Loading ${ids.length} images...`);
+      const items = await Promise.all(ids.map(fetchItem));
+      if (!isCurrent()) return;
+      const bounds = unionBounds(items.map((item) => item.bbox));
 
-    const tileUrl = ids.length === 1
-      ? `${API}/raster/collections/openaerialmap/items/${ids[0]}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`
-      : mosaicTileUrl(ids);
-    if (map.getSource("imagery")) {
-      map.removeLayer("imagery");
-      map.removeSource("imagery");
+      const tileUrl = ids.length === 1
+        ? `${API}/raster/collections/openaerialmap/items/${ids[0]}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`
+        : mosaicTileUrl(ids);
+      if (map.getSource("imagery")) {
+        map.removeLayer("imagery");
+        map.removeSource("imagery");
+      }
+      map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds });
+      map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getStyle().layers[1]?.id);
+      map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
+      draw.clear();
+      stopDrawing();
+      clearArea();
+      foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
+
+      let found = 0;
+      const showProgress = () => setStatus(ids.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${ids.length} images done...`);
+      showProgress();
+      const footprints = await Promise.all(items.map(async (item, index) => {
+        const footprint = await findFootprint(ids[index], orderedBounds(item.bbox));
+        found += 1;
+        if (isCurrent()) showProgress();
+        return footprint;
+      }));
+      if (!isCurrent()) return;
+      state.footprint = asMultiPolygon(joined(footprints));
+      showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
+      showArea();
+      state.tileUrl = tileUrl;
+      centreOnImagery();
+
+      element("tile-url").textContent = tileUrl;
+      showImageList(items, footprints);
+      element("details").hidden = false;
+      for (const id of ["draw", "cover"]) element(id).disabled = false;
+      const imageListHint = items.length === 1 ? "" : " Click an image under Images to go to it.";
+      setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
+    } catch (error) {
+      console.error(error);
+      if (isCurrent()) setStatus(error.message);
     }
-    map.addSource("imagery", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds });
-    map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, map.getStyle().layers[1]?.id);
-    map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
-    draw.clear();
-    stopDrawing();
-    clearArea();
-    foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
-
-    let found = 0;
-    const showProgress = () => setStatus(ids.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${ids.length} images done...`);
-    showProgress();
-    const footprints = await Promise.all(items.map(async (item, index) => {
-      const footprint = await findFootprint(ids[index], orderedBounds(item.bbox));
-      found += 1;
-      if (isCurrent()) showProgress();
-      return footprint;
-    }));
-    if (!isCurrent()) return;
-    state.footprint = asMultiPolygon(joined(footprints));
-    showLayer("footprint", state.footprint, { "line-color": "#d73f3f", "line-width": 2 });
-    showArea();
-    state.tileUrl = tileUrl;
-    centreOnImagery();
-
-    element("tile-url").textContent = tileUrl;
-    showImageList(items, footprints);
-    element("details").hidden = false;
-    for (const id of ["draw", "cover"]) element(id).disabled = false;
-    const imageListHint = items.length === 1 ? "" : " Click an image under Images to go to it.";
-    setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
-  } catch (error) {
-    console.error(error);
-    if (isCurrent()) setStatus(error.message);
-  }
+  }, { lockSetup: false });
 });
 
 const linkedImage = new URLSearchParams(location.search).get("image");

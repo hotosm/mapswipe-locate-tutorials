@@ -28,6 +28,7 @@ nav = [
       { "Label Studio" = "guides/training-data/label-studio.md" },
       { "OpenStreetMap" = "guides/training-data/openstreetmap.md" },
     ] },
+    { "What to deliver" = "guides/what-to-deliver.md" },
   ] },
   { "Helpers" = [
     "helpers/index.md",

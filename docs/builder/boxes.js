@@ -372,9 +372,8 @@ async function loadModel() {
 }
 
 async function load(link) {
-  setStatus("Reading the results...");
   const threshold = Number(element("threshold").value);
-  const { name, fileName, rows } = await loadProject(link);
+  const { name, fileName, rows } = await loadProject(link, setStatus);
   const tiles = keptTiles(rows, threshold);
   if (tiles.length === 0) throw new Error("No cell reaches that share of volunteers. Lower the share and load again.");
   const storageKey = savedObjectsKey(rows, threshold);
@@ -416,10 +415,10 @@ async function download() {
     return;
   }
   const mode = outputMode();
-  setStatus(`Preparing ${tiles.length} images...`);
   const shaped = mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
   const zip = new JSZip();
-  for (const tile of tiles) {
+  for (const [index, tile] of tiles.entries()) {
+    setStatus(`Preparing image ${index + 1} of ${tiles.length}...`);
     const objects = shaped.get(tile.id);
     zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
     const labels = mode === "segment" ? segmentLabels(objects.map(({ outline }) => outline), PIXELS) : obbLabels(objects.map(({ corners }) => corners), PIXELS);
@@ -435,7 +434,8 @@ async function download() {
 
 async function saveZip(zip, fileName) {
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(await zip.generateAsync({ type: "blob" }));
+  const blob = await zip.generateAsync({ type: "blob" }, ({ percent }) => setStatus(`Packing ${fileName}, ${Math.floor(percent)}%...`));
+  link.href = URL.createObjectURL(blob);
   link.download = fileName;
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
@@ -443,9 +443,11 @@ async function saveZip(zip, fileName) {
 
 // Every marked tile goes in, so the images can be labelled in another tool.
 async function downloadImages() {
-  setStatus(`Preparing ${state.tiles.length} images...`);
   const zip = new JSZip();
-  for (const tile of state.tiles) zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
+  for (const [index, tile] of state.tiles.entries()) {
+    setStatus(`Preparing image ${index + 1} of ${state.tiles.length}...`);
+    zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
+  }
   await saveZip(zip, `${state.name}_images_${state.threshold}.zip`);
   setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }

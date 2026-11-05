@@ -1,5 +1,6 @@
 import { EXAMPLE_IMAGES, fetchItem, imageTitle, mosaicTileUrl, parseImageIds, unionBounds } from "./mosaic-tools.js";
-import { copyText, foldSetup, setStatus } from "./setup-card.js";
+import { showMapLoading } from "./map-loading.js";
+import { copyText, foldSetup, setStatus, working } from "./setup-card.js";
 
 const element = (id) => document.getElementById(id);
 
@@ -10,6 +11,7 @@ const map = new maplibregl.Map({
   zoom: 1,
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+showMapLoading(map);
 
 function replaceSource(id, source, layer) {
   if (map.getLayer(id)) map.removeLayer(id);
@@ -58,30 +60,32 @@ function showImageList(items) {
   }));
 }
 
-element("setup").addEventListener("submit", async (event) => {
+element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  try {
-    const ids = parseImageIds(imageValues());
-    setStatus(`Merging ${ids.length} images...`);
-    const items = await Promise.all(ids.map(fetchItem));
-    const tileUrl = mosaicTileUrl(ids);
-    const bounds = unionBounds(items.map((item) => item.bbox));
+  working(async () => {
+    try {
+      const ids = parseImageIds(imageValues());
+      setStatus(`Merging ${ids.length} images...`);
+      const items = await Promise.all(ids.map(fetchItem));
+      const tileUrl = mosaicTileUrl(ids);
+      const bounds = unionBounds(items.map((item) => item.bbox));
 
-    replaceSource("mosaic", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds }, { type: "raster" });
-    const outlines = { type: "FeatureCollection", features: items.map((item) => ({ type: "Feature", geometry: item.geometry, properties: {} })) };
-    replaceSource("outlines", { type: "geojson", data: outlines }, { type: "line", paint: { "line-color": "#d73f3f", "line-width": 2 } });
-    map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
+      replaceSource("mosaic", { type: "raster", tiles: [tileUrl], tileSize: 256, maxzoom: 22, bounds }, { type: "raster" });
+      const outlines = { type: "FeatureCollection", features: items.map((item) => ({ type: "Feature", geometry: item.geometry, properties: {} })) };
+      replaceSource("outlines", { type: "geojson", data: outlines }, { type: "line", paint: { "line-color": "#d73f3f", "line-width": 2 } });
+      map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 20 });
 
-    element("tile-url").textContent = tileUrl;
-    showImageList(items);
-    element("details").hidden = false;
-    for (const id of ["copy", "open-area"]) element(id).disabled = false;
-    foldSetup(`${ids.length} images merged`);
-    setStatus("Red lines are the image outlines.");
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message);
-  }
+      element("tile-url").textContent = tileUrl;
+      showImageList(items);
+      element("details").hidden = false;
+      for (const id of ["copy", "open-area"]) element(id).disabled = false;
+      foldSetup(`${ids.length} images merged`);
+      setStatus("Red lines are the image outlines.");
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message);
+    }
+  });
 });
 
 element("add-image").addEventListener("click", () => addImageInput().focus());

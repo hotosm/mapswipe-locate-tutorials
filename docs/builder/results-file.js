@@ -7,7 +7,7 @@ export async function unpacked(blob) {
 }
 
 // Large projects unpack to more text than a browser string holds, so the file is read in chunks and the unused geom column dropped.
-export async function readCsv(blob) {
+export async function readCsv(blob, report = () => {}) {
   const file = await unpacked(blob);
   const rows = await new Promise((resolve, reject) => {
     const collected = [];
@@ -25,6 +25,7 @@ export async function readCsv(blob) {
           delete row.geom;
           collected.push(row);
         }
+        report(`Reading the results, ${collected.length.toLocaleString("en")} rows so far...`);
       },
       complete: () => resolve(collected),
       error: (error) => reject(new Error(`The CSV could not be read: ${error.message}.`)),
@@ -41,15 +42,17 @@ async function fetchOk(url, description) {
 }
 
 // Returns the project name, the results file name without extensions, and its rows.
-export async function loadProject(link) {
+export async function loadProject(link, report = () => {}) {
   const source = projectLink(link);
   let project = { results: source.results };
   if (source.page) {
+    report("Reading the project page...");
     const pageResponse = await fetchOk(source.page, "project page");
     project = projectResults(await pageResponse.text());
   }
+  report("Downloading the results...");
   const resultsResponse = await fetchOk(project.results, "results file");
-  const rows = await readCsv(await resultsResponse.blob());
+  const rows = await readCsv(await resultsResponse.blob(), report);
   const fileName = new URL(project.results).pathname.split("/").pop().replace(/\.gz$/, "").replace(/\.csv$/, "");
   return { name: project.name ?? fileName, fileName, rows };
 }

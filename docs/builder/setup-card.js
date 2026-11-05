@@ -11,6 +11,23 @@ export async function copyText(text, label) {
   setStatus(`${label} copied.`);
 }
 
+// Shows the spinner while a load runs; lockSetup also disables the setup card's buttons so a second load waits.
+let running = 0;
+
+export async function working(task, { lockSetup = true } = {}) {
+  const controls = lockSetup ? [...document.querySelectorAll("#setup button")].filter((control) => !control.disabled) : [];
+  running += 1;
+  document.body.classList.add("working");
+  for (const control of controls) control.disabled = true;
+  try {
+    return await task();
+  } finally {
+    running -= 1;
+    document.body.classList.toggle("working", running > 0);
+    for (const control of controls) control.disabled = false;
+  }
+}
+
 export function foldSetup(summary) {
   element("summary-text").textContent = summary;
   element("summary-text").title = summary;

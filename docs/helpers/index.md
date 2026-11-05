@@ -4,7 +4,7 @@ icon: lucide/wrench
 
 # Helpers
 
-Pages that prepare the files the manager asks for and clean up the results. They run in the browser. Each opens with a short form and a link to try it with sample data; after loading, the form folds into a line at the top of the side panel, and **Change** opens it again.
+Pages that prepare the files the manager asks for and clean up the results. They run in the browser. Each opens with a short form and a link to try it with sample data; after loading, the form folds into a line at the top of the side panel, and **Change** opens it again. While a helper is working, a spinner shows next to its status line, and **Loading map...** shows at the top left of the map until the map has finished drawing. Large results files, such as the Pemba Island fishing boat project, take several seconds to read.
 
 <div class="grid cards" markdown>
 
