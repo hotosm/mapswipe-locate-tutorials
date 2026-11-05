@@ -7,7 +7,7 @@ icon: lucide/map-plus
 This guide takes you from an image on imagery.hotosm.org to a processed project in the MapSwipe manager. Follow the steps in order. You need a manager account on stage or production (see the [home page](../index.md)). Create and check the project on stage first, then create it again on production.
 
 !!! warning "Check that your object fits"
-    Locate Objects suits separate objects you can point at, such as solar panels or water tanks. Lines such as roads, kinds such as roof types, and two objects in one project fit poorly. Read [Check that your object fits](check-your-object.md) first.
+    Locate Objects suits separate objects you can point at, such as solar panels or water tanks. Lines such as roads, sorting by type such as roof types, and two objects in one project fit poorly. Read [Check that your object fits](check-your-object.md) first.
 
 ## 1. Copy the image link
 
