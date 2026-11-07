@@ -4,42 +4,61 @@ icon: lucide/list-checks
 
 # Check that your object fits
 
-Read this page before you create a project. Locate Objects shows volunteers one tile at a time, split into cells, and records which cells hold the object ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)). Some objects suit that well, some partly, and some poorly.
+Locate Objects shows volunteers one tile at a time, split into cells, and records which cells hold the object ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)). Read this page before you create a project.
 
-The groups below are recommendations, based on how Locate Objects records answers and on the objects of fAIrSwipe projects on stage and production.
-
-## Quick check
-
-Answer these four questions for your object:
+## Questions about your object
 
 1. Is it one kind of object?
 2. Can a volunteer tell from one cell whether it's there?
-3. Does one object fit within a few cells at the project zoom? The [area finder](../builder/area.html) shows this in the **Volunteer view**.
+3. Does one object cover only a few cells? Check the **Volunteer view** in the [area finder](../builder/area.html).
 4. Is the question only "is it there?", without "which kind is it?"
+5. Can you see it from above? A state such as illegal or abandoned can't be seen.
 
-When all four answers are yes, the object fits. Otherwise, find the closest group in the table below.
+If every answer is yes, the object fits. If not, find it below.
 
-## Three groups
+## Fit by kind of object
 
-| Fit | Examples | Why | What to do |
-|---|---|---|---|
-| **Good fit**: separate objects you can point at | Rooftop solar panels, rooftop water tanks, satellite dishes, fishing boats, swimming pools, piles of solid waste, zebra crossings, potholes and other road surface damage | Each object covers part of a tile, so the marked cells show where it is. The auto labeller can draw a box around each one. | Follow the guides as written. |
-| **Partial fit**: areas larger than a few cells | Trees and green spaces, water bodies, landfills, cemeteries | An area covers many cells, so the marked cells show roughly where it is, without its edge. | Create the project to find the areas, then trace them in [OpenStreetMap](training-data/openstreetmap.md). **Outlines** in the [auto labeller](training-data/auto-labeller.md) is untested on large areas; check every outline it draws. |
-| **Poor fit**: lines, sorting by type, or two objects at once | Roads for highway segmentation, rivers, drainage lines; roof type or material, damage level; "water tanks and satellite dishes" in one project | A line crosses many cells, and the answers record which cells it touches without its path or width (inferred from the result format). The answers are No, Single Feature and Multiple Features ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditProject/UpdateProjectForm/LocateObjectProjectSpecifics/index.tsx)), so they leave out which kind of object a cell holds, and which of two objects it is. | Narrow the question: one project per object, or one project per roof type. For lines, map them in [OpenStreetMap](training-data/openstreetmap.md). |
+### Good fit
 
-## Narrow the question
+Separate objects, such as solar panels, water tanks, boats, piles of waste, single trees and potholes. The marked cells show where each one is.
 
-A narrower question often turns a poor fit into a good one:
+### Partial fit
 
-| Too broad | Narrower |
-|---|---|
-| Water tanks and satellite dishes | Rooftop water tanks, then a second project for satellite dishes |
-| Solid waste and blocked drainage | Piles of solid waste, then a second project for blocked spots in drains |
-| Roof types | Metal roofs, then a second project for each other type |
-| Road condition | Potholes |
+Areas, such as green spaces, tree groups and ponds. The marked cells show roughly where an area is, without its edge, so trace the edges in [OpenStreetMap](training-data/openstreetmap.md).
+
+### Poor fit
+
+Lines, types, or two objects in one project. The answers are No, Single Feature and Multiple Features ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditProject/UpdateProjectForm/LocateObjectProjectSpecifics/index.tsx)), so they record which cells hold an object, without its kind. Ask about one object per project, add types as an attribute, and map lines in [OpenStreetMap](training-data/openstreetmap.md#roads-and-drains).
+
+## Recommendations by object
+
+The label column starts with the `object_name`, singular and lower case. Small objects need sharp imagery, so check a few tiles in the **Volunteer view** first.
+
+| Object | Ask volunteers about | Label |
+|---|---|---|
+| Solar panels (good) | Solar panels | `solar panel`: one box per array of touching panels |
+| Fishing boats (good) | Fishing boats | `fishing boat`: one box per boat |
+| Water tanks (good) | Water tanks | `water tank`: one box per tank |
+| Potholes (good) | Potholes | `pothole`: one box per pothole or damaged patch |
+| Solid waste (good) | Piles of solid waste | `solid waste`: one box per pile |
+| Landfills (partial) | Piles of solid waste | `solid waste`: one box per pile |
+| Buildings (good) | Buildings | `building`: one outline per building |
+| Roof material (poor) | Buildings | `building`: one outline, with `roof:material` |
+| Building damage (poor) | Buildings | `building`: one outline, with `damage` |
+| Temporary shelters (good) | Temporary shelters | `temporary shelter`: one box per shelter |
+| Informal settlements (partial) | Buildings | `building`: one outline per building |
+| Single trees (good) | Trees | `tree`: one outline, with `natural: tree` |
+| Tree groups (partial) | Trees | `tree`: one outline, with `natural: tree_group` |
+| Green spaces (partial) | Green spaces | `green space`: traced in OpenStreetMap |
+| Ponds (partial) | Ponds | `pond`: traced in OpenStreetMap |
+| Disease vector sites (poor) | Standing water, or tyres, one per project | `standing water` or `tyre`: one box each |
+| Bins, benches, streetlights (poor) | One per project | `bin`, `bench` or `streetlight`: one box each |
+| Two objects at once (poor) | One per project | One `object_name` per project |
+| Drainage and flooding (poor) | Blocked drains, or standing water | `blocked drain` or `standing water`: one box each; drain lines from OpenStreetMap |
+| Roads (poor) | Potholes | `pothole`: one box each; road lines from OpenStreetMap |
+
+[What to deliver](what-to-deliver.md#examples) shows examples of each label.
 
 ## Name the project
 
-Spell **fAIrSwipe** exactly as in the [naming rule](../index.md#before-you-start).
-
-Then continue with [Create a Locate project](create-a-project.md).
+Spell **fAIrSwipe** exactly as in the [naming rule](../index.md#before-you-start), then continue with [Create a Locate project](create-a-project.md).

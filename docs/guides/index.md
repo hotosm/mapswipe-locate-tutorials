@@ -34,7 +34,7 @@ Follow them in order the first time. Each page starts where the previous one end
 
 -   :lucide-database: **[Create a training dataset](training-data/index.md)**
 
-    Label each object on the marked tiles with the auto labeller, QGIS, Label Studio or OpenStreetMap.
+    Label each object on the marked tiles with the auto labeller, QGIS or OpenStreetMap. Label Studio checks a dataset.
 
 -   :lucide-package-check: **[What to deliver](what-to-deliver.md)**
 

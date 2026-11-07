@@ -37,6 +37,28 @@ The preset adds `power=generator`, `generator:source=solar`, `generator:method=p
 
 ![A traced array with its tags in iD](../../assets/dataset/id-trace-tag.jpg)
 
+For other objects, trace each one as an area (the auto labeller skips points), with these tags:
+
+- Water tanks: `man_made=storage_tank` and `content=water` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:man_made%3Dstorage_tank)). Where line: `man_made = 'storage_tank' AND content = 'water'`.
+- Ponds: `natural=water` and `water=pond` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:water%3Dpond)). Where line: `natural = 'water' AND water = 'pond'`.
+- Green spaces, such as parks: `leisure=park` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:leisure%3Dpark)). Where line: `leisure = 'park'`.
+
+In step 5, rename `solar_panels` (letters, numbers and underscores), list the tag keys under `select`, and use the object's `where` line. For water tanks:
+
+```yaml
+water_tanks:
+  types:
+    - polygons
+  select:
+    - man_made
+    - content
+  where: >-
+    man_made = 'storage_tank'
+    AND content = 'water'
+```
+
+Other green spaces and water bodies use other tags ([Key:leisure](https://wiki.openstreetmap.org/wiki/Key:leisure), [Key:water](https://wiki.openstreetmap.org/wiki/Key:water)). The Export Tool accepts `AND` ([YAML guide](https://export.hotosm.org/learn/yaml)).
+
 ## 4. Upload
 
 Click **Save** and upload the changes, as in [LearnOSM](https://learnosm.org/en/beginner/id-editor/).
@@ -74,3 +96,28 @@ The YAML follows the Export Tool's [YAML guide](https://export.hotosm.org/learn/
 4. Click **Download dataset**, then [check the dataset](index.md#check-the-dataset).
 
 ![Labels loaded from a GeoJSON file on a tile in the auto labeller](../../assets/dataset/labeller-load-labels.jpg)
+
+## Roads and drains
+
+Roads and drains are delivered as lines. The auto labeller skips lines, so the file comes straight from the Export Tool. Map every road or drain in the project area.
+
+1. In step 3, trace each road or drain as a line along its centre, with `highway=*` and `surface=*` for a road ([Key:highway](https://wiki.openstreetmap.org/wiki/Key:highway), [Key:surface](https://wiki.openstreetmap.org/wiki/Key:surface)), or `waterway=drain` for a lined drain and `waterway=ditch` for an unlined one ([drain](https://wiki.openstreetmap.org/wiki/Tag:waterway%3Ddrain), [ditch](https://wiki.openstreetmap.org/wiki/Tag:waterway%3Dditch)). Add `surface` to every road, including those already mapped, and move any line that doesn't match the imagery.
+2. In step 5, use `lines` under `types`:
+
+    ```yaml
+    roads:
+      types:
+        - lines
+      select:
+        - highway
+        - surface
+      where: >-
+        highway IN ('primary','secondary','tertiary',
+        'unclassified','residential','service','track')
+        AND surface IS NOT NULL
+    ```
+
+    For drains, list `waterway` under `select` and use `where: waterway IN ('drain','ditch')`. The Export Tool accepts `IN`, `AND` and `IS NOT NULL` ([YAML guide](https://export.hotosm.org/learn/yaml)).
+
+3. Unzip the download and open its `.geojson` file in QGIS. Open the attribute table and click the [field calculator](https://docs.qgis.org/latest/en/docs/user_manual/working_with_vector/attribute_table.html#using-the-field-calculator). Tick **Create a new field**, set **Output field name** to `object_name` and **Output field type** to text, enter `'road'` or `'drain'` with the single quotes, and click **OK**. Click **Save Edits**, then right-click the layer, choose **Export > Save Features As…**, set **Format** to **GeoJSON** and name the file `labels.geojson`.
+4. Open `labels.geojson` in a text editor and add the `imagery_url` line after `"type": "FeatureCollection",`, as in [The imagery URL at the top](../what-to-deliver.md#the-imagery-url-at-the-top).

@@ -95,7 +95,7 @@ One scenario page appears per tile, with the cell answers already set. The manag
 
 ## 7. Write the messages of each scenario
 
-Every scenario page has three messages: **Instruction**, **Hint** and **Success**. Each needs an icon, a title and a description ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditTutorial/ScenarioPageInput/schema.ts)). The tutorial builder writes the texts for you.
+Every scenario page has three messages: **Instruction**, **Hint** and **Success**. Each needs an icon, a title and a description ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/views/EditTutorial/ScenarioPageInput/schema.ts)). The tutorial builder drafts these texts.
 
 1. In the tutorial builder, click **Texts for the manager** at the bottom of the side panel. In **Object volunteers look for**, replace `solar panels` with the object volunteers look for, for example `rooftop solar panels`. Click **Instruction**, **Hint** or **Success** to see its texts. You can edit them in the boxes. Typing a new object replaces the texts, including your edits.
 

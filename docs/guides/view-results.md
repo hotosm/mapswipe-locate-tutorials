@@ -29,4 +29,4 @@ Click **Download cells**. The file has one square per kept cell, with `tile_id`,
 
 <video src="../assets/results/results-map.mp4" autoplay loop muted playsinline aria-label="Loading the project, moving the volunteer share, opening a cell and downloading the cells"></video>
 
-Next, [create a training dataset](training-data/index.md) from the marked tiles with the auto labeller, QGIS, Label Studio or OpenStreetMap. [Download the results](download-results.md) describes the project's export files, with every answer of every volunteer.
+Next, [create a training dataset](training-data/index.md) from the marked tiles with the auto labeller, QGIS or OpenStreetMap; Label Studio checks a dataset. [Download the results](download-results.md) describes the project's export files, with every answer of every volunteer.

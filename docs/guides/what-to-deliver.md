@@ -4,31 +4,29 @@ icon: lucide/package-check
 
 # What to deliver
 
-The final delivery is one GeoJSON file of labels, with the imagery it was labelled on. Any labelling method works: the [auto labeller](training-data/auto-labeller.md), [QGIS](training-data/qgis.md), [OpenStreetMap](training-data/openstreetmap.md) or another tool, as long as the file passes the checklist below.
+Deliver one `labels.geojson` per MapSwipe project through the fAIrSwipe submission form. The file links to the imagery through `imagery_url`, so send only this file. Roads and drains traced in OpenStreetMap are separate deliveries. In the auto labeller, the file is inside the downloaded `.zip`.
 
 ![Left: red cells volunteers marked on a tile with fishing boats. Right: a yellow box around each fully visible boat](../assets/dataset/cells-to-labels.jpg)
 
-MapSwipe gives the red cells: where the objects roughly are. The delivery is the yellow labels: one label around each object.
+Red: the cells volunteers marked. Yellow: the labels you deliver, one per object. The two boats cut off at the top also need a label.
 
 ## Checklist
 
-Check every line before you deliver.
+Open the file over the imagery in QGIS (the auto labeller's `README.md` shows how) and check each line:
 
-| | Requirement | Example |
-|---|---|---|
-| 1 | **One GeoJSON file**, in longitude and latitude (EPSG:4326), the coordinate system GeoJSON uses ([RFC 7946, section 4](https://www.rfc-editor.org/rfc/rfc7946#section-4)) | `labels.geojson` |
-| 2 | **The imagery URL at the top** of the file, as `imagery_url` | [see below](#the-imagery-url-at-the-top) |
-| 3 | **One feature per object**: a box or outline around it, or a line along the road's centre | one box per solar array |
-| 4 | **`object_name` on every feature** | `solar panel` |
-| 5 | **Attributes on every feature** when the object has types or kinds | `natural: tree` or `natural: tree_group`; `surface: unpaved`; `roof:material: metal` |
-| 6 | **Nothing missed**. Per tile: every object on each delivered tile (one imagery square of the project). Per object: every object in the area of interest | all boats on the tile, also the ones cut off at its edge |
-| 7 | **At least 1,000 of each object type**, counted per type ([see below](#how-much-is-enough)) | 1,000 metal roofs and 1,000 tile roofs; 1,000 paved and 1,000 unpaved road segments |
+1. One GeoJSON file per project, in longitude and latitude, EPSG:4326 ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-4)).
+2. `imagery_url` at the top of the file ([see below](#the-imagery-url-at-the-top)).
+3. One feature per object: a box or an outline, or a line for roads and drains.
+4. `object_name` on every feature, such as `solar panel`.
+5. The type as an attribute when the object has types, such as `natural: tree`, `roof:material: metal`, `damage: partial` or `surface: unpaved`.
+6. Every object labelled, also the ones cut off at the tile edge ([Per object or per tile](#per-object-or-per-tile)).
+7. At least 1,000 of the most common type ([Number of labels](#number-of-labels)).
 
-Extra properties on each feature are fine. The auto labeller adds `tile_id`, `image`, `output`, `source`, `marked_cells` and `imagery_url`.
+Extra properties are fine.
 
 ## The imagery URL at the top
 
-Put the project's tile URL, the one from [step 5 of Create a Locate project](create-a-project.md#5-save-a-cover-image-and-copy-the-tile-url), at the top of the file as `imagery_url`. GeoJSON allows extra members like this next to `features` ([RFC 7946, section 6.1](https://www.rfc-editor.org/rfc/rfc7946#section-6.1)). Anyone who opens the file can then load the same imagery and check each label against it.
+Put the project's tile URL from [step 5 of Create a Locate project](create-a-project.md#5-save-a-cover-image-and-copy-the-tile-url) at the top of the file. GeoJSON allows extra members next to `features` ([RFC 7946, section 6.1](https://www.rfc-editor.org/rfc/rfc7946#section-6.1)). The auto labeller writes it for you.
 
 ```json
 {
@@ -38,37 +36,27 @@ Put the project's tile URL, the one from [step 5 of Create a Locate project](cre
 }
 ```
 
-The auto labeller writes `imagery_url` at the top of `labels.geojson`.
-
 ## Per object or per tile
 
-Both are accepted:
-
-| Labelled | Each feature is | Typical method |
+| Labelled | Each feature is | Covers |
 |---|---|---|
-| **Per object** | The whole object, even when it crosses tile edges | QGIS, OpenStreetMap |
-| **Per tile** | The part of the object on one tile, with that tile's `tile_id` | Auto labeller |
+| Per tile (auto labeller) | The part of the object on one tile, with its `tile_id` | Every object on each tile that has a label |
+| Per object (other tools) | The whole object | Every object in the project area |
 
-## How much is enough
+## Number of labels
 
-!!! warning "At least 1,000 of each object type"
-    The labels train an object detection model, which learns each type of object as its own class. Every type needs at least 1,000 labelled objects of its own: 1,000 metal roofs and 1,000 tile roofs, not 1,000 roofs in total.
+!!! warning "Minimum number of labels"
+    At least 1,000 of the most common type, for example 1,000 metal roofs. A file with fewer isn't accepted, so cover a larger area. Other types can have fewer, but each one still gets a label. Enter each type and its count in the submission form. An object left out teaches the model that it isn't there.
 
-| Object | Target | Counted as |
-|---|---|---|
-| One object type, such as solar panels or fishing boats | At least 1,000 | One feature per object |
-| Several types, such as roof materials | At least 1,000 of each type | One feature per object, grouped by its attribute |
-| Roads, such as paved and unpaved | At least 1,000 segments of each surface | One feature per segment between two junctions |
-
-The [auto labeller](training-data/auto-labeller.md) counts toward 1,000 objects. Ultralytics, the model library the dataset is laid out for, recommends "at least 1,500 images and 10,000 labeled instances per class" for reliable real-world performance ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so 1,000 of each type is a starting set that later projects add to.
+Count one feature per object, and for roads one feature per line in the file. The [auto labeller](training-data/auto-labeller.md) shows the count so far. Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so later projects add to each delivery.
 
 ## Examples
 
-Each example shows the labels on the imagery, then one feature of the file, with its coordinates shortened. Every feature sits in a FeatureCollection with `imagery_url` at the top, as shown above.
+Each example shows the labels, then one feature with its coordinates shortened.
 
 ### Solar panels
 
-One box around each array of touching panels, turned to follow the array, in the Freetown image. These are the auto labeller's boxes from one tap on each array, as written to its label file.
+One turned box per array of touching panels, from one tap each in the auto labeller.
 
 ![Two rows of rooftop solar panels in Freetown, each with a tight yellow box turned to follow the array](../assets/dataset/deliver-solar.png)
 
@@ -82,7 +70,7 @@ One box around each array of touching panels, turned to follow the array, in the
 
 ### Fishing boats
 
-One box around each boat, in the Pemba Island images. Labelled per tile, each feature also names its tile.
+One box per boat. Labelled per tile, each feature names its tile.
 
 ![Fishing boats on a Pemba Island tile with the red cells volunteers marked, each boat with a yellow box around it](../assets/dataset/deliver-boats.jpg)
 
@@ -94,15 +82,11 @@ One box around each boat, in the Pemba Island images. Labelled per tile, each fe
 }
 ```
 
-The Pemba project merges several images, so its `imagery_url` lists them all after `ids=`. Copy it from the project's tile URL as it is.
-
 ### Solid waste
 
-Boxes around the waste, piles and single items alike, so every patch of waste on the ground has a label. A large dump gets several boxes.
+One box per pile or single item. A large dump gets several boxes.
 
 ![Solid waste on open ground and along a road, with a yellow box around each pile and around each small item](../assets/dataset/deliver-waste.webp)
-
-Each feature has the same shape as the solar panel example, with:
 
 ```json
 { "object_name": "solid waste" }
@@ -110,18 +94,14 @@ Each feature has the same shape as the solar panel example, with:
 
 ### Trees
 
-One box around each tree crown, small trees included. The dotted line marks the tile, and every tree inside it gets a box. All the trees in this picture are single trees.
+One outline per tree crown, small trees included, with **Outlines** in the auto labeller. Every tree inside the dotted tile line gets a label.
 
 ![Trees on a tile, inside a dotted tile outline, with a yellow box around each tree crown](../assets/dataset/deliver-trees.webp)
 
-Trees come in two kinds, so every feature needs the attribute that says which one it is:
+The picture shows boxes; the delivery uses outlines.
 
-| Kind | When | Label | Attribute |
-|---|---|---|---|
-| **Single tree** | One crown you can tell apart | A box around the crown | `natural: tree` |
-| **Tree group** | Crowns that touch so closely you can't tell where one crown ends and the next begins | An outline around the whole group | `natural: tree_group` |
-
-Both follow the OpenStreetMap tags [natural=tree](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree) and [natural=tree_group](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree_group).
+- Single tree, one crown you can tell apart: `natural: tree` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree)).
+- Tree group, crowns too close to tell apart: one outline around the group, `natural: tree_group` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree_group)).
 
 ```json
 { "object_name": "tree", "natural": "tree" }
@@ -133,7 +113,7 @@ Both follow the OpenStreetMap tags [natural=tree](https://wiki.openstreetmap.org
 
 ### Roads, with attributes
 
-One line along the centre of each road segment, with its type and surface. The attribute names follow the OpenStreetMap keys [highway](https://wiki.openstreetmap.org/wiki/Key:highway) and [surface](https://wiki.openstreetmap.org/wiki/Key:surface).
+One line along the centre of each road, with its [highway](https://wiki.openstreetmap.org/wiki/Key:highway) and [surface](https://wiki.openstreetmap.org/wiki/Key:surface) tags, from OpenStreetMap ([Roads and drains](training-data/openstreetmap.md#roads-and-drains)). Drains follow the same steps.
 
 ![Roads in Stellenbosch, South Africa: asphalt roads in yellow along their centre, and a ground track in light blue](../assets/dataset/deliver-roads.jpg)
 
@@ -147,11 +127,9 @@ Labels from HOT's [road surface training dataset](https://huggingface.co/dataset
 }
 ```
 
-Roads fit poorly as a Locate Objects project (see [Check that your object fits](check-your-object.md)), so their labels usually come from OpenStreetMap or QGIS.
-
 ### Buildings by roof type, with attributes
 
-One outline around each building, following its roof edges, with its roof material. The attribute name follows the OpenStreetMap key [roof:material](https://wiki.openstreetmap.org/wiki/Key:roof:material); [roof:colour](https://wiki.openstreetmap.org/wiki/Key:roof:colour) works the same way for the roof colour.
+Ask volunteers about buildings. Label every building with one outline along its roof edges and its [roof:material](https://wiki.openstreetmap.org/wiki/Key:roof:material), such as `metal`, `roof_tiles`, `concrete` or `thatch`.
 
 ![A dense block of houses in Stellenbosch, South Africa, each roof outlined in yellow along its edges, all with metal roofs](../assets/dataset/deliver-roofs.jpg)
 
@@ -165,4 +143,10 @@ Labels from HOT's [roof type training dataset](https://huggingface.co/datasets/h
 }
 ```
 
-This tile has only metal roofs. A tile with several roof types labels each building the same way, with its own `roof:material` value. One project per roof type keeps the volunteer question simple; the attribute then records the type of each labelled building.
+For building damage, use `damage` with `none`, `partial` or `destroyed`:
+
+```json
+{ "object_name": "building", "damage": "partial" }
+```
+
+Add the value in the auto labeller as you label ([Objects with types](training-data/auto-labeller.md#objects-with-types)), or in QGIS with **New field** in the attribute table ([QGIS manual](https://docs.qgis.org/latest/en/docs/user_manual/working_with_vector/attribute_table.html#introducing-the-attribute-table-interface)).

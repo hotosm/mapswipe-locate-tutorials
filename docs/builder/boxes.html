@@ -33,6 +33,22 @@
             <option value="onnx-community/EdgeTAM-ONNX" data-name="EdgeTAM" data-size="41 MB" selected>EdgeTAM, runs in this browser</option>
           </select>
         </label>
+        <fieldset id="what-to-label">
+          <legend>What to label</legend>
+          <label>
+            <span>Object name</span>
+            <input id="object-name" type="text" placeholder="for example, solar panel">
+          </label>
+          <label>
+            <span>Attribute (optional)</span>
+            <input id="attribute" type="text" placeholder="roof:material">
+          </label>
+          <label>
+            <span>Values, separated by commas</span>
+            <input id="attribute-values" type="text" placeholder="metal, roof_tiles, concrete">
+          </label>
+          <p class="hint">Up to eight values, each with a button above the tile. Fields left empty take the project's saved settings when it loads again.</p>
+        </fieldset>
         <div class="actions">
           <button type="submit">Load</button>
           <button id="cancel" type="button" class="secondary">Cancel</button>
@@ -42,6 +58,7 @@
       </div>
     </form>
     <div id="stage-area">
+      <fieldset id="value-choices" class="choices" hidden></fieldset>
       <div id="stage">
         <canvas id="tile-canvas" width="1024" height="1024"></canvas>
         <canvas id="box-canvas" width="1024" height="1024"></canvas>
@@ -69,10 +86,7 @@
         <label><input type="radio" name="mode" value="obb" checked> Boxes</label>
         <label><input type="radio" name="mode" value="segment"> Outlines</label>
       </fieldset>
-      <label>
-        <span>Object name</span>
-        <input id="object-name" type="text" value="solar panel">
-      </label>
+      <p class="hint">With values, pick one above the tile, or press its number key, before you tap each object. Tap a label to give it the picked value.</p>
       <button id="download" type="button" disabled>Download dataset</button>
       <button id="download-images" type="button" class="secondary" disabled>Download tile images</button>
       <label>

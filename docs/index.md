@@ -6,20 +6,20 @@ icon: lucide/house
 
 Step-by-step guides for creating a MapSwipe **Locate Objects** project, adding its tutorial, publishing it and downloading the results.
 
-In a Locate Objects project, volunteers see one imagery tile at a time, split into a grid of 2x2, 4x4 or 8x8 cells. They tap each cell that contains the object the project asks for: once for one object, twice for several. The results record which cells of each tile hold the object, intended as training data for AI models such as fAIr ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)).
+In a Locate Objects project, volunteers see one imagery tile at a time, split into a grid of 2x2, 4x4 or 8x8 cells. They tap each cell that contains the object the project asks for: once for one object, twice for several. The results record which cells of each tile hold the object, intended as training data for AI models such as [fAIr](https://github.com/hotosm/fAIr), HOT's tool that learns to find objects in imagery ([source](https://github.com/mapswipe/mapswipe-docs/blob/main/docs/project_types/locate_objects.md)).
 
 ![Left: red cells volunteers marked on a tile with fishing boats. Right: a yellow box around each fully visible boat](assets/dataset/cells-to-labels.jpg)
 
 Volunteers mark the cells that hold the object (red). You then add one box around each object (yellow), which becomes the training data. [Create a training dataset](guides/training-data/index.md) shows how, and [What to deliver](guides/what-to-deliver.md) lists what the final file needs.
 
 !!! warning "Check that your object fits"
-    Locate Objects suits separate objects you can point at from above, such as solar panels, water tanks, fishing boats or solid waste. It fits partly for areas such as green spaces, and poorly for lines such as roads, for sorting by type such as roof types, and for two objects in one project. [Check your object](guides/check-your-object.md) before you start.
+    Locate Objects suits separate objects you can point at from above, such as solar panels, water tanks, fishing boats or piles of solid waste. It fits partly for areas such as green spaces, and poorly for lines such as roads, for sorting by type such as roof types, and for two objects in one project. [Check your object](guides/check-your-object.md) before you start.
 
 <div class="grid cards" markdown>
 
 -   :lucide-list-checks: **[Check that your object fits](guides/check-your-object.md)**
 
-    A four-question check and examples of objects that fit well, partly or poorly.
+    Questions about your object, and examples of objects that fit well, partly or poorly.
 
 -   :lucide-book-open: **[Guides](guides/index.md)**
 
@@ -48,7 +48,7 @@ The screenshots in these guides come from stage. The production manager has the 
 
 ## Before you start
 
-- A MapSwipe account with project manager rights. The manager login page says: "If you don't yet have access, please reach out to the MapSwipe community via Slack." Edit only projects you created.
+- A MapSwipe account with project manager rights. The manager login page says: "If you don't yet have access, please reach out to the MapSwipe community via Slack." Join the HOT Slack at <https://slack.hotosm.org/>. Edit only projects you created.
 - The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area finder](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
 
 !!! note "Project naming"

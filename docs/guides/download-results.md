@@ -4,7 +4,7 @@ icon: lucide/download
 
 # Download the results
 
-There are two ways to get the results:
+The results are available from these places:
 
 | You need | Get it from |
 |---|---|

@@ -4,7 +4,7 @@ icon: lucide/map-plus
 
 # Create a Locate project
 
-This guide takes you from an image on imagery.hotosm.org to a processed project in the MapSwipe manager. Follow the steps in order. You need a manager account on stage or production (see the [home page](../index.md)). Create and check the project on stage first, then create it again on production.
+This guide goes from an image on imagery.hotosm.org to a processed project in the MapSwipe manager. Follow the steps in order. You need a manager account on stage or production (see the [home page](../index.md)). Create and check the project on stage first, then create it again on production.
 
 !!! warning "Check that your object fits"
     Locate Objects suits separate objects you can point at, such as solar panels or water tanks. Lines such as roads, sorting by type such as roof types, and two objects in one project fit poorly. Read [Check that your object fits](check-your-object.md) first.
@@ -46,7 +46,7 @@ The **Volunteer view** in the side panel shows the tile under the white square i
 
     In the Freetown image, rooftop solar panels show as light grey rectangles with white frames, set in rows, as in the picture above.
 
-2. Under **Project zoom**, click **18**, **19**, **20** and **21** in turn, and look at the **Volunteer view** each time. Choose the lowest zoom where you can still recognise the object. Each step down in zoom covers the same area with four times fewer tiles, so volunteers finish sooner. A red note under **Area of interest** means the area is too large at that zoom (see step 4).
+2. Under **Project zoom**, click **18**, **19**, **20** and **21** in turn, and look at the **Volunteer view** each time. Choose the lowest zoom where you can still recognise the object. A red note under **Project zoom** means the zoom is finer than the imagery, so its tiles look blurred: choose the zoom it names or lower. Each step down in zoom covers the same area with four times fewer tiles, so volunteers finish sooner. A red note under **Area of interest** means the area is too large at that zoom (see step 4).
 3. Under **Sub-grid**, click **2x2**, **4x4** and **8x8** in turn. Choose the size where one object fits inside about one cell.
 4. Write down the zoom and the sub-grid. You enter them in the manager in steps 8 and 9.
 

@@ -109,6 +109,31 @@ export function cellMetres(latitude, zoom, cellsPerSide) {
   return (40075016.686 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom / cellsPerSide;
 }
 
+// The zoom whose 256 px tile pixel is closest to the image's ground sample distance, as titiler picks the tilejson maxzoom.
+export function finestZoom(latitude, gsdMetres) {
+  return Math.round(Math.log2(cellMetres(latitude, 0, 256) / gsdMetres));
+}
+
+export function zoomProblem(zoom, latitude, gsdMetres) {
+  if (!(gsdMetres > 0)) return null;
+  const finest = finestZoom(latitude, gsdMetres);
+  return zoom > finest ? `This image's resolution (GSD) is ${Number(gsdMetres.toPrecision(2))} m, so zoom ${finest + 1} and higher enlarge it and look blurred. Choose zoom ${finest} or lower.` : null;
+}
+
+// An item with renders.browse needs its display settings to show in colour; one without shows as stored with nodata=0.
+// This server ignores bidx, so the bands go in as an expression.
+export function renderQuery(item) {
+  const browse = item.properties.renders?.browse;
+  const parts = [`assets=${browse?.assets?.[0] ?? "visual"}`];
+  const expression = browse?.expression ?? browse?.bidx?.map((band) => `b${band}`).join(";");
+  if (expression) parts.push(`expression=${expression}`);
+  for (const [min, max] of browse?.rescale ?? []) parts.push(`rescale=${min},${max}`);
+  if (browse?.colormap_name) parts.push(`colormap_name=${browse.colormap_name}`);
+  if (browse?.color_formula) parts.push(`color_formula=${encodeURIComponent(browse.color_formula)}`);
+  parts.push(`nodata=${browse?.nodata ?? 0}`);
+  return parts.join("&");
+}
+
 // The backend refuses an area larger than 5·4^(23−zoom) km², and the manager a file over 1 MB.
 const MAX_FILE_BYTES = 1024 * 1024;
 

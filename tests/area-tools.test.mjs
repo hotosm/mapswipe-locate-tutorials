@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { areaProblems, cellMetres, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, tileAt, tileCount } from "../docs/builder/area-tools.js";
+import { areaProblems, cellMetres, finestZoom, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, renderQuery, tileAt, tileCount, zoomProblem } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -132,4 +132,29 @@ test("the tile at a point is the slippy map tile that contains it, changing exac
   assert.deepEqual(tileAt(-13.1908034, 8.4672785, 20), { x: 485867, y: 499535 });
   assert.deepEqual(tileAt(-13.1908037, 8.4672787, 20), { x: 485866, y: 499534 });
   assert.deepEqual(tileAt(-13.19063, 8.46711, 18), { x: 121466, y: 124883 });
+});
+
+test("the finest zoom is the one closest to the image resolution, as in the tilejson maxzoom of 0.25 m imagery at Ratnagiri", () => {
+  assert.equal(finestZoom(17, 0.25), 19);
+  assert.equal(finestZoom(17, 0.2), 20);
+  assert.equal(finestZoom(8.45, 0.0394), 22);
+});
+
+test("a zoom deeper than the image resolution gets a note, and a zoom at or above it, or a missing resolution, gets none", () => {
+  assert.equal(zoomProblem(20, 17, 0.25), "This image's resolution (GSD) is 0.25 m, so zoom 20 and higher enlarge it and look blurred. Choose zoom 19 or lower.");
+  assert.equal(zoomProblem(19, 17, 0.25), null);
+  assert.equal(zoomProblem(21, 8.45, 0.0394), null);
+  assert.equal(zoomProblem(20, 17, undefined), null);
+});
+
+test("a 16-bit image gets its own bands and value range in the tile query, and an 8-bit image keeps nodata=0 alone", () => {
+  const ratnagiri = { properties: { renders: { browse: { bidx: [1, 2, 3], rescale: [[754, 1922.12], [963, 2059], [1118, 2126]], nodata: 0 } } } };
+  assert.equal(renderQuery(ratnagiri), "assets=visual&expression=b1;b2;b3&rescale=754,1922.12&rescale=963,2059&rescale=1118,2126&nodata=0");
+  assert.equal(renderQuery({ properties: { gsd: 0.0394 } }), "assets=visual&nodata=0");
+});
+
+test("partial render settings keep the fields given, and the asset, expression and colour formula come from the record", () => {
+  assert.equal(renderQuery({ properties: { renders: { browse: { rescale: [[0, 3000]] } } } }), "assets=visual&rescale=0,3000&nodata=0");
+  const custom = { properties: { renders: { browse: { assets: ["rgb"], bidx: [1, 2, 3], expression: "b3;b2;b1", color_formula: "gamma rgb 1.3" } } } };
+  assert.equal(renderQuery(custom), "assets=rgb&expression=b3;b2;b1&color_formula=gamma%20rgb%201.3&nodata=0");
 });

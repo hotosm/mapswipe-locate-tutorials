@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { boxOutline, cellRectangle, clampedCorners, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -54,7 +54,23 @@ test("a small or straight-line movement is a click and a drag in any direction g
 });
 
 test("the dataset file names the object as a quoted YAML string", () => {
-  assert.equal(datasetYaml('solar "panel"'), 'train: images\nval: images\nnames:\n  0: "solar \\"panel\\""\n');
+  assert.equal(datasetYaml(['solar "panel"']), 'train: images\nval: images\nnames:\n  0: "solar \\"panel\\""\n');
+});
+
+test("the dataset file numbers each attribute value as its own class, in list order", () => {
+  assert.equal(datasetYaml(["metal", "roof_tiles"]), 'train: images\nval: images\nnames:\n  0: "metal"\n  1: "roof_tiles"\n');
+});
+
+test("attribute values are split at commas, trimmed, and empty or repeated values are dropped", () => {
+  assert.deepEqual(attributeValues(" metal, roof_tiles,,metal , concrete "), ["metal", "roof_tiles", "concrete"]);
+  assert.deepEqual(attributeValues(" , "), []);
+});
+
+test("values are counted over the listed tiles, and labels without a listed value are counted apart", () => {
+  const tiles = [{ id: "a" }, { id: "b" }];
+  const objects = new Map([["a", [{ value: "metal" }, { value: "metal" }, {}]], ["b", [{ value: "roof_tiles" }, { value: "slate" }]], ["gone", [{ value: "metal" }]]]);
+  assert.deepEqual(valueCounts(tiles, objects, ["metal", "roof_tiles"]), [2, 1]);
+  assert.equal(objectsWithoutValue(tiles, objects, ["metal", "roof_tiles"]), 2);
 });
 
 test("restored objects keep only listed tiles and reopen the saved tile, or the first tile when it is gone", () => {
@@ -65,6 +81,24 @@ test("restored objects keep only listed tiles and reopen the saved tile, or the 
   assert.equal(restored.index, 1);
   assert.equal(restoredObjects({ tile: "20-9-9", objects: {} }, tiles).index, 0);
   assert.deepEqual(restoredObjects(null, tiles), { objects: new Map(), index: 0 });
+});
+
+test("filled setup fields win over the saved settings, and empty ones take the saved settings", () => {
+  const saved = { objectName: "building", attribute: "roof:material", values: "metal, thatch" };
+  assert.deepEqual(labelSettings({ objectName: "", attribute: "", values: "" }, saved), saved);
+  assert.deepEqual(labelSettings({ objectName: "tree", attribute: "natural", values: "tree, tree_group" }, saved), { objectName: "tree", attribute: "natural", values: "tree, tree_group" });
+  assert.deepEqual(labelSettings({ objectName: "", attribute: "natural", values: "" }, saved), { objectName: "building", attribute: "natural", values: "" });
+  assert.deepEqual(labelSettings({ objectName: "", attribute: "", values: "" }, null), { objectName: "", attribute: "", values: "" });
+});
+
+test("number keys pick the value at their place in the list, and other keys pick nothing", () => {
+  const list = ["metal", "roof_tiles", "concrete"];
+  assert.equal(valueForKey("1", list), "metal");
+  assert.equal(valueForKey("3", list), "concrete");
+  assert.equal(valueForKey("4", list), null);
+  assert.equal(valueForKey("0", list), null);
+  assert.equal(valueForKey("a", list), null);
+  assert.equal(valueForKey("12", list), null);
 });
 
 test("objects are saved per project and share, and results without a project id fail with a message", () => {
@@ -82,14 +116,14 @@ test("the outline is the outer ring with the largest area, even when a smaller r
 });
 
 test("segment labels give each outline as shares of the image side and drop the repeated closing point", () => {
-  assert.equal(segmentLabels([[[0, 0], [512, 0], [512, 256], [0, 0]], [[1024, 1024], [512, 1024], [768, 512]]], 1024),
-    "0 0.000000 0.000000 0.500000 0.000000 0.500000 0.250000\n0 1.000000 1.000000 0.500000 1.000000 0.750000 0.500000");
+  assert.equal(segmentLabels([{ classIndex: 0, outline: [[0, 0], [512, 0], [512, 256], [0, 0]] }, { classIndex: 2, outline: [[1024, 1024], [512, 1024], [768, 512]] }], 1024),
+    "0 0.000000 0.000000 0.500000 0.000000 0.500000 0.250000\n2 1.000000 1.000000 0.500000 1.000000 0.750000 0.500000");
 });
 
 test("a hand-drawn box becomes a closed four-corner outline that labels as the box corners", () => {
   const outline = boxOutline([256, 512, 768, 1024]);
   assert.deepEqual(outline, [[256, 512], [768, 512], [768, 1024], [256, 1024], [256, 512]]);
-  assert.equal(segmentLabels([outline], 1024), "0 0.250000 0.500000 0.750000 0.500000 0.750000 1.000000 0.250000 1.000000");
+  assert.equal(segmentLabels([{ classIndex: 0, outline }], 1024), "0 0.250000 0.500000 0.750000 0.500000 0.750000 1.000000 0.250000 1.000000");
 });
 
 test("a lone cell has four edges and two side by side cells share no edge", () => {
@@ -117,6 +151,24 @@ test("a box covering the whole image becomes the tile's corners in longitude and
   assert.ok(corners.includes("-13.196983337,8.467278608"));
   assert.deepEqual(ring[0], ring.at(-1));
   assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "rotated box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
+});
+
+test("with an attribute, each feature carries its own value under the attribute name", () => {
+  const objects = new Map([[TILE.id, [{ corners: [[0, 0], [512, 0], [512, 512], [0, 512]], source: "EdgeTAM", value: "metal" }, { corners: [[512, 512], [1024, 512], [1024, 1024], [512, 1024]], source: "EdgeTAM", value: "roof_tiles" }]]]);
+  const { features } = labelsGeojson([TILE], objects, { mode: "obb", objectName: "building", attribute: "roof:material", pixels: 1024 });
+  assert.deepEqual(features.map((feature) => feature.properties["roof:material"]), ["metal", "roof_tiles"]);
+  assert.equal(features[0].properties.object_name, "building");
+});
+
+test("the YOLO class is the value's place in the list, and 0 without values", () => {
+  assert.equal(classIndex({ value: "roof_tiles" }, ["metal", "roof_tiles"]), 1);
+  assert.equal(classIndex({}, []), 0);
+});
+
+test("the reserved names are exactly the properties each feature carries without an attribute", () => {
+  const objects = new Map([[TILE.id, [{ corners: [[0, 0], [512, 0], [512, 512], [0, 512]], source: "EdgeTAM" }]]]);
+  const [feature] = labelsGeojson([TILE], objects, { mode: "obb", objectName: "tank", pixels: 1024 }).features;
+  assert.deepEqual(Object.keys(feature.properties).toSorted(), LABEL_PROPERTIES.toSorted());
 });
 
 test("the labels file states the imagery URL at the top", () => {
@@ -187,7 +239,7 @@ test("a hand-drawn rotated box runs from the dragged side to the tapped side, on
 
 test("rotated box labels list four corners as shares of the image side, kept inside the image", () => {
   const corners = clampedCorners([[-20, 512], [512, -20], [1044, 512], [512, 1044]], 1024);
-  assert.equal(obbLabels([corners, [[0, 0], [1024, 0], [1024, 1024], [0, 1024]]], 1024), "0 0.000000 0.500000 0.500000 0.000000 1.000000 0.500000 0.500000 1.000000\n0 0.000000 0.000000 1.000000 0.000000 1.000000 1.000000 0.000000 1.000000");
+  assert.equal(obbLabels([{ classIndex: 0, corners }, { classIndex: 1, corners: [[0, 0], [1024, 0], [1024, 1024], [0, 1024]] }], 1024), "0 0.000000 0.500000 0.500000 0.000000 1.000000 0.500000 0.500000 1.000000\n1 0.000000 0.000000 1.000000 0.000000 1.000000 1.000000 0.000000 1.000000");
 });
 
 test("rotated boxes go in the GeoJSON as their four corners and the readme names an OBB dataset", () => {
@@ -199,6 +251,8 @@ test("rotated boxes go in the GeoJSON as their four corners and the readme names
   assert.equal(feature.properties.output, "rotated box");
   const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
   assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset of "tank"/);
+  const byRoof = datasetReadme({ projectName: "Roofs", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "building", attribute: "roof:material", values: ["metal", "roof_tiles"], tiles: [TILE], objectCount: 2, pixels: 1024, detailLevels: 2 });
+  assert.match(byRoof, /`roof:material` value, and each value is one class: metal, roof_tiles\./);
 });
 
 test("a point labelled in longitude and latitude lands on the same pixel the GeoJSON export gives it", () => {
@@ -222,10 +276,19 @@ test("loaded labels keep each polygon's outer ring, one per part of a multipolyg
     { type: "Feature", geometry: { type: "Point", coordinates: [0, 0] } },
     { type: "Feature", geometry: { type: "LineString", coordinates: square } },
   ] };
-  const { rings, skipped } = polygonRings(geojson);
-  assert.deepEqual(rings, [square, square, square.map(([x, y]) => [x + 5, y])]);
+  const { shapes, skipped } = polygonRings(geojson);
+  assert.deepEqual(shapes.map(({ ring }) => ring), [square, square, square.map(([x, y]) => [x + 5, y])]);
   assert.equal(skipped, 2);
-  assert.deepEqual(polygonRings({ type: "Polygon", coordinates: [square] }), { rings: [square], skipped: 0 });
+  assert.deepEqual(polygonRings({ type: "Polygon", coordinates: [square] }), { shapes: [{ ring: square, properties: {} }], skipped: 0 });
+});
+
+test("each loaded ring keeps the properties of its feature, so an attribute value comes along", () => {
+  const square = [[0, 0], [1, 0], [1, 1], [0, 0]];
+  const geojson = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { "roof:material": "metal" }, geometry: { type: "Polygon", coordinates: [square] } },
+    { type: "Feature", properties: { "roof:material": "thatch" }, geometry: { type: "MultiPolygon", coordinates: [[square], [square]] } },
+  ] };
+  assert.deepEqual(polygonRings(geojson).shapes.map(({ properties }) => properties["roof:material"]), ["metal", "thatch", "thatch"]);
 });
 
 test("a file saved in Web Mercator metres is refused with a message naming EPSG:4326", () => {

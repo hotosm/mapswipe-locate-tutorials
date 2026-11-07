@@ -6,6 +6,8 @@ icon: lucide/square-dashed-mouse-pointer
 
 [Label Studio](https://labelstud.io/) runs on your computer and opens in the browser. The steps were checked with Label Studio 1.23.2.
 
+Label Studio makes a training dataset to check the boxes on the tile images. It doesn't write `labels.geojson`, so the delivery to HOT comes from one of the other methods ([What to deliver](../what-to-deliver.md)).
+
 ## 1. Download the tile images
 
 1. In the [auto labeller](../../builder/boxes.html), load the project.
@@ -41,15 +43,15 @@ Label Studio adds 8 characters and a hyphen to each file name, for example `0165
 1. Under **Labeling Setup**, choose any template and switch to **Code**.
 2. Replace the text with this setup and click **Save**:
 
-```xml
-<View>
-  <Image name="image" value="$image" zoom="true" zoomControl="true"/>
-  <Labels name="label" toName="image">
-    <Label value="solar panel"/>
-  </Labels>
-  <Rectangle name="box" toName="image" canRotate="true"/>
-</View>
-```
+    ```xml
+    <View>
+      <Image name="image" value="$image" zoom="true" zoomControl="true"/>
+      <Labels name="label" toName="image">
+        <Label value="solar panel"/>
+      </Labels>
+      <Rectangle name="box" toName="image" canRotate="true"/>
+    </View>
+    ```
 
 The rotated box tool needs `<Rectangle>` with a separate `<Labels>` list: "The three-point click action is only available when using the `<Rectangle>` tag. It is not available for `<RectangleLabels>`" ([source](https://labelstud.io/templates/image_bbox)).
 

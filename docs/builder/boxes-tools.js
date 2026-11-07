@@ -79,9 +79,44 @@ export function restoredObjects(saved, tiles) {
   return { objects, index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
+// A field filled in the setup card wins; an empty one takes the project's saved setting.
+export function labelSettings(entered, saved) {
+  const attributeEntered = entered.attribute !== "";
+  return {
+    objectName: entered.objectName || saved?.objectName || "",
+    attribute: attributeEntered ? entered.attribute : saved?.attribute ?? "",
+    values: attributeEntered ? entered.values : saved?.values ?? "",
+  };
+}
+
+// Number keys 1 to 9 pick the value at that place in the list.
+export function valueForKey(key, list) {
+  return /^[1-9]$/.test(key) ? list[Number(key) - 1] ?? null : null;
+}
+
 export function datasetCounts(tiles, objects) {
   const counts = tiles.map((tile) => objects.get(tile.id)?.length ?? 0);
   return { objects: counts.reduce((sum, count) => sum + count, 0), tilesWithObjects: counts.filter((count) => count > 0).length, tiles: tiles.length };
+}
+
+// "metal, roof_tiles" becomes ["metal", "roof_tiles"]; each value is one class of the dataset.
+export function attributeValues(text) {
+  return [...new Set(text.split(",").map((value) => value.trim()).filter(Boolean))];
+}
+
+export function valueCounts(tiles, objects, values) {
+  const all = tiles.flatMap((tile) => objects.get(tile.id) ?? []);
+  return values.map((value) => all.filter((object) => object.value === value).length);
+}
+
+// The YOLO class is the value's place in the list, or 0 for a dataset of one object.
+export function classIndex(object, values) {
+  return values.length > 0 ? values.indexOf(object.value) : 0;
+}
+
+// Objects labelled before the value list was set, or with a value taken off it, have no class.
+export function objectsWithoutValue(tiles, objects, values) {
+  return tiles.flatMap((tile) => objects.get(tile.id) ?? []).filter((object) => !values.includes(object.value)).length;
 }
 
 export function targetProgress(objectCount, target) {
@@ -154,24 +189,24 @@ export function rectangleFromSide(start, end, point) {
 }
 
 // YOLO OBB labels: class, then the four corners as shares of the image side.
-export function obbLabels(cornerSets, pixels) {
+export function obbLabels(labels, pixels) {
   const share = (value) => (value / pixels).toFixed(6);
-  return cornerSets.map((corners) => `0 ${corners.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`).join("\n");
+  return labels.map(({ classIndex, corners }) => `${classIndex} ${corners.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`).join("\n");
 }
 
 // YOLO segmentation labels: class, then the outline points as shares of the image side, without repeating the first point.
-export function segmentLabels(outlines, pixels) {
+export function segmentLabels(labels, pixels) {
   const share = (value) => (value / pixels).toFixed(6);
-  return outlines.map((ring) => {
+  return labels.map(({ classIndex, outline: ring }) => {
     const [first, last] = [ring[0], ring.at(-1)];
     const points = first[0] === last[0] && first[1] === last[1] ? ring.slice(0, -1) : ring;
-    return `0 ${points.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`;
+    return `${classIndex} ${points.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`;
   }).join("\n");
 }
 
 // Without a `path` line Ultralytics reads the folders next to this file. Training and validation both use all images.
-export function datasetYaml(objectName) {
-  return `train: images\nval: images\nnames:\n  0: ${JSON.stringify(objectName)}\n`;
+export function datasetYaml(names) {
+  return `train: images\nval: images\nnames:\n${names.map((name, index) => `  ${index}: ${JSON.stringify(name)}\n`).join("")}`;
 }
 
 function pixelToLonLat(tile, [x, y], pixels) {
@@ -185,14 +220,14 @@ export function lonLatToPixel(tile, [longitude, latitude], pixels) {
   return [(x - tile.x) * pixels, (y - tile.y) * pixels];
 }
 
-// Labels drawn in QGIS or exported from OpenStreetMap are polygons in longitude and latitude; each outer ring becomes one object.
+// Labels drawn in QGIS or exported from OpenStreetMap are polygons in longitude and latitude; each outer ring becomes one object with its feature's properties.
 export function polygonRings(geojson) {
-  const geometries = (geojson.type === "FeatureCollection" ? geojson.features : [geojson]).map((feature) => feature.geometry ?? feature);
-  const polygons = geometries.filter((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon");
-  const rings = polygons.flatMap((geometry) => (geometry.type === "Polygon" ? [geometry.coordinates[0]] : geometry.coordinates.map((polygon) => polygon[0])));
-  const outside = rings.flat().find(([longitude, latitude]) => Math.abs(longitude) > 180 || Math.abs(latitude) > 90);
+  const features = (geojson.type === "FeatureCollection" ? geojson.features : [geojson]).map((feature) => ({ geometry: feature.geometry ?? feature, properties: feature.properties ?? {} }));
+  const polygons = features.filter(({ geometry }) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon");
+  const shapes = polygons.flatMap(({ geometry, properties }) => (geometry.type === "Polygon" ? [geometry.coordinates[0]] : geometry.coordinates.map((polygon) => polygon[0])).map((ring) => ({ ring, properties })));
+  const outside = shapes.flatMap(({ ring }) => ring).find(([longitude, latitude]) => Math.abs(longitude) > 180 || Math.abs(latitude) > 90);
   if (outside) throw new Error(`The position ${outside.join(", ")} is outside longitude and latitude. Save the file again in EPSG:4326.`);
-  return { rings, skipped: geometries.length - polygons.length };
+  return { shapes, skipped: features.length - polygons.length };
 }
 
 // A shape cut at the tile edge is kept when it holds at least a tenth of the whole shape, the default of SAHI's min_area_ratio, and is no smaller than the smallest drag box.
@@ -216,22 +251,25 @@ function pixelRing({ outline, corners }, mode) {
   return mode === "segment" ? outline : [...corners, corners[0]];
 }
 
-export function labelsGeojson(tiles, objects, { mode, objectName, pixels }) {
+// The properties every feature of labels.geojson carries, so an attribute can't take one of their names.
+export const LABEL_PROPERTIES = ["tile_id", "image", "object_name", "output", "source", "marked_cells", "imagery_url"];
+
+export function labelsGeojson(tiles, objects, { mode, objectName, attribute, pixels }) {
   const features = tiles.flatMap((tile) =>
     (objects.get(tile.id) ?? []).map((object) => ({
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [lonLatRing(tile, pixelRing(object, mode), pixels)] },
-      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
+      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, ...(attribute && { [attribute]: object.value }), output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
     })));
   // A Locate project has one tile URL, so it is stated once at the top as well as on each object.
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features };
 }
 
-export function datasetReadme({ projectName, projectLink, threshold, modelName, mode, objectName, tiles, objectCount, pixels, detailLevels }) {
+export function datasetReadme({ projectName, projectLink, threshold, modelName, mode, objectName, attribute, values, tiles, objectCount, pixels, detailLevels }) {
   const templates = [...new Set(tiles.map((tile) => tile.template))];
   return `# ${projectName}
 
-YOLO ${OUTPUTS[mode].dataset} dataset of "${objectName}", marked with the Locate auto labeller.
+YOLO ${OUTPUTS[mode].dataset} dataset of "${objectName}", marked with the Locate auto labeller.${attribute ? ` Each object has a \`${attribute}\` value, and each value is one class: ${values.join(", ")}.` : ""}
 
 - Project: ${projectLink}
 - Volunteer share: ${threshold}%

@@ -1,6 +1,6 @@
 import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
 import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
-import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat, tileAt } from "./area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat, renderQuery, tileAt, zoomProblem } from "./area-tools.js";
 import { tileImageUrl } from "./scenarios.js";
 import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
 import { showMapLoading } from "./map-loading.js";
@@ -15,7 +15,7 @@ const MIN_PATCH_SQUARE_METRES = 2000;
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
 // A map zoom three levels above the project zoom shows each tile 64 pixels wide; further out the lines merge.
 const GRID_ZOOM_SPAN = 3;
-const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0, tileUrl: "" };
+const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0, tileUrl: "", latitude: 0, gsd: undefined };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
 const chosenCells = () => Number(document.querySelector('input[name="cells"]:checked').value);
@@ -144,6 +144,10 @@ function showArea() {
   element("area-problems").textContent = areaProblems(squareKm, state.zoom, areaFile(state.area).size).join(" ");
 }
 
+function showZoomProblem() {
+  element("zoom-problem").textContent = zoomProblem(state.zoom, state.latitude, state.gsd) ?? "";
+}
+
 function showFill(id, data) {
   if (map.getSource(id)) {
     map.getSource(id).setData(data);
@@ -169,8 +173,10 @@ function dropSmallPatches(multiPolygon, imageId) {
   return turf.multiPolygon(polygons);
 }
 
-async function findFootprint(imageId, bbox) {
-  const response = await fetch(`${API}/raster/collections/openaerialmap/items/${imageId}/preview.png?assets=visual&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
+async function findFootprint(item) {
+  const imageId = item.id;
+  const bbox = orderedBounds(item.bbox);
+  const response = await fetch(`${API}/raster/collections/openaerialmap/items/${imageId}/preview.png?${renderQuery(item)}&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
   if (!response.ok) throw new Error(`The preview of image ${imageId} failed with HTTP ${response.status}.`);
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
@@ -227,9 +233,14 @@ element("setup").addEventListener("submit", (event) => {
       const items = await Promise.all(ids.map(fetchItem));
       if (!isCurrent()) return;
       const bounds = unionBounds(items.map((item) => item.bbox));
+      state.latitude = (bounds[1] + bounds[3]) / 2;
+      // A mosaic is as sharp as its coarsest image; without the resolution of every image, the note stays hidden.
+      const resolutions = items.map((item) => item.properties.gsd).filter((gsd) => gsd > 0);
+      state.gsd = resolutions.length === items.length ? Math.max(...resolutions) : undefined;
+      showZoomProblem();
 
       const tileUrl = ids.length === 1
-        ? `${API}/raster/collections/openaerialmap/items/${ids[0]}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0`
+        ? `${API}/raster/collections/openaerialmap/items/${items[0].id}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery(items[0])}`
         : mosaicTileUrl(ids);
       if (map.getSource("imagery")) {
         map.removeLayer("imagery");
@@ -247,7 +258,7 @@ element("setup").addEventListener("submit", (event) => {
       const showProgress = () => setStatus(ids.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${ids.length} images done...`);
       showProgress();
       const footprints = await Promise.all(items.map(async (item, index) => {
-        const footprint = await findFootprint(ids[index], orderedBounds(item.bbox));
+        const footprint = await findFootprint(item);
         found += 1;
         if (isCurrent()) showProgress();
         return footprint;
@@ -298,6 +309,7 @@ map.on("moveend", () => {
 
 element("zoom-levels").addEventListener("change", () => {
   state.zoom = chosenZoom();
+  showZoomProblem();
   showGrid();
   showVolunteerView();
   if (state.footprint) showArea();

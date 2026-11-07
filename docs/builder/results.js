@@ -24,10 +24,10 @@ function showCells() {
   if (!state.rows) return;
   state.cells = selectCells(state.rows, threshold());
   map.getSource("cells").setData(state.cells);
-  const tiles = new Set(state.rows.map((row) => row.task_id)).size;
+  const tiles = new Set(state.cells.features.map((cell) => cell.properties.tile_id)).size;
   const multiple = state.cells.features.filter((cell) => cell.properties.majority_answer === "Multiple Features").length;
   element("answer-counts").textContent = `${state.cells.features.length - multiple} Single Feature, ${multiple} Multiple Features`;
-  setStatus(`${state.cells.features.length} of ${state.rows.length} cells kept, in ${tiles} tiles.`);
+  setStatus(`${state.cells.features.length.toLocaleString("en")} of ${state.rows.length.toLocaleString("en")} cells marked by at least ${threshold()}% of volunteers, in ${tiles.toLocaleString("en")} tiles.`);
   element("download").disabled = state.cells.features.length === 0;
 }
 
