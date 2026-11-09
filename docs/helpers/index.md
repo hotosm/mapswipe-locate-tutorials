@@ -28,6 +28,10 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
     Paste the link of a finished project, tap or drag around each group of objects on the tiles volunteers marked, and download a YOLO dataset with a GeoJSON of the labels.
 
+-   :lucide-list-checks: **[Labels checker](../builder/checker.html)**
+
+    Open a `labels.geojson` before you deliver it. The checker lists what passes and what to fix, counts the labels per type, and shows them over the imagery.
+
 </div>
 
 The area finder and the tutorial builder are explained step by step in [Create a Locate project](../guides/create-a-project.md) and [Create the tutorial](../guides/create-the-tutorial.md).
@@ -154,3 +158,34 @@ Every object keeps its outline, and its box is worked out from the outline, so t
     | Drag 20% larger than the group on every side | 11 of 36 | 0.67 |
 
     A drag close around the group gives the best result. A drag much larger than the group includes nearby roofs and objects. Outlines of large, dark arrays on similar roofs can be ragged; check them with **Outlines** before downloading.
+
+## Labels checker
+
+Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to-deliver.md)). The files stay in the browser.
+
+![The labels checker with the Freetown example: a yellow dot on each label inside the dashed area of interest, the checks, the project zoom, the bar at 36 of 1,000 labels and the labels per type table](../assets/helpers/labels-checker.jpg)
+
+1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
+2. Each check shows **Passed** or **To fix**, with the feature numbers. Those labels are red on the map.
+3. Choose the **Project zoom** (filled in for auto labeller files) and, for types, the **Type attribute**, such as `surface`.
+4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines.
+5. Check on the map that every object inside the area has a label.
+
+**Try the Freetown example** checks the 36 Freetown solar panel labels; every check passes except the 1,000 labels.
+
+??? note "What each check looks at"
+    | Check | Fails when |
+    |---|---|
+    | A GeoJSON FeatureCollection with features | The file has another type, or the features list is empty |
+    | `imagery_url` at the top of the file | It is missing, starts without `https://`, or lacks `{z}`, `{x}` or `{y}` |
+    | Longitude and latitude, EPSG:4326 | A coordinate is beyond 180 or 90 degrees, or the file names another CRS |
+    | Boxes, outlines or lines | A feature is a point or a geometry collection, lacks a geometry, or nests its coordinates at the wrong depth |
+    | `object_name` on every feature | A feature lacks `object_name` |
+    | Closed outlines and lines with a length | A ring has fewer than four positions, ends away from its start, or encloses zero area, or a line has fewer than two positions ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-3.1.4)) or all its positions on one point |
+    | One feature per object, each shape once | Two features have the same geometry |
+    | Outlines that don't cross themselves | An outline crosses itself ([turf kinks](https://turfjs.org/docs/api/kinks)); lines may cross themselves, as a road can loop |
+    | Every label inside the area of interest | A point on the label ([turf pointOnFeature](https://turfjs.org/docs/api/pointOnFeature)) is outside every area file chosen |
+    | At least 1,000 of the most common type | The largest type has fewer than 1,000 labels; labels without a value under **Type attribute** don't count toward it |
+    | At least 1,000 tiles of one type, for a file of lines | The type with the most tiles touches fewer than 1,000 tiles at the project zoom, the project zoom is unset, or every label lacks a value under **Type attribute** |
+
+    Lines are measured with [turf length](https://turfjs.org/docs/api/length) and their tiles with [tile-cover](https://github.com/mapbox/tile-cover); each line counts as one label, so a road split into segments counts once per segment.

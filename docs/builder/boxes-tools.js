@@ -130,7 +130,7 @@ function signedRingArea(ring) {
   }, 0) / 2;
 }
 
-function ringArea(ring) {
+export function ringArea(ring) {
   return Math.abs(signedRingArea(ring));
 }
 

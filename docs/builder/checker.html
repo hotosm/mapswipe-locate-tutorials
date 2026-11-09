@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Locate labels checker</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+  <link rel="icon" href="fair-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+  <header>
+    <h1><a class="logo" href="https://ai.hotosm.org"><img src="fair-logo.svg" alt="fAIr" width="24" height="24"></a>Locate labels checker</h1>
+    <nav><a href="area.html">Area finder</a><a href="index.html">Tutorial builder</a><a href="mosaic.html">Imagery merger</a><a href="results.html">Results map</a><a href="boxes.html">Auto labeller</a><a href="checker.html" aria-current="page">Labels checker</a><a href="../">Back to the guides</a></nav>
+  </header>
+
+  <main>
+    <form id="setup">
+      <div class="card">
+        <h2>Check a labels file</h2>
+        <p class="hint">The files stay in this browser.</p>
+        <label id="drop-zone">
+          <span>labels.geojson</span>
+          <input id="labels-file" type="file" accept=".geojson,.json" required>
+        </label>
+        <label>
+          <span>area-of-interest.geojson, one per Locate project (optional)</span>
+          <input id="area-file" type="file" accept=".geojson,.json" multiple>
+        </label>
+        <div class="actions">
+          <button type="submit">Check</button>
+          <button id="cancel" type="button" class="secondary">Cancel</button>
+        </div>
+        <p id="setup-status" aria-live="polite"></p>
+        <button id="example" type="button" class="link">Try the Freetown example</button>
+      </div>
+    </form>
+    <div id="map"></div>
+    <aside>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <p id="status" aria-live="polite"></p>
+      <ul id="checks" aria-label="Checks"></ul>
+      <label>
+        <span>Project zoom</span>
+        <select id="zoom">
+          <option value="">Choose to count tiles</option>
+          <option value="14">14</option>
+          <option value="15">15</option>
+          <option value="16">16</option>
+          <option value="17">17</option>
+          <option value="18">18</option>
+          <option value="19">19</option>
+          <option value="20">20</option>
+          <option value="21">21</option>
+          <option value="22">22</option>
+        </select>
+      </label>
+      <label id="type-choice" hidden>
+        <span>Type attribute</span>
+        <select id="type-key"></select>
+      </label>
+      <div id="target-summary" hidden>
+        <p id="target-line"></p>
+        <div id="target-track" aria-hidden="true"><div id="target-bar"></div></div>
+      </div>
+      <table id="counts">
+        <caption>Labels per type</caption>
+        <thead><tr><th scope="col">Type</th><th scope="col">Labels</th><th scope="col">Share</th><th scope="col" class="length">Length</th><th scope="col" class="tiles">Tiles</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint">Labels with a problem are red, with a red dot. Click a label to see its properties. <span id="area-hint">Check by eye that every object inside the dashed area has a label.</span></p>
+    </aside>
+  </main>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.4.0/turf.min.js"></script>
+  <script type="module" src="checker.js"></script>
+</body>
+</html>

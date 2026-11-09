@@ -4,29 +4,48 @@ icon: lucide/package-check
 
 # What to deliver
 
-Deliver one `labels.geojson` per MapSwipe project through the fAIrSwipe submission form. The file links to the imagery through `imagery_url`, so send only this file. Roads and drains traced in OpenStreetMap are separate deliveries. In the auto labeller, the file is inside the downloaded `.zip`.
+Deliver one `labels.geojson` per object type, from the auto labeller's `.zip` or the HOT Export Tool, with the `area-of-interest.geojson` of each Locate project. One delivery can cover several Locate projects with one tile URL and one zoom; for several images, use the URL from the [imagery merger](../helpers/index.md#imagery-merger).
 
 ![Left: red cells volunteers marked on a tile with fishing boats. Right: a yellow box around each fully visible boat](../assets/dataset/cells-to-labels.jpg)
 
 Red: the cells volunteers marked. Yellow: the labels you deliver, one per object. The two boats cut off at the top also need a label.
 
+## Submit
+
+- The [fAIrSwipe submission form](https://docs.google.com/forms/d/e/1FAIpQLSdgGwxWYnlRZRlOyjSSVKBjhBqq7SqpGEuT1GT-EyyhSReceg/viewform). It needs a Google account for the uploads ([Google Forms Help](https://support.google.com/docs/answer/7322334)).
+- Without a Google account: email the files to [fair@hotosm.org](mailto:fair@hotosm.org) with your name, organisation, grant project name, country, Locate project links, object, zoom, tile URL, imagery source and credit, labels licence, area size, counts per type, labelling method, label shape, which parts lack labels, and how to credit you.
+
+Licence: imagery CC BY 4.0; labels CC BY 4.0, or ODbL when traced in OpenStreetMap ([licence](https://www.openstreetmap.org/copyright)).
+
 ## Checklist
 
-Open the file over the imagery in QGIS (the auto labeller's `README.md` shows how) and check each line:
+Check each line in the [labels checker](../helpers/index.md#labels-checker) and over the imagery in QGIS (see the auto labeller's `README.md`):
 
-1. One GeoJSON file per project, in longitude and latitude, EPSG:4326 ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-4)).
+1. One labels GeoJSON file per object type, in longitude and latitude, EPSG:4326 ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-4)).
 2. `imagery_url` at the top of the file ([see below](#the-imagery-url-at-the-top)).
 3. One feature per object: a box or an outline, or a line for roads and drains.
 4. `object_name` on every feature, such as `solar panel`.
 5. The type as an attribute when the object has types, such as `natural: tree`, `roof:material: metal`, `damage: partial` or `surface: unpaved`.
 6. Every object labelled, also the ones cut off at the tile edge ([Per object or per tile](#per-object-or-per-tile)).
-7. At least 1,000 of the most common type ([Number of labels](#number-of-labels)).
+7. At least 1,000 of the most common type, or for roads and drains 1,000 tiles of one type at the project zoom ([Number of labels](#number-of-labels)).
 
 Extra properties are fine.
+
+In QGIS, the numbers in the picture show where to look:
+
+[![labels.geojson over the Freetown imagery in QGIS: 1, the labels layer above the imagery layer; 2, one yellow box around each solar panel array; 3, the object_name column in the attribute table, solar panel on every row](../assets/dataset/deliver-qgis-check.jpg)](../assets/dataset/deliver-qgis-check.jpg)
+
+1. The labels layer above the project imagery in the **Layers** panel.
+2. One label around each object.
+3. `object_name` on every feature, in the attribute table (right-click the layer, **Open Attribute Table**).
 
 ## The imagery URL at the top
 
 Put the project's tile URL from [step 5 of Create a Locate project](create-a-project.md#5-save-a-cover-image-and-copy-the-tile-url) at the top of the file. GeoJSON allows extra members next to `features` ([RFC 7946, section 6.1](https://www.rfc-editor.org/rfc/rfc7946#section-6.1)). The auto labeller writes it for you.
+
+[![labels.geojson in a text editor, with the imagery_url line marked in yellow on line 3, after "type": "FeatureCollection" and before "features"](../assets/dataset/deliver-imagery-url.png)](../assets/dataset/deliver-imagery-url.png)
+
+A file from the auto labeller is on one line; most editors can format it (in VS Code, **Format Document** in the Command Palette).
 
 ```json
 {
@@ -45,10 +64,16 @@ Put the project's tile URL from [step 5 of Create a Locate project](create-a-pro
 
 ## Number of labels
 
-!!! warning "Minimum number of labels"
-    At least 1,000 of the most common type, for example 1,000 metal roofs. A file with fewer isn't accepted, so cover a larger area. Other types can have fewer, but each one still gets a label. Enter each type and its count in the submission form. An object left out teaches the model that it isn't there.
+| Labels | Target |
+|---|---|
+| Boxes and outlines | 1,000 labels of the most common type |
+| Roads and drains (lines) | 1,000 tiles of one type at the project zoom, one training image each |
 
-Count one feature per object, and for roads one feature per line in the file. The [auto labeller](training-data/auto-labeller.md) shows the count so far. Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so later projects add to each delivery.
+Below the target, a delivery isn't accepted: cover a larger area. At or above it, HOT still reviews the coverage, and the kilometres of roads and drains.
+
+Other types can have fewer, but every object still gets a label: one left out teaches the model it isn't there. The [labels checker](../helpers/index.md#labels-checker) gives the labels, kilometres and tiles per type; enter them under **Each type and its count** in the form. Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so later projects add to each delivery.
+
+[![The auto labeller side panel: 1, the line 36 objects, target 1,000; 2, the bar under it, which fills toward 1,000 and turns green at 1,000](../assets/dataset/deliver-label-count.png)](../assets/dataset/deliver-label-count.png)
 
 ## Examples
 
@@ -94,21 +119,25 @@ One box per pile or single item. A large dump gets several boxes.
 
 ### Trees
 
-One outline per tree crown, small trees included, with **Outlines** in the auto labeller. Every tree inside the dotted tile line gets a label.
+One outline per tree crown, small trees included, with **Outlines** in the auto labeller. The picture shows boxes; the delivery uses outlines. Every tree inside the dotted tile line gets a label.
 
 ![Trees on a tile, inside a dotted tile outline, with a yellow box around each tree crown](../assets/dataset/deliver-trees.webp)
-
-The picture shows boxes; the delivery uses outlines.
 
 - Single tree, one crown you can tell apart: `natural: tree` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree)).
 - Tree group, crowns too close to tell apart: one outline around the group, `natural: tree_group` ([wiki](https://wiki.openstreetmap.org/wiki/Tag:natural%3Dtree_group)).
 
 ```json
-{ "object_name": "tree", "natural": "tree" }
+{
+  "object_name": "tree",
+  "natural": "tree"
+}
 ```
 
 ```json
-{ "object_name": "tree", "natural": "tree_group" }
+{
+  "object_name": "tree",
+  "natural": "tree_group"
+}
 ```
 
 ### Roads, with attributes
@@ -129,7 +158,7 @@ Labels from HOT's [road surface training dataset](https://huggingface.co/dataset
 
 ### Buildings by roof type, with attributes
 
-Ask volunteers about buildings. Label every building with one outline along its roof edges and its [roof:material](https://wiki.openstreetmap.org/wiki/Key:roof:material), such as `metal`, `roof_tiles`, `concrete` or `thatch`.
+For a Locate project about buildings, label every building with one outline along its roof edges and its [roof:material](https://wiki.openstreetmap.org/wiki/Key:roof:material), such as `metal`, `roof_tiles`, `concrete` or `thatch`.
 
 ![A dense block of houses in Stellenbosch, South Africa, each roof outlined in yellow along its edges, all with metal roofs](../assets/dataset/deliver-roofs.jpg)
 

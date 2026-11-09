@@ -37,6 +37,7 @@ nav = [
     { "Imagery merger" = "builder/mosaic.html" },
     { "Results map" = "builder/results.html" },
     { "Auto labeller" = "builder/boxes.html" },
+    { "Labels checker" = "builder/checker.html" },
   ] },
   { "Example" = [
     { "Solar panels in Freetown" = "examples/freetown-solar-panels.md" },
