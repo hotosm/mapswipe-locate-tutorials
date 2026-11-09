@@ -4,8 +4,10 @@ import { targetProgress } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 import { foldSetup, setStatus, working } from "./setup-card.js";
 
-const EXAMPLE_LABELS = "../examples/files/freetown-solar-panels-labels.geojson";
-const EXAMPLE_AREA = "../examples/files/freetown-solar-panels-aoi.geojson";
+const EXAMPLE_LABELS = "../examples/files/stellenbosch-roofs-labels.geojson";
+const EXAMPLE_AREA = "../examples/files/stellenbosch-roofs-aoi.geojson";
+// The zoom of the training dataset the example comes from; whole buildings lack a tile_id to read it from.
+const EXAMPLE_ZOOM = 19;
 const state = { labels: null, area: null };
 const element = (id) => document.getElementById(id);
 
@@ -116,7 +118,7 @@ function showMap(labels, area, problems, imageryOk) {
   // A dot marks each box or outline so small ones show when zoomed out, and each label with a problem at every zoom, so a flat one can still be found.
   const centres = drawn.filter((feature) => !isLine(feature) || feature.properties._problem).map((feature) => turf.centroid(feature, { properties: feature.properties }));
   replaceSource("centres", { type: "geojson", data: { type: "FeatureCollection", features: centres } }, [
-    { id: "label-points", type: "circle", source: "centres", maxzoom: 17, filter: ["!", ["get", "_problem"]], paint: { "circle-radius": 4, "circle-color": "#ffd500", "circle-stroke-width": 1, "circle-stroke-color": "#16181d" } },
+    { id: "label-points", type: "circle", source: "centres", maxzoom: 16, filter: ["!", ["get", "_problem"]], paint: { "circle-radius": 4, "circle-color": "#ffd500", "circle-stroke-width": 1, "circle-stroke-color": "#16181d" } },
     { id: "problem-points", type: "circle", source: "centres", filter: ["get", "_problem"], paint: { "circle-radius": 6, "circle-color": "#d73f3f", "circle-stroke-width": 2, "circle-stroke-color": "#ffffff" } },
   ]);
   replaceSource("area", { type: "geojson", data: area ?? { type: "FeatureCollection", features: [] } }, [
@@ -180,7 +182,7 @@ function areaFeatures(geojson) {
 }
 
 // Several Locate projects bring one area file each; together they form the area of interest.
-async function load(labelsSource, areaSources, name) {
+async function load(labelsSource, areaSources, name, knownZoom = null) {
   setStatus("Reading the files...");
   const labels = await readGeojson(labelsSource);
   const areas = await Promise.all(areaSources.map(readGeojson));
@@ -189,7 +191,7 @@ async function load(labelsSource, areaSources, name) {
   state.labels = labels;
   state.area = area;
   showTypeChoice(labels);
-  const zoom = collectionCheck(labels).ok ? zoomFromTileIds(labels) : null;
+  const zoom = knownZoom ?? (collectionCheck(labels).ok ? zoomFromTileIds(labels) : null);
   const listed = [...element("zoom").options].some((option) => option.value === String(zoom));
   element("zoom").value = listed ? String(zoom) : "";
   foldSetup(name);
@@ -209,7 +211,7 @@ element("setup").addEventListener("submit", (event) => {
 });
 
 element("example").addEventListener("click", () => {
-  working(() => load(EXAMPLE_LABELS, [EXAMPLE_AREA], "Freetown solar panels")).catch(showError);
+  working(() => load(EXAMPLE_LABELS, [EXAMPLE_AREA], "Stellenbosch roofs", EXAMPLE_ZOOM)).catch(showError);
 });
 
 element("type-key").addEventListener("change", check);

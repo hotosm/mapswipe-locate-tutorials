@@ -117,11 +117,12 @@ test("labels without a type value can't reach the target", () => {
   assert.equal(check.detail, "Every label lacks a type value.");
 });
 
-test("the Freetown example passes every file check and holds 36 solar panels", () => {
-  const example = parseLabels(readFileSync(new URL("../docs/examples/files/freetown-solar-panels-labels.geojson", import.meta.url), "utf8"));
+test("the Stellenbosch example passes every file check and reaches the target with metal roofs", () => {
+  const example = parseLabels(readFileSync(new URL("../docs/examples/files/stellenbosch-roofs-labels.geojson", import.meta.url), "utf8"));
   assert.deepEqual(fileChecks(example).map((check) => check.ok), [true, true, true, true, true, true, true]);
-  assert.deepEqual(typeCounts(example, null), [["solar panel", 36]]);
-  assert.equal(targetCheck(typeCounts(example, null)).ok, false);
+  assert.deepEqual(typeCounts(example, null), [["building", 1056]]);
+  assert.deepEqual(typeCounts(example, "roof:material")[0], ["metal", 1036]);
+  assert.equal(targetCheck(typeCounts(example, "roof:material")).ok, true);
 });
 
 test("a road line with every position on one point has no length and fails", () => {

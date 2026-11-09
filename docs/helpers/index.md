@@ -163,7 +163,7 @@ Every object keeps its outline, and its box is worked out from the outline, so t
 
 Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to-deliver.md)). The files stay in the browser.
 
-![The labels checker with the Freetown example: a yellow dot on each label inside the dashed area of interest, the checks, the project zoom, the bar at 36 of 1,000 labels and the labels per type table](../assets/helpers/labels-checker.jpg)
+![The labels checker with the Stellenbosch example: building outlines in yellow over the drone imagery, the checks, the project zoom, the bar at 1,036 of 1,000 labels and the labels per roof material](../assets/helpers/labels-checker.jpg)
 
 1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
 2. Each check shows **Passed** or **To fix**, with the feature numbers. Those labels are red on the map.
@@ -171,7 +171,7 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
 4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines.
 5. Check on the map that every object inside the area has a label.
 
-**Try the Freetown example** checks the 36 Freetown solar panel labels; every check passes except the 1,000 labels.
+**Try the Stellenbosch example** checks 1,056 buildings and their `roof:material` from a block of 16 tiles of HOT's [roof type training dataset](https://huggingface.co/datasets/hotosm/fAIr-guru-td-roof-type), with each building's whole outline from OpenStreetMap ([© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL), on the OpenAerialMap image Khayamandi Drone Imagery by Integrated Aerial Systems (CC-BY 4.0). Every check passes.
 
 ??? note "What each check looks at"
     | Check | Fails when |
