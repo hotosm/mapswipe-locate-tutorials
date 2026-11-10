@@ -163,18 +163,18 @@ Every object keeps its outline, and its box is worked out from the outline, so t
 
 Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to-deliver.md)). The files stay in the browser.
 
-![The labels checker with the Stellenbosch example: building outlines in yellow over the drone imagery, the checks, the project zoom, the bar at 1,036 of 1,000 labels and the labels per roof material](../assets/helpers/labels-checker.jpg)
+![The labels checker with the Stellenbosch example: building outlines in yellow over the drone imagery, the checks with 1,036 metal roofs of the 1,000 needed, and the spread check to fix at 33 tiles at zoom 19](../assets/helpers/labels-checker.jpg)
 
 1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
-2. Each check shows **Passed** or **To fix**, with the feature numbers. Those labels are red on the map.
+2. Each check shows **Passed**, **To fix** or **Warning**, and checks on single labels list the feature numbers. Those labels are red on the map. A warning leaves the delivery accepted.
 3. Choose the **Project zoom** (filled in for auto labeller files) and, for types, the **Type attribute**, such as `surface`.
 4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines.
 5. Check on the map that every object inside the area has a label.
 
-**Try the Stellenbosch example** checks 1,056 buildings and their `roof:material` from a block of 16 tiles of HOT's [roof type training dataset](https://huggingface.co/datasets/hotosm/fAIr-guru-td-roof-type), with each building's whole outline from OpenStreetMap ([© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL), on the OpenAerialMap image Khayamandi Drone Imagery by Integrated Aerial Systems (CC-BY 4.0). Every check passes.
+**Try the Stellenbosch example** checks 1,056 buildings and their `roof:material` from a block of 16 tiles of HOT's [roof type training dataset](https://huggingface.co/datasets/hotosm/fAIr-guru-td-roof-type), with each building's whole outline from OpenStreetMap ([© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL), on the OpenAerialMap image Khayamandi Drone Imagery by Integrated Aerial Systems (CC-BY 4.0). Every check passes except the spread check: the labels touch 33 tiles at zoom 19, below the 500 a delivery needs.
 
 ??? note "What each check looks at"
-    | Check | Fails when |
+    | Check | Flags when |
     |---|---|
     | A GeoJSON FeatureCollection with features | The file has another type, or the features list is empty |
     | `imagery_url` at the top of the file | It is missing, starts without `https://`, or lacks `{z}`, `{x}` or `{y}` |
@@ -187,5 +187,6 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
     | Every label inside the area of interest | A point on the label ([turf pointOnFeature](https://turfjs.org/docs/api/pointOnFeature)) is outside every area file chosen |
     | At least 1,000 of the most common type | The largest type has fewer than 1,000 labels; labels without a value under **Type attribute** don't count toward it |
     | At least 1,000 tiles of one type, for a file of lines | The type with the most tiles touches fewer than 1,000 tiles at the project zoom, the project zoom is unset, or every label lacks a value under **Type attribute** |
+    | Spread over at least 1,000 tiles, for boxes and outlines | The most common type touches fewer than 500 tiles at the project zoom, or every label lacks a value under **Type attribute**; 500 to 999 tiles, or an unset project zoom, gives a warning |
 
     Lines are measured with [turf length](https://turfjs.org/docs/api/length) and their tiles with [tile-cover](https://github.com/mapbox/tile-cover); each line counts as one label, so a road split into segments counts once per segment.

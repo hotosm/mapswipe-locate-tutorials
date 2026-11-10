@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { closedShapeCheck, collectionCheck, duplicateCheck, featureList, fileChecks, hasBrokenShape, imageryUrlCheck, isLine, isMappable, isWellFormed, lonLatCheck, objectNameCheck, parseLabels, shapeCheck, holdsLines, lineTargetCheck, targetCheck, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "../docs/builder/checker-tools.js";
+import { closedShapeCheck, collectionCheck, duplicateCheck, featureList, fileChecks, hasBrokenShape, imageryUrlCheck, isLine, isMappable, isWellFormed, lonLatCheck, objectNameCheck, parseLabels, shapeCheck, spreadCheck, holdsLines, lineTargetCheck, targetCheck, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "../docs/builder/checker-tools.js";
 
 const TILE_URL = "https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0";
 const square = (x, y, size = 0.0001) => ({ type: "Polygon", coordinates: [[[x, y], [x + size, y], [x + size, y + size], [x, y + size], [x, y]]] });
@@ -174,6 +174,21 @@ test("the line target counts tiles and fails below 1,000 tiles or without a zoom
   const ranked = lineTargetCheck([{ label: "asphalt", count: 50, share: 96, kilometres: 1, tiles: 10 }, { label: "unpaved", count: 2, share: 4, kilometres: 3, tiles: 1200 }], 18);
   assert.equal(ranked.ok, true);
   assert.match(ranked.detail, /^unpaved:/);
+});
+
+test("the spread check fails below 500 tiles of the most common type, warns from 500 and passes from 1,000", () => {
+  const rows = (tiles) => [{ label: "(none)", count: 2000, share: 60, kilometres: 0, tiles: 1500 }, { label: "metal", count: 1200, share: 36, kilometres: 0, tiles }, { label: "concrete", count: 100, share: 4, kilometres: 0, tiles: 1200 }];
+  const verdict = (check) => (check.ok ? "pass" : check.warning ? "warn" : "fail");
+  assert.deepEqual([499, 500, 999, 1000].map((tiles) => verdict(spreadCheck(rows(tiles), 19))), ["fail", "warn", "warn", "pass"]);
+  assert.match(spreadCheck(rows(499), 19).detail, /^metal: 499 tiles at zoom 19\./);
+});
+
+test("the spread check warns without a zoom and fails without a type value", () => {
+  const unset = spreadCheck([{ label: "metal", count: 1200, share: 100, kilometres: 0, tiles: 1200 }], null);
+  assert.deepEqual([unset.ok, unset.warning], [false, true]);
+  assert.match(unset.detail, /Choose the project zoom/);
+  const untyped = spreadCheck([{ label: "(none)", count: 5, share: 100, kilometres: 0, tiles: 1200 }], 19);
+  assert.deepEqual([untyped.ok, untyped.warning], [false, undefined]);
 });
 
 test("a feature in projected coordinates is left out of the length and tile measures", () => {

@@ -1,5 +1,5 @@
 import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-cover@3.0.2/+esm";
-import { TARGET_OBJECTS, collectionCheck, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, lineTargetCheck, parseLabels, targetCheck, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
+import { TARGET_OBJECTS, collectionCheck, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, lineTargetCheck, parseLabels, spreadCheck, targetCheck, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
 import { targetProgress } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 import { foldSetup, setStatus, working } from "./setup-card.js";
@@ -38,12 +38,12 @@ function areaCheck(features, area) {
 function showChecks(checks) {
   element("checks").replaceChildren(...checks.map((check) => {
     const item = document.createElement("li");
-    item.className = check.ok ? "pass" : "fail";
+    item.className = check.ok ? "pass" : check.warning ? "warn" : "fail";
     const title = document.createElement("strong");
     title.textContent = check.title;
     const verdict = document.createElement("span");
     verdict.className = "verdict";
-    verdict.textContent = check.ok ? "Passed" : "To fix";
+    verdict.textContent = check.ok ? "Passed" : check.warning ? "Warning" : "To fix";
     item.append(verdict, title);
     if (check.detail) item.append(Object.assign(document.createElement("span"), { className: "detail", textContent: check.detail }));
     return item;
@@ -141,7 +141,7 @@ function check() {
   const rows = collection.ok ? typeTable(labels, typeKey, measures(zoom)) : [];
   const lines = collection.ok && holdsLines(labels);
   const target = lines ? lineTargetCheck(rows, zoom) : targetCheck(counts);
-  if (collection.ok) checks.push(crossingCheck(labels.features), ...(area ? [areaCheck(labels.features, area)] : []), target);
+  if (collection.ok) checks.push(crossingCheck(labels.features), ...(area ? [areaCheck(labels.features, area)] : []), target, ...(lines ? [] : [spreadCheck(rows, zoom)]));
   showChecks(checks);
   showCounts(rows, collection.ok && labels.features.filter(isWellFormed).some(isLine), zoom !== null);
   if (!collection.ok) element("target-summary").hidden = true;
@@ -151,9 +151,11 @@ function check() {
     showTarget(top?.label ?? "", top?.tiles ?? 0, "tiles");
   } else showTarget(...topType(counts), "labels");
   const passed = checks.filter((item) => item.ok).length;
-  const toFix = checks.length - passed;
+  const warnings = checks.filter((item) => item.warning).length;
+  const toFix = checks.length - passed - warnings;
   const count = collection.ok ? labels.features.length : 0;
-  setStatus(`${count.toLocaleString("en")} ${count === 1 ? "feature" : "features"}. Checks: ${passed} passed, ${toFix} to fix.`);
+  const warned = warnings ? `, ${warnings}\u00a0${warnings === 1 ? "warning" : "warnings"}` : "";
+  setStatus(`${count.toLocaleString("en")} ${count === 1 ? "feature" : "features"}. Checks: ${passed} passed, ${toFix} to fix${warned}.`);
   if (collection.ok) showMap(labels, area, problemNumbers(checks), imagery.ok);
 }
 

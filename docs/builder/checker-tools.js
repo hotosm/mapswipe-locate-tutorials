@@ -2,6 +2,8 @@
 import { LABEL_PROPERTIES, ringArea } from "./boxes-tools.js";
 
 export const TARGET_OBJECTS = 1000;
+export const SPREAD_TILES = 1000;
+export const MINIMUM_SPREAD_TILES = 500;
 export const NO_TYPE = "(none)";
 const POSITION_DEPTH = { LineString: 1, Polygon: 2, MultiLineString: 2, MultiPolygon: 3 };
 const LISTED_FEATURE_LIMIT = 5;
@@ -198,6 +200,18 @@ export function lineTargetCheck(rows, zoom) {
   if (!top) return { title, ok: false, detail: "Every label lacks a type value." };
   const summary = `${top.label}: ${top.tiles.toLocaleString("en")} tiles at zoom ${zoom} (${top.kilometres.toFixed(1)} km).`;
   return { title, ok: top.tiles >= TARGET_OBJECTS, detail: summary };
+}
+
+// Each tile is one training image: below the minimum the delivery isn't accepted, and between the minimum and the target it is accepted with a warning.
+export function spreadCheck(rows, zoom) {
+  const title = `Spread over at least ${SPREAD_TILES.toLocaleString("en")} tiles`;
+  if (zoom === null) return { title, ok: false, warning: true, detail: "Choose the project zoom to count the tiles the labels touch." };
+  const top = rows.find((row) => row.label !== NO_TYPE);
+  if (!top) return { title, ok: false, detail: "Every label lacks a type value." };
+  const detail = `${top.label}: ${top.tiles.toLocaleString("en")} tiles at zoom ${zoom}.`;
+  if (top.tiles >= SPREAD_TILES) return { title, ok: true, detail };
+  if (top.tiles >= MINIMUM_SPREAD_TILES) return { title, ok: false, warning: true, detail: `${detail} Accepted; more tiles give the model more training images.` };
+  return { title, ok: false, detail: `${detail} Below ${MINIMUM_SPREAD_TILES} tiles isn't accepted; label a larger area.` };
 }
 
 // The checks on the file itself; each one after the first reads a FeatureCollection.

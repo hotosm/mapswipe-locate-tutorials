@@ -15,6 +15,7 @@
   --single: rgba(46, 160, 67, 0.55);
   --multiple: rgba(255, 221, 0, 0.6);
   --reached: #2ea043;
+  --warning: #9a5b00;
   --text: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
@@ -264,9 +265,11 @@ aside .actions button { flex: 1; }
 #checks li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; font-size: 14px; }
 #checks li.pass { border-left-color: var(--reached); }
 #checks li.fail { border-left-color: var(--overlay); }
+#checks li.warn { border-left-color: var(--warning); }
 #checks .verdict { min-width: 5.5em; font-size: 12px; font-weight: 700; }
 #checks li.pass .verdict { color: var(--reached); }
 #checks li.fail .verdict { color: var(--overlay); }
+#checks li.warn .verdict { color: var(--warning); }
 #checks strong { font-weight: 500; }
 #checks .detail { grid-column: 2; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 #counts { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
