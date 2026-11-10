@@ -21,9 +21,19 @@ After a volunteer saves a group, MapSwipe updates the project's export files. On
 
 ### From the MapSwipe website (production)
 
-Each production project has a page at `https://mapswipe.org/en/projects/<firebase id>/` with a **Download the data** section. The Firebase ID is in the web app address when you open the project, and in the manager on the **Projects** page, where **Show details** on the project's entry lists it as **Firebase ID**.
+Each production project has a page at `https://mapswipe.org/en/projects/<firebase id>/` with a **Download the data** section. The address of that page is the project link. To open it from the website:
 
-![Firebase ID on the manager Projects page](../assets/results/manager-project-details.png)
+1. On the [MapSwipe data page](https://mapswipe.org/en/data/), under **Explore the data**, type part of the project title in **Search by project title**.
+2. Click the project. Its page opens, and the address in the browser is the project link.
+
+[![The MapSwipe data page: 1, the project title search; 2, the Freetown example project among the results](../assets/results/website-find-project.jpg)](../assets/results/website-find-project.jpg)
+
+To build the link from the manager:
+
+1. In the [manager](https://managers.mapswipe.org/), open the **Projects** page and find the project.
+2. Copy the **Firebase ID** from the project's entry and put it in place of `<firebase id>` in the link.
+
+[![A project entry on the manager Projects page, with the Firebase ID line marked in yellow](../assets/results/manager-project-details.png)](../assets/results/manager-project-details.png)
 
 The website is rebuilt every six hours ([source](https://github.com/mapswipe/website/blob/main/.github/workflows/cd.yml)), so a new project's page can take that long to appear. The screenshot below is from a finished production project.
 
