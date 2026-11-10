@@ -175,8 +175,8 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #tile-bar { display: flex; flex-direction: column; gap: 6px; }
 #tile-bar p { margin: 0; font-size: 13px; }
 #tile-bar #dataset-count { font-size: 15px; font-weight: 700; }
-:is(#tile-bar, #target-summary) #target-track { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-:is(#tile-bar, #target-summary) #target-bar { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
+:is(#tile-bar, #target-summary) :is(#target-track, #spread-track) { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+:is(#tile-bar, #target-summary) :is(#target-bar, #spread-bar) { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
 :is(#tile-bar, #target-summary) #target-bar.reached { background: var(--reached); }
 #tile-id { font-family: var(--mono); font-size: 12px; }
 #tile-bar div { display: flex; gap: 8px; }
@@ -282,5 +282,10 @@ aside .actions button { flex: 1; }
 #counts:not(.with-tiles) .tiles { display: none; }
 #target-summary { display: flex; flex-direction: column; gap: 6px; }
 #target-summary[hidden] { display: none; }
-#target-line { margin: 0; font-size: 15px; font-weight: 700; }
+:is(#target-line, #spread-line) { margin: 0; font-size: 15px; font-weight: 700; }
+#spread-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+#spread-summary[hidden] { display: none; }
+#target-summary #spread-bar { background: var(--overlay); }
+#target-summary #spread-bar.warn { background: var(--warning); }
+#target-summary #spread-bar.reached { background: var(--reached); }
 #type-choice[hidden] { display: none; }

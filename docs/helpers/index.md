@@ -168,7 +168,7 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
 1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
 2. Each check shows **Passed**, **To fix** or **Warning**, and checks on single labels list the feature numbers. Those labels are red on the map. A warning leaves the delivery accepted.
 3. Choose the **Project zoom** (filled in for auto labeller files) and, for types, the **Type attribute**, such as `surface`.
-4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines.
+4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines. For boxes and outlines, a second bar counts the tiles of the most common type: red below 500, amber from 500, green at 1,000.
 5. Check on the map that every object inside the area has a label.
 
 **Try the Stellenbosch example** checks 1,056 buildings and their `roof:material` from a block of 16 tiles of HOT's [roof type training dataset](https://huggingface.co/datasets/hotosm/fAIr-guru-td-roof-type), with each building's whole outline from OpenStreetMap ([© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL), on the OpenAerialMap image Khayamandi Drone Imagery by Integrated Aerial Systems (CC-BY 4.0). Every check passes except the spread check: the labels touch 33 tiles at zoom 19, below the 500 a delivery needs.

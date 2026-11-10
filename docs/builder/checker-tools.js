@@ -202,11 +202,14 @@ export function lineTargetCheck(rows, zoom) {
   return { title, ok: top.tiles >= TARGET_OBJECTS, detail: summary };
 }
 
+export const topCountRow = (rows) => rows.find((row) => row.label !== NO_TYPE) ?? null;
+
 // Each tile is one training image: below the minimum the delivery isn't accepted, and between the minimum and the target it is accepted with a warning.
+
 export function spreadCheck(rows, zoom) {
   const title = `Spread over at least ${SPREAD_TILES.toLocaleString("en")} tiles`;
   if (zoom === null) return { title, ok: false, warning: true, detail: "Choose the project zoom to count the tiles the labels touch." };
-  const top = rows.find((row) => row.label !== NO_TYPE);
+  const top = topCountRow(rows);
   if (!top) return { title, ok: false, detail: "Every label lacks a type value." };
   const detail = `${top.label}: ${top.tiles.toLocaleString("en")} tiles at zoom ${zoom}.`;
   if (top.tiles >= SPREAD_TILES) return { title, ok: true, detail };

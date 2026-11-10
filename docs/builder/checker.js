@@ -1,5 +1,5 @@
 import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-cover@3.0.2/+esm";
-import { TARGET_OBJECTS, collectionCheck, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, lineTargetCheck, parseLabels, spreadCheck, targetCheck, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
+import { TARGET_OBJECTS, collectionCheck, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, lineTargetCheck, parseLabels, SPREAD_TILES, spreadCheck, targetCheck, topCountRow, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
 import { targetProgress } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 import { foldSetup, setStatus, working } from "./setup-card.js";
@@ -85,6 +85,16 @@ function showTarget(label, top, unit) {
   element("target-summary").hidden = false;
 }
 
+// The tiles bar takes its colour from the spread check.
+function showSpread(row, zoom, spread) {
+  element("spread-summary").hidden = row === null;
+  if (row === null) return;
+  const { percent } = targetProgress(row.tiles, SPREAD_TILES);
+  element("spread-line").textContent = `${row.tiles.toLocaleString("en")} of ${SPREAD_TILES.toLocaleString("en")} tiles at zoom ${zoom}: ${row.label}`;
+  element("spread-bar").style.width = `${percent}%`;
+  element("spread-bar").className = spread.ok ? "reached" : spread.warning ? "warn" : "";
+}
+
 function problemNumbers(checks) {
   return new Set(checks.flatMap((check) => check.bad ?? []));
 }
@@ -141,7 +151,8 @@ function check() {
   const rows = collection.ok ? typeTable(labels, typeKey, measures(zoom)) : [];
   const lines = collection.ok && holdsLines(labels);
   const target = lines ? lineTargetCheck(rows, zoom) : targetCheck(counts);
-  if (collection.ok) checks.push(crossingCheck(labels.features), ...(area ? [areaCheck(labels.features, area)] : []), target, ...(lines ? [] : [spreadCheck(rows, zoom)]));
+  const spread = collection.ok && !lines ? spreadCheck(rows, zoom) : null;
+  if (collection.ok) checks.push(crossingCheck(labels.features), ...(area ? [areaCheck(labels.features, area)] : []), target, ...(spread ? [spread] : []));
   showChecks(checks);
   showCounts(rows, collection.ok && labels.features.filter(isWellFormed).some(isLine), zoom !== null);
   if (!collection.ok) element("target-summary").hidden = true;
@@ -150,6 +161,7 @@ function check() {
     const top = topLineRow(rows);
     showTarget(top?.label ?? "", top?.tiles ?? 0, "tiles");
   } else showTarget(...topType(counts), "labels");
+  showSpread(spread && zoom !== null ? topCountRow(rows) : null, zoom, spread);
   const passed = checks.filter((item) => item.ok).length;
   const warnings = checks.filter((item) => item.warning).length;
   const toFix = checks.length - passed - warnings;
