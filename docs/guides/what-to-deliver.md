@@ -27,7 +27,7 @@ Check each line in the [labels checker](../helpers/index.md#labels-checker) and 
 4. `object_name` on every feature, such as `solar panel`.
 5. The type as an attribute when the object has types, such as `natural: tree`, `roof:material: metal`, `damage: partial` or `surface: unpaved`.
 6. Every object labelled, also the ones cut off at the tile edge ([Per object or per tile](#per-object-or-per-tile)).
-7. At least 1,000 of the most common type, on at least 500 tiles of that type at the project zoom, or for roads and drains 1,000 tiles of one type ([Number of labels](#number-of-labels)).
+7. At least 1,000 of the most common type, with all labels on at least 500 tiles at the project zoom, or for roads and drains 1,000 tiles of one type ([Number of labels](#number-of-labels)).
 
 Extra properties are fine.
 
@@ -66,10 +66,10 @@ A file from the auto labeller is on one line; most editors can format it (in VS 
 
 | Labels | Target |
 |---|---|
-| Boxes and outlines | 1,000 labels of the most common type, on at least 500 tiles at the project zoom |
+| Boxes and outlines | 1,000 labels of the most common type, with all labels on at least 500 tiles at the project zoom |
 | Roads and drains (lines) | 1,000 tiles of one type at the project zoom, one training image each |
 
-Below the target, a delivery isn't accepted: cover a larger area. At or above it, HOT still reviews the coverage, and the kilometres of roads and drains. Each tile is one training image, so labels packed on a few tiles give the model few images. For boxes and outlines, the checker marks fewer than 500 tiles **To fix** and 500 to 999 tiles **Warning**; a delivery with a warning is accepted.
+Below the target, a delivery isn't accepted: cover a larger area. At or above it, HOT still reviews the coverage, and the kilometres of roads and drains. Each tile is one training image, so labels packed on a few tiles give the model few images. For boxes and outlines, the checker counts the tiles of all labels together and marks fewer than 500 **To fix** and 500 to 999 tiles **Warning**; a delivery with a warning is accepted.
 
 Other types can have fewer, but every object still gets a label: one left out teaches the model it isn't there. The [labels checker](../helpers/index.md#labels-checker) gives the labels, kilometres and tiles per type; enter them under **Each type and its count** in the form. Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so later projects add to each delivery.
 
