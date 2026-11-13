@@ -15,7 +15,7 @@ The first steps put the project imagery and the cells volunteers marked on the m
 The [Freetown example](../../examples/freetown-solar-panels.md) uses this tile URL:
 
 ```text
-https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0
+https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0
 ```
 
 ![XYZ connection with the name, tile URL and maximum zoom](../../assets/results/qgis-xyz-connection.png)

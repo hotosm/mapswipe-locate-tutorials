@@ -50,7 +50,7 @@ The file lists every tile of the project.
 <video src="../assets/tutorial/builder-load.mp4" autoplay loop muted playsinline aria-label="Loading the tile URL and the processed tasks file"></video>
 
 ??? note "The builder says it can't read the tile URL"
-    The builder first checks that browsers can read the tile URL. Browsers read only tile servers that send CORS headers, and `api.imagery.hotosm.org` sends them. Use the tile URL from the area finder.
+    The builder first checks that browsers can read the tile URL. Browsers read only tile servers that send CORS headers, and `tiles.imagery.hotosm.org` sends them. Use the tile URL from the area finder.
 
 ## 5. Mark the scenarios
 
@@ -118,7 +118,7 @@ The phone preview on the right shows the result, with the tile imagery under the
 <video src="../assets/tutorial/tutorial-messages.mp4" autoplay loop muted playsinline aria-label="Choosing the icons and entering the messages of a scenario"></video>
 
 ??? note "Preview without imagery"
-    When the phone preview shows the cells on a dark background, the reference project's tile URL usually doesn't send CORS headers (see the warning in [Add the area and imagery](create-a-project.md#8-add-the-area-and-imagery)). The tile URL and the reference project can't be changed later. Create the project again with the `api.imagery.hotosm.org` tile URL and make the tutorial from that project.
+    When the phone preview shows the cells on a dark background, the reference project's tile URL usually doesn't send CORS headers (see the warning in [Add the area and imagery](create-a-project.md#8-add-the-area-and-imagery)). The tile URL and the reference project can't be changed later. Create the project again with the `tiles.imagery.hotosm.org` tile URL and make the tutorial from that project.
 
 ## 8. Save the tutorial
 

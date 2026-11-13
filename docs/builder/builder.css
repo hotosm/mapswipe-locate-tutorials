@@ -42,7 +42,7 @@ header {
   border-bottom: 1px solid var(--line);
 }
 
-h1 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
+h1 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; white-space: nowrap; }
 h1 .logo { display: flex; }
 h2 { margin: 0 0 8px; font-size: 15px; }
 a { color: var(--ink); }
@@ -199,8 +199,8 @@ body.working #tile-canvas { opacity: 0.6; }
   main:has(#stage-area) aside { flex: none; width: 320px; align-self: center; max-height: 100%; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
 }
 
-@media (max-width: 800px) {
-  body { height: auto; }
+/* The title and all links need about 1,050 px on one line; below that the links fold into the menu. */
+@media (max-width: 1080px) {
   header { flex-wrap: wrap; padding: 8px 16px; }
   .menu-button { display: flex; }
   header nav { display: none; width: 100%; flex-direction: column; gap: 0; }
@@ -208,6 +208,10 @@ body.working #tile-canvas { opacity: 0.6; }
   header nav a { padding: 10px 0; border-bottom: 1px solid var(--line); }
   header nav a:last-child { border-bottom: 0; }
   header nav a[aria-current="page"] { font-weight: 600; border-bottom-color: var(--line); }
+}
+
+@media (max-width: 800px) {
+  body { height: auto; }
   main { grid-template-columns: 1fr; }
   body:not(.loaded) main, body.editing main { min-height: calc(100svh - 51px); }
   .card { margin: 0 auto auto; padding: 20px; }

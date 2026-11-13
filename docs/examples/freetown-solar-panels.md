@@ -41,10 +41,10 @@ The project used this tile URL:
 https://2glp8ghj65.execute-api.us-east-1.amazonaws.com/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=https://oin-hotosm-temp.s3.us-east-1.amazonaws.com/690585b76415e43597ffd7ea/0/690585b76415e43597ffd7eb.tif
 ```
 
-The same image is on `api.imagery.hotosm.org`, which the [area finder](../builder/area.html) and the [tutorial builder](../builder/index.html) use in their Freetown examples:
+The same image is on `tiles.imagery.hotosm.org`, which the [area finder](../builder/area.html) and the [tutorial builder](../builder/index.html) use in their Freetown examples:
 
 ```text
-https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0
+https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0
 ```
 
 ## Results

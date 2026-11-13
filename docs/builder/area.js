@@ -1,12 +1,11 @@
 import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
 import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
-import { areaProblems, cellMetres, gridLines, imageryMask, multiPolygonTileCount, orderedBounds, pixelToLonLat, renderQuery, tileAt, zoomProblem } from "./area-tools.js";
+import { areaProblems, cellMetres, gridLines, imageryMask, itemUrl, multiPolygonTileCount, orderedBounds, pixelToLonLat, renderQuery, tileAt, zoomProblem } from "./area-tools.js";
 import { tileImageUrl } from "./scenarios.js";
 import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
 import { showMapLoading } from "./map-loading.js";
 import { copyText, foldSetup, setStatus, working } from "./setup-card.js";
 
-const API = "https://api.imagery.hotosm.org";
 // The imagery API can take minutes to render a 1024 px preview it has not made before, and 512 px takes seconds.
 const PREVIEW_SIZE = 512;
 // Patches smaller than 2000 m² are white roofs or specks, not gaps in the imagery.
@@ -176,7 +175,7 @@ function dropSmallPatches(multiPolygon, imageId) {
 async function findFootprint(item) {
   const imageId = item.id;
   const bbox = orderedBounds(item.bbox);
-  const response = await fetch(`${API}/raster/collections/openaerialmap/items/${imageId}/preview.png?${renderQuery(item)}&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
+  const response = await fetch(`${itemUrl(imageId)}/preview.png?${renderQuery(item.properties.renders?.browse)}&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
   if (!response.ok) throw new Error(`The preview of image ${imageId} failed with HTTP ${response.status}.`);
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
@@ -240,7 +239,7 @@ element("setup").addEventListener("submit", (event) => {
       showZoomProblem();
 
       const tileUrl = ids.length === 1
-        ? `${API}/raster/collections/openaerialmap/items/${items[0].id}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery(items[0])}`
+        ? `${itemUrl(items[0].id)}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery(items[0].properties.renders?.browse)}`
         : mosaicTileUrl(ids);
       if (map.getSource("imagery")) {
         map.removeLayer("imagery");

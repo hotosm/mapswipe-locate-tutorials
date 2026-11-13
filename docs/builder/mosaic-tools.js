@@ -1,6 +1,5 @@
-import { IMAGE_HINT, matchImageId, orderedBounds, parseImageId } from "./area-tools.js";
+import { IMAGE_HINT, matchImageId, orderedBounds, parseImageId, RASTER_API, renderQuery } from "./area-tools.js";
 
-export const RASTER_API = "https://api.imagery.hotosm.org/raster";
 const STAC_ITEMS = "https://api.imagery.hotosm.org/stac/collections/openaerialmap/items";
 export const EXAMPLE_IMAGES = [
   "https://imagery.hotosm.org/browse?lat=27.6337&lon=85.5228&zoom=13.4&selected_id=62d86c65d8499800053796c4",
@@ -20,7 +19,7 @@ export function parseImageIds(values) {
 
 // Without the two flags, an older image is skipped wherever a newer image's outline covers it, even where that image has no pixels.
 export function mosaicTileUrl(ids) {
-  return `${RASTER_API}/collections/openaerialmap/tiles/WebMercatorQuad/{z}/{x}/{y}?ids=${ids.join(",")}&exitwhenfull=false&skipcovered=false&assets=visual&nodata=0`;
+  return `${RASTER_API}/collections/openaerialmap/tiles/WebMercatorQuad/{z}/{x}/{y}?ids=${ids.join(",")}&exitwhenfull=false&skipcovered=false&${renderQuery()}`;
 }
 
 // The merger's tile URL lists its images as ids=<id>,<id>; any other link names one image.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, scenarioMessages, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
+import { EXAMPLE, checkTasks, checkTileAccess, emptyReferences, nextAnswer, scenarioFile, scenarioMessages, taskBounds, tileImageUrl } from "../docs/builder/scenarios.js";
 
 test("a click cycles a cell from No to Single to Multiple and back to No", () => {
   assert.deepEqual([0, 1, 2].map(nextAnswer), [1, 2, 0]);
@@ -74,4 +74,11 @@ test("the three scenario messages name the object and the manager icon each one 
   assert.equal(messages[0].title, "Find the solar panels");
   for (const { description } of messages) assert.match(description, /solar panels/);
   assert.deepEqual(scenarioMessages("   "), []);
+});
+
+test("the Freetown example tile URL points at the tiles host with the default render query", () => {
+  assert.equal(
+    EXAMPLE.tileUrl,
+    "https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0",
+  );
 });

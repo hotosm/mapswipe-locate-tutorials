@@ -1,4 +1,4 @@
-// On a phone the helper links fold behind the menu button.
+// On a narrow screen the helper links fold behind the menu button.
 const button = document.getElementById("menu-button");
 const nav = document.getElementById("site-nav");
 

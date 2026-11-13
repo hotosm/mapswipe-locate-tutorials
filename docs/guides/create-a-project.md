@@ -134,7 +134,7 @@ Scroll down to **Locate Objects**.
 
 1. **AOI geometry**: click **Select geojson** and choose `area-of-interest.geojson` from step 4.
 2. **Imagery server**: check that **Custom** is selected.
-3. **Custom Imagery Server URL**: paste the tile URL from step 5. It starts with `https://api.imagery.hotosm.org/`. If you type the URL, a red note about `{x}`, `{y}` and `{z}` shows until the URL is complete.
+3. **Custom Imagery Server URL**: paste the tile URL from step 5. It starts with `https://tiles.imagery.hotosm.org/`. If you type the URL, a red note about `{x}`, `{y}` and `{z}` shows until the URL is complete.
 4. **Imagery Credits**: the image provider and licence, for example `OpenAerialMap, DroneTM, CC-BY-4.0`. The image record lists the provider under `providers` and the licence under `license`, for example `DroneTM` and `CC-BY-4.0` in the [Freetown image record](https://api.imagery.hotosm.org/stac/collections/openaerialmap/items/69075f1de47603686de24fe8).
 5. **Min zoom**: leave it empty. **Max zoom**: enter `22`.
 6. **Zoom level**: click the field and choose the zoom from step 3, for example the item that starts with **20** (**Close-up View**).
@@ -142,8 +142,8 @@ Scroll down to **Locate Objects**.
 
 <video src="../assets/create/manager-imagery.mp4" autoplay loop muted playsinline aria-label="Uploading the area and entering the imagery settings"></video>
 
-!!! warning "Use a tile URL from api.imagery.hotosm.org"
-    The manager draws its maps in the browser, which reads only tile servers that send CORS headers. `api.imagery.hotosm.org` sends them. With a `tiles.openaerialmap.org` link, this preview and the tutorial preview stay blank. The area and imagery settings become read-only after processing (step 10), so check the preview before you continue.
+!!! warning "Use a tile URL from tiles.imagery.hotosm.org"
+    The manager draws its maps in the browser, which reads only tile servers that send CORS headers. `tiles.imagery.hotosm.org` sends them. With a `tiles.openaerialmap.org` link, this preview and the tutorial preview stay blank. The area and imagery settings become read-only after processing (step 10), so check the preview before you continue.
 
 ??? note "Min zoom, Max zoom and the preview"
     - For a Locate project, **Min zoom** and **Max zoom** only set the zoom range of the map previews in the manager. The app receives the tile URL, credits and key ([source](https://github.com/mapswipe/mapswipe-backend/blob/develop/project_types/tile_map_service/locate/project.py)). The preview doesn't load imagery below **Min zoom** ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/components/domain/BaseMap/index.tsx)), so a preview that turns white after **Min zoom** changes is caused by that setting.

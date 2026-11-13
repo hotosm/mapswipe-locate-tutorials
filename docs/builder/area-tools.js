@@ -120,17 +120,20 @@ export function zoomProblem(zoom, latitude, gsdMetres) {
   return zoom > finest ? `This image's resolution (GSD) is ${Number(gsdMetres.toPrecision(2))} m, so zoom ${finest + 1} and higher enlarge it and look blurred. Choose zoom ${finest} or lower.` : null;
 }
 
-// An item with renders.browse needs its display settings to show in colour; one without shows as stored with nodata=0.
-// This server ignores bidx, so the bands go in as an expression.
-export function renderQuery(item) {
-  const browse = item.properties.renders?.browse;
-  const parts = [`assets=${browse?.assets?.[0] ?? "visual"}`];
-  const expression = browse?.expression ?? browse?.bidx?.map((band) => `b${band}`).join(";");
-  if (expression) parts.push(`expression=${expression}`);
-  for (const [min, max] of browse?.rescale ?? []) parts.push(`rescale=${min},${max}`);
-  if (browse?.colormap_name) parts.push(`colormap_name=${browse.colormap_name}`);
-  if (browse?.color_formula) parts.push(`color_formula=${encodeURIComponent(browse.color_formula)}`);
-  parts.push(`nodata=${browse?.nodata ?? 0}`);
+export const RASTER_API = "https://tiles.imagery.hotosm.org/raster";
+
+export function itemUrl(id) {
+  return `${RASTER_API}/collections/openaerialmap/items/${id}`;
+}
+
+// The server ignores bidx, fails on four-band images and greys out unranged expressions, so bands go in as a ranged expression (the record's, or 0 to 255).
+export function renderQuery(browse = {}) {
+  const expression = browse.expression ?? (browse.bidx ?? [1, 2, 3]).map((band) => `b${band}`).join(";");
+  const parts = [`assets=${browse.assets?.[0] ?? "visual"}`, `expression=${expression}`];
+  for (const [min, max] of browse.rescale ?? [[0, 255]]) parts.push(`rescale=${min},${max}`);
+  if (browse.colormap_name) parts.push(`colormap_name=${browse.colormap_name}`);
+  if (browse.color_formula) parts.push(`color_formula=${encodeURIComponent(browse.color_formula)}`);
+  parts.push(`nodata=${browse.nodata ?? 0}`);
   return parts.join("&");
 }
 

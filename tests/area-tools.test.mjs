@@ -147,14 +147,19 @@ test("a zoom deeper than the image resolution gets a note, and a zoom at or abov
   assert.equal(zoomProblem(20, 17, undefined), null);
 });
 
-test("a 16-bit image gets its own bands and value range in the tile query, and an 8-bit image keeps nodata=0 alone", () => {
-  const ratnagiri = { properties: { renders: { browse: { bidx: [1, 2, 3], rescale: [[754, 1922.12], [963, 2059], [1118, 2126]], nodata: 0 } } } };
+test("a 16-bit image gets its own bands and value range in the tile query", () => {
+  const ratnagiri = { bidx: [1, 2, 3], rescale: [[754, 1922.12], [963, 2059], [1118, 2126]], nodata: 0 };
   assert.equal(renderQuery(ratnagiri), "assets=visual&expression=b1;b2;b3&rescale=754,1922.12&rescale=963,2059&rescale=1118,2126&nodata=0");
-  assert.equal(renderQuery({ properties: { gsd: 0.0394 } }), "assets=visual&nodata=0");
+});
+
+test("an image without a value range gets the first three bands at 0 to 255, with or without render settings", () => {
+  const kirtipur = { assets: ["visual"], bidx: [1, 2, 3] };
+  assert.equal(renderQuery(kirtipur), "assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0");
+  assert.equal(renderQuery(), "assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0");
 });
 
 test("partial render settings keep the fields given, and the asset, expression and colour formula come from the record", () => {
-  assert.equal(renderQuery({ properties: { renders: { browse: { rescale: [[0, 3000]] } } } }), "assets=visual&rescale=0,3000&nodata=0");
-  const custom = { properties: { renders: { browse: { assets: ["rgb"], bidx: [1, 2, 3], expression: "b3;b2;b1", color_formula: "gamma rgb 1.3" } } } };
-  assert.equal(renderQuery(custom), "assets=rgb&expression=b3;b2;b1&color_formula=gamma%20rgb%201.3&nodata=0");
+  assert.equal(renderQuery({ rescale: [[0, 3000]] }), "assets=visual&expression=b1;b2;b3&rescale=0,3000&nodata=0");
+  const custom = { assets: ["rgb"], bidx: [1, 2, 3], expression: "b3;b2;b1", color_formula: "gamma rgb 1.3" };
+  assert.equal(renderQuery(custom), "assets=rgb&expression=b3;b2;b1&rescale=0,255&color_formula=gamma%20rgb%201.3&nodata=0");
 });

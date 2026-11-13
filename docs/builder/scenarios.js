@@ -1,5 +1,7 @@
+import { itemUrl, renderQuery } from "./area-tools.js";
+
 export const EXAMPLE = {
-  tileUrl: "https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0",
+  tileUrl: `${itemUrl("69075f1de47603686de24fe8")}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery()}`,
   tasks: "../examples/files/freetown-solar-panels-processed-tasks.geojson",
 };
 
@@ -48,7 +50,7 @@ export async function checkTileAccess(template, task, fetchTile = fetch) {
     await fetchTile(tileImageUrl(template, x, y, z));
   } catch (error) {
     if (!(error instanceof TypeError)) throw error;
-    throw new Error("Browsers cannot read tiles from this URL (no CORS headers, or the server cannot be reached), so the manager's tutorial preview would stay blank. Use a tile URL from api.imagery.hotosm.org, as the area finder and the imagery merger give.", { cause: error });
+    throw new Error("Browsers cannot read tiles from this URL (no CORS headers, or the server cannot be reached), so the manager's tutorial preview would stay blank. Use a tile URL from tiles.imagery.hotosm.org, as the area finder and the imagery merger give.", { cause: error });
   }
 }
 

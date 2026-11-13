@@ -50,7 +50,7 @@ A file from the auto labeller is on one line; most editors can format it (in VS 
 ```json
 {
   "type": "FeatureCollection",
-  "imagery_url": "https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0",
+  "imagery_url": "https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0",
   "features": []
 }
 ```

@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { closedShapeCheck, collectionCheck, duplicateCheck, featureList, fileChecks, hasBrokenShape, imageryUrlCheck, isLine, isMappable, isWellFormed, lonLatCheck, objectNameCheck, parseLabels, shapeCheck, labelledTiles, spreadCheck, holdsLines, lineTargetCheck, targetCheck, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "../docs/builder/checker-tools.js";
 
-const TILE_URL = "https://api.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&nodata=0";
+const TILE_URL = "https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0";
 const square = (x, y, size = 0.0001) => ({ type: "Polygon", coordinates: [[[x, y], [x + size, y], [x + size, y + size], [x, y + size], [x, y]]] });
 const feature = (geometry, properties = { object_name: "solar panel" }) => ({ type: "Feature", geometry, properties });
 const labels = (features, extra = { imagery_url: TILE_URL }) => ({ type: "FeatureCollection", ...extra, features });
