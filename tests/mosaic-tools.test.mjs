@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { imageTitle, mosaicTileUrl, parseImageIds, parseImageIdsFromLink, unionBounds } from "../docs/builder/mosaic-tools.js";
 import { tileImageUrl } from "../docs/builder/scenarios.js";
+import { AREA_HINT } from "../docs/builder/area-tools.js";
 
 const BANEPA = "62d86c65d8499800053796c4";
 const TRAINING_CENTER = "64fac6d25ee57100013326fb";
@@ -47,4 +48,9 @@ test("an image is named by its title and capture date, or by its ID when it has 
   assert.equal(imageTitle({ id: BANEPA, properties: { title: "Banepa", datetime: "2022-04-15T00:00:00Z" } }), "Banepa (2022-04-15)");
   assert.equal(imageTitle({ id: BANEPA, properties: { start_datetime: "2023-09-07T05:00:00Z" } }), `${BANEPA} (2023-09-07)`);
   assert.equal(imageTitle({ id: BANEPA, properties: {} }), `${BANEPA} (no date)`);
+});
+
+test("the area finder's hint, naming the TiTiler option, shows for a link that is not an image or a merger list", () => {
+  assert.throws(() => parseImageIdsFromLink("https://example.org/tiles/{z}/{x}/{y}.png", AREA_HINT), /TiTiler \/cog\/ tile URL/);
+  assert.throws(() => parseImageIdsFromLink(`https://example.org/tiles?ids=${BANEPA},not-an-image`, AREA_HINT), /TiTiler \/cog\/ tile URL/);
 });

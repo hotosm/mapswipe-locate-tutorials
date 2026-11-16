@@ -49,7 +49,7 @@ The screenshots in these guides come from stage. The production manager has the 
 ## Before you start
 
 - A MapSwipe account with project manager rights. The manager login page says: "If you don't yet have access, please reach out to the MapSwipe community via Slack." Join the HOT Slack at <https://slack.hotosm.org/>. Edit only projects you created.
-- The image on <https://imagery.hotosm.org/browse> that volunteers will map. The [area finder](builder/area.html) makes the tile URL, the area of interest and a cover image from it.
+- The image that volunteers will map, on <https://imagery.hotosm.org/browse> or as a [TiTiler `/cog/` tile URL](guides/create-a-project.md#1-copy-the-image-link). The [area finder](builder/area.html) makes the area of interest and a cover image from it, and gives the tile URL for imagery.hotosm.org images.
 
 !!! note "Project naming"
     Set the **Project topic** as `fAIrSwipe - Country - Feature`, for example `fAIrSwipe - Sierra Leone - Solar Panels`.

@@ -10,7 +10,7 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
 -   :lucide-crop: **[Area finder](../builder/area.html)**
 
-    Paste an image from imagery.hotosm.org, or open merged images from the imagery merger. Download the imagery footprint or shapes you draw as the area of interest, and save a cover image.
+    Paste an image from imagery.hotosm.org or a TiTiler `/cog/` tile URL, or open merged images from the imagery merger. Download the imagery footprint or shapes you draw as the area of interest, and save a cover image.
 
 -   :lucide-layout-grid: **[Tutorial builder](../builder/index.html)**
 

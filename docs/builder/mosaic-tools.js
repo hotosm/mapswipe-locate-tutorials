@@ -23,10 +23,10 @@ export function mosaicTileUrl(ids) {
 }
 
 // The merger's tile URL lists its images as ids=<id>,<id>; any other link names one image.
-export function parseImageIdsFromLink(text) {
+export function parseImageIdsFromLink(text, hint = IMAGE_HINT) {
   const listed = text.match(/[?&]ids=([^&]+)/);
-  if (!listed) return [parseImageId(text)];
-  return [...new Set(decodeURIComponent(listed[1]).split(",").map((value) => parseImageId(value)))];
+  if (!listed) return [parseImageId(text, hint)];
+  return [...new Set(decodeURIComponent(listed[1]).split(",").map((value) => parseImageId(value, hint)))];
 }
 
 export async function fetchItem(id) {

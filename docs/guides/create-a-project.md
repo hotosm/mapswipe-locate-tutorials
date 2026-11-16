@@ -25,6 +25,9 @@ This guide goes from an image on imagery.hotosm.org to a processed project in th
 ??? note "Area across several images"
     Most projects use one image. When the area needs several images, merge them in the [imagery merger](../helpers/index.md#imagery-merger) and click **Open in area finder**. The area finder opens with all the images loaded, and the steps below are the same. Under **Images** in the side panel, click an image to go to it, which helps when the images are far apart.
 
+??? note "Image from a GeoTIFF file URL"
+    For a Cloud Optimized GeoTIFF at a public URL, skip step 1 and paste a [TiTiler](https://developmentseed.org/titiler/) `/cog/` tile URL for it in step 2, with `<file URL>` replaced by the file's address, for example `https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=<file URL>`. This URL becomes the project's tile URL, so the file must stay at that address for volunteers to see the imagery. Ask whoever supplied the file for the provider and licence for **Imagery Credits** in step 8. The imagery merger takes only images from imagery.hotosm.org.
+
 ## 2. Load the image in the area finder
 
 1. Open the [area finder](../builder/area.html) in a new browser tab.
@@ -134,7 +137,7 @@ Scroll down to **Locate Objects**.
 
 1. **AOI geometry**: click **Select geojson** and choose `area-of-interest.geojson` from step 4.
 2. **Imagery server**: check that **Custom** is selected.
-3. **Custom Imagery Server URL**: paste the tile URL from step 5. It starts with `https://tiles.imagery.hotosm.org/`. If you type the URL, a red note about `{x}`, `{y}` and `{z}` shows until the URL is complete.
+3. **Custom Imagery Server URL**: paste the tile URL from step 5. It starts with `https://tiles.imagery.hotosm.org/`, or is the TiTiler URL you pasted in step 2. If you type the URL, a red note about `{x}`, `{y}` and `{z}` shows until the URL is complete.
 4. **Imagery Credits**: the image provider and licence, for example `OpenAerialMap, DroneTM, CC-BY-4.0`. The image record lists the provider under `providers` and the licence under `license`, for example `DroneTM` and `CC-BY-4.0` in the [Freetown image record](https://api.imagery.hotosm.org/stac/collections/openaerialmap/items/69075f1de47603686de24fe8).
 5. **Min zoom**: leave it empty. **Max zoom**: enter `22`.
 6. **Zoom level**: click the field and choose the zoom from step 3, for example the item that starts with **20** (**Close-up View**).
@@ -142,8 +145,8 @@ Scroll down to **Locate Objects**.
 
 <video src="../assets/create/manager-imagery.mp4" autoplay loop muted playsinline aria-label="Uploading the area and entering the imagery settings"></video>
 
-!!! warning "Use a tile URL from tiles.imagery.hotosm.org"
-    The manager draws its maps in the browser, which reads only tile servers that send CORS headers. `tiles.imagery.hotosm.org` sends them. With a `tiles.openaerialmap.org` link, this preview and the tutorial preview stay blank. The area and imagery settings become read-only after processing (step 10), so check the preview before you continue.
+!!! warning "Use the tile URL from the area finder"
+    The manager draws its maps in the browser, which reads tiles only from servers that send CORS headers. The area finder loads only such servers. With a `tiles.openaerialmap.org` link, this preview and the tutorial preview stay blank. The area and imagery settings become read-only after processing (step 10), so check the preview before you continue.
 
 ??? note "Min zoom, Max zoom and the preview"
     - For a Locate project, **Min zoom** and **Max zoom** only set the zoom range of the map previews in the manager. The app receives the tile URL, credits and key ([source](https://github.com/mapswipe/mapswipe-backend/blob/develop/project_types/tile_map_service/locate/project.py)). The preview doesn't load imagery below **Min zoom** ([source](https://github.com/mapswipe/manager-dashboard/blob/develop/app/components/domain/BaseMap/index.tsx)), so a preview that turns white after **Min zoom** changes is caused by that setting.

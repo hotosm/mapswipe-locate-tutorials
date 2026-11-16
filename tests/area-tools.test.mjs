@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { areaProblems, cellMetres, finestZoom, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, pixelToLonLat, renderQuery, tileAt, tileCount, zoomProblem } from "../docs/builder/area-tools.js";
+import { areaProblems, cellMetres, finestZoom, gridLines, imageryMask, isEmptyPixel, maxAreaSquareKm, multiPolygonTileCount, orderedBounds, parseImageId, parseTitilerUrl, pixelToLonLat, renderQuery, tileAt, tileCount, zoomProblem } from "../docs/builder/area-tools.js";
 
 const ID = "62d86c65d8499800053796c4";
 
@@ -140,11 +140,41 @@ test("the finest zoom is the one closest to the image resolution, as in the tile
   assert.equal(finestZoom(8.45, 0.0394), 22);
 });
 
-test("a zoom deeper than the image resolution gets a note, and a zoom at or above it, or a missing resolution, gets none", () => {
-  assert.equal(zoomProblem(20, 17, 0.25), "This image's resolution (GSD) is 0.25 m, so zoom 20 and higher enlarge it and look blurred. Choose zoom 19 or lower.");
-  assert.equal(zoomProblem(19, 17, 0.25), null);
-  assert.equal(zoomProblem(21, 8.45, 0.0394), null);
-  assert.equal(zoomProblem(20, 17, undefined), null);
+test("a zoom deeper than the finest zoom gets a note, and a zoom at or above it, or an unknown finest zoom, gets none", () => {
+  assert.equal(zoomProblem(20, 19, 0.25), "This image's resolution (GSD) is 0.25 m, so zoom 20 and higher enlarge it and look blurred. Choose zoom 19 or lower.");
+  assert.equal(zoomProblem(19, 19, 0.25), null);
+  assert.equal(zoomProblem(21, 22, 0.0394), null);
+  assert.equal(zoomProblem(20, undefined, undefined), null);
+});
+
+test("without a known resolution, the zoom note names only the finest zoom, as a TiTiler tilejson maxzoom gives it", () => {
+  assert.equal(zoomProblem(21, 20, undefined), "This image looks blurred at zoom 21 and higher. Choose zoom 20 or lower.");
+});
+
+const MACHANGARA = "https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=https://hotosm-test.s3.us-east-1.amazonaws.com/machangara_crop_1_cog.tif";
+
+test("a TiTiler /cog/ tile URL keeps its server, query and file name, and is kept unchanged as the tile URL", () => {
+  assert.deepEqual(parseTitilerUrl(` ${MACHANGARA} `), {
+    tileUrl: MACHANGARA,
+    server: "https://titiler.hotosm.org",
+    query: "url=https://hotosm-test.s3.us-east-1.amazonaws.com/machangara_crop_1_cog.tif",
+    name: "machangara_crop_1_cog.tif",
+  });
+  const styled = "https://example.org/titiler/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fexample.org%2Fa%2Fb.tif%3Fv%3D2&bidx=1&bidx=2&bidx=3&rescale=0,3000";
+  assert.deepEqual(parseTitilerUrl(styled), {
+    tileUrl: styled,
+    server: "https://example.org/titiler",
+    query: "url=https%3A%2F%2Fexample.org%2Fa%2Fb.tif%3Fv%3D2&bidx=1&bidx=2&bidx=3&rescale=0,3000",
+    name: "b.tif",
+  });
+});
+
+test("other links are not TiTiler URLs, and a TiTiler URL without the file is rejected", () => {
+  assert.equal(parseTitilerUrl(`https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/${ID}/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual`), null);
+  assert.equal(parseTitilerUrl("https://titiler.hotosm.org/cog/tiles/WGS1984Quad/{z}/{x}/{y}?url=https://example.org/a.tif"), null);
+  assert.equal(parseTitilerUrl("https://titiler.hotosm.org/cog/tiles/{z}/{x}/{y}?url=https://example.org/a.tif"), null);
+  assert.throws(() => parseTitilerUrl("https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?bidx=1"), /url= parameter/);
+  assert.throws(() => parseTitilerUrl("https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x"), /url= parameter/);
 });
 
 test("a 16-bit image gets its own bands and value range in the tile query", () => {

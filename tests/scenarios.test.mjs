@@ -64,7 +64,7 @@ test("the tile check requests the first task's tile, explains a CORS block and l
   await checkTileAccess("https://example.org/{z}/{x}/{y}", task, async (url) => { requested.push(url); return { ok: true }; });
   assert.deepEqual(requested, ["https://example.org/20/773386/440490"]);
 
-  await assert.rejects(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => { throw new TypeError("Failed to fetch"); }), /no CORS headers/);
+  await assert.rejects(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => { throw new TypeError("Failed to fetch"); }), /doesn't send CORS headers/);
   await assert.doesNotReject(checkTileAccess("https://example.org/{z}/{x}/{y}", task, async () => ({ ok: false, status: 404 })));
 });
 

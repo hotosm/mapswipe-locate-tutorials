@@ -1,6 +1,6 @@
 import { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode } from "https://cdn.jsdelivr.net/npm/terra-draw@1.37.0/+esm";
 import { TerraDrawMapLibreGLAdapter } from "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/+esm";
-import { areaProblems, cellMetres, gridLines, imageryMask, itemUrl, multiPolygonTileCount, orderedBounds, pixelToLonLat, renderQuery, tileAt, zoomProblem } from "./area-tools.js";
+import { AREA_HINT, areaProblems, cellMetres, finestZoom, gridLines, imageryMask, itemUrl, multiPolygonTileCount, orderedBounds, parseTitilerUrl, pixelToLonLat, renderQuery, tileAt, zoomProblem } from "./area-tools.js";
 import { tileImageUrl } from "./scenarios.js";
 import { fetchItem, imageTitle, mosaicTileUrl, parseImageIdsFromLink, unionBounds } from "./mosaic-tools.js";
 import { showMapLoading } from "./map-loading.js";
@@ -14,7 +14,7 @@ const MIN_PATCH_SQUARE_METRES = 2000;
 const EXAMPLE_IMAGE = "https://imagery.hotosm.org/browse?selected_id=69075f1de47603686de24fe8";
 // A map zoom three levels above the project zoom shows each tile 64 pixels wide; further out the lines merge.
 const GRID_ZOOM_SPAN = 3;
-const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0, tileUrl: "", latitude: 0, gsd: undefined };
+const state = { footprint: null, area: null, zoom: 20, cells: 4, load: 0, tileUrl: "", finest: undefined, gsd: undefined };
 const element = (id) => document.getElementById(id);
 const chosenZoom = () => Number(document.querySelector('input[name="zoom"]:checked').value);
 const chosenCells = () => Number(document.querySelector('input[name="cells"]:checked').value);
@@ -144,7 +144,7 @@ function showArea() {
 }
 
 function showZoomProblem() {
-  element("zoom-problem").textContent = zoomProblem(state.zoom, state.latitude, state.gsd) ?? "";
+  element("zoom-problem").textContent = zoomProblem(state.zoom, state.finest, state.gsd) ?? "";
 }
 
 function showFill(id, data) {
@@ -163,20 +163,18 @@ function stopDrawing() {
   element("draw").setAttribute("aria-pressed", "false");
 }
 
-function dropSmallPatches(multiPolygon, imageId) {
+function dropSmallPatches(multiPolygon, name) {
   const largeEnough = (ring) => turf.area(turf.polygon([ring])) >= MIN_PATCH_SQUARE_METRES;
   const polygons = multiPolygon.coordinates
     .filter(([outer]) => largeEnough(outer))
     .map(([outer, ...holes]) => [outer, ...holes.filter(largeEnough)]);
-  if (polygons.length === 0) throw new Error(`No imagery found in image ${imageId}.`);
+  if (polygons.length === 0) throw new Error(`No imagery found in ${name}.`);
   return turf.multiPolygon(polygons);
 }
 
-async function findFootprint(item) {
-  const imageId = item.id;
-  const bbox = orderedBounds(item.bbox);
-  const response = await fetch(`${itemUrl(imageId)}/preview.png?${renderQuery(item.properties.renders?.browse)}&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
-  if (!response.ok) throw new Error(`The preview of image ${imageId} failed with HTTP ${response.status}.`);
+async function findFootprint({ name, bbox, preview }) {
+  const response = await fetch(`${preview}&max_size=${PREVIEW_SIZE}&dst_crs=epsg:4326`);
+  if (!response.ok) throw new Error(`The preview of ${name} failed with HTTP ${response.status}.`);
   const bitmap = await createImageBitmap(await response.blob());
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const context = canvas.getContext("2d");
@@ -188,23 +186,57 @@ async function findFootprint(item) {
   const [outline] = d3.contours().size([width, height]).thresholds([0.5])(mask);
   const toLonLat = pixelToLonLat(bbox, width, height);
   const coordinates = outline.coordinates.map((polygon) => polygon.map((ring) => ring.map(toLonLat)));
-  const footprint = dropSmallPatches({ type: "MultiPolygon", coordinates }, imageId);
+  const footprint = dropSmallPatches({ type: "MultiPolygon", coordinates }, name);
   return turf.simplify(footprint, { tolerance: (bbox[2] - bbox[0]) / width, highQuality: true });
 }
 
 // Images can lie far apart, so each one in the list zooms the map to its footprint.
-function showImageList(items, footprints) {
-  element("image-list").replaceChildren(...items.map((item, index) => {
+function showImageList(images, footprints) {
+  element("image-list").replaceChildren(...images.map(({ name }, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "link";
-    button.textContent = imageTitle(item);
+    button.textContent = name;
     button.addEventListener("click", () => map.fitBounds(turf.bbox(footprints[index]), { padding: 20 }));
     const entry = document.createElement("li");
     entry.append(button);
     return entry;
   }));
-  for (const id of ["images-label", "images"]) element(id).hidden = items.length === 1;
+  for (const id of ["images-label", "images"]) element(id).hidden = images.length === 1;
+}
+
+async function openAerialMapImagery(ids) {
+  const items = await Promise.all(ids.map(fetchItem));
+  const bounds = unionBounds(items.map((item) => item.bbox));
+  const latitude = (bounds[1] + bounds[3]) / 2;
+  // A mosaic is as sharp as its coarsest image; without the resolution of every image, the note stays hidden.
+  const resolutions = items.map((item) => item.properties.gsd).filter((gsd) => gsd > 0);
+  const gsd = resolutions.length === items.length ? Math.max(...resolutions) : undefined;
+  return {
+    summary: items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`,
+    images: items.map((item) => ({ name: imageTitle(item), bbox: orderedBounds(item.bbox), preview: `${itemUrl(item.id)}/preview.png?${renderQuery(item.properties.renders?.browse)}` })),
+    tileUrl: ids.length === 1 ? `${itemUrl(items[0].id)}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery(items[0].properties.renders?.browse)}` : mosaicTileUrl(ids),
+    bounds,
+    finest: gsd === undefined ? undefined : finestZoom(latitude, gsd),
+    gsd,
+  };
+}
+
+// TiTiler takes the tilejson maxzoom from the file's resolution (rio-tiler io/base.py _maxzoom).
+async function titilerImagery({ tileUrl, server, query, name }) {
+  const response = await fetch(`${server}/cog/WebMercatorQuad/tilejson.json?${query}`).catch((error) => {
+    if (!(error instanceof TypeError)) throw error;
+    throw new Error(`Browsers can't read ${name} from ${server}: the server doesn't send CORS headers or can't be reached.`, { cause: error });
+  });
+  if (!response.ok) throw new Error(`TiTiler could not read ${name} (HTTP ${response.status}).`);
+  const { bounds, maxzoom } = await response.json();
+  if (!Array.isArray(bounds) || !Number.isInteger(maxzoom)) throw new Error(`TiTiler didn't return bounds or maxzoom for ${name}.`);
+  return { summary: name, images: [{ name, bbox: bounds, preview: `${server}/cog/preview.png?${query}` }], tileUrl, bounds, finest: maxzoom, gsd: undefined };
+}
+
+function loadImagery(text) {
+  const titiler = parseTitilerUrl(text);
+  return titiler ? titilerImagery(titiler) : openAerialMapImagery(parseImageIdsFromLink(text, AREA_HINT));
 }
 
 function clearArea() {
@@ -225,22 +257,15 @@ element("setup").addEventListener("submit", (event) => {
     const isCurrent = () => load === state.load;
     try {
       await drawReady;
-      const ids = parseImageIdsFromLink(element("image").value);
       state.zoom = chosenZoom();
       state.cells = chosenCells();
-      setStatus(ids.length === 1 ? "Loading the image..." : `Loading ${ids.length} images...`);
-      const items = await Promise.all(ids.map(fetchItem));
+      setStatus("Loading the imagery...");
+      const { summary, images, tileUrl, bounds, finest, gsd } = await loadImagery(element("image").value);
       if (!isCurrent()) return;
-      const bounds = unionBounds(items.map((item) => item.bbox));
-      state.latitude = (bounds[1] + bounds[3]) / 2;
-      // A mosaic is as sharp as its coarsest image; without the resolution of every image, the note stays hidden.
-      const resolutions = items.map((item) => item.properties.gsd).filter((gsd) => gsd > 0);
-      state.gsd = resolutions.length === items.length ? Math.max(...resolutions) : undefined;
+      state.finest = finest;
+      state.gsd = gsd;
       showZoomProblem();
 
-      const tileUrl = ids.length === 1
-        ? `${itemUrl(items[0].id)}/tiles/WebMercatorQuad/{z}/{x}/{y}?${renderQuery(items[0].properties.renders?.browse)}`
-        : mosaicTileUrl(ids);
       if (map.getSource("imagery")) {
         map.removeLayer("imagery");
         map.removeSource("imagery");
@@ -251,13 +276,13 @@ element("setup").addEventListener("submit", (event) => {
       draw.clear();
       stopDrawing();
       clearArea();
-      foldSetup(items.length === 1 ? items[0].properties?.title ?? ids[0] : `${items.length} images`);
+      foldSetup(summary);
 
       let found = 0;
-      const showProgress = () => setStatus(ids.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${ids.length} images done...`);
+      const showProgress = () => setStatus(images.length === 1 ? "Finding the imagery footprint..." : `Finding the imagery footprint, ${found} of ${images.length} images done...`);
       showProgress();
-      const footprints = await Promise.all(items.map(async (item, index) => {
-        const footprint = await findFootprint(item);
+      const footprints = await Promise.all(images.map(async (image) => {
+        const footprint = await findFootprint(image);
         found += 1;
         if (isCurrent()) showProgress();
         return footprint;
@@ -270,10 +295,10 @@ element("setup").addEventListener("submit", (event) => {
       centreOnImagery();
 
       element("tile-url").textContent = tileUrl;
-      showImageList(items, footprints);
+      showImageList(images, footprints);
       element("details").hidden = false;
       for (const id of ["draw", "cover"]) element(id).disabled = false;
-      const imageListHint = items.length === 1 ? "" : " Click an image under Images to go to it.";
+      const imageListHint = images.length === 1 ? "" : " Click an image under Images to go to it.";
       setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
     } catch (error) {
       console.error(error);

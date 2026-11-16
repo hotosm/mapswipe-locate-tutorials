@@ -7,10 +7,23 @@ export function matchImageId(text) {
   return match ? match[1] ?? match[2] : null;
 }
 
-export function parseImageId(text) {
+export const AREA_HINT = "Paste an imagery.hotosm.org link, a Copy TMS URL, an image ID, the imagery merger's tile URL or a TiTiler /cog/ tile URL.";
+
+export function parseImageId(text, hint = IMAGE_HINT) {
   const id = matchImageId(text);
-  if (!id) throw new Error(IMAGE_HINT);
+  if (!id) throw new Error(hint);
   return id;
+}
+
+const TITILER_TILES = /^(https?:\/\/[^?]+?)\/cog\/tiles\/WebMercatorQuad\/\{z\}\/\{x\}\/\{y\}[^?]*(?:\?(.*))?$/;
+
+export function parseTitilerUrl(text) {
+  const match = text.trim().match(TITILER_TILES);
+  if (!match) return null;
+  const [tileUrl, server, query] = match;
+  const file = new URLSearchParams(query).get("url");
+  if (!file) throw new Error("The TiTiler tile URL needs a url= parameter that names the image file.");
+  return { tileUrl, server, query, name: file.split("?")[0].split("/").pop() };
 }
 
 // Drone mosaics pad their edges with white or black, which is not imagery.
@@ -114,10 +127,10 @@ export function finestZoom(latitude, gsdMetres) {
   return Math.round(Math.log2(cellMetres(latitude, 0, 256) / gsdMetres));
 }
 
-export function zoomProblem(zoom, latitude, gsdMetres) {
-  if (!(gsdMetres > 0)) return null;
-  const finest = finestZoom(latitude, gsdMetres);
-  return zoom > finest ? `This image's resolution (GSD) is ${Number(gsdMetres.toPrecision(2))} m, so zoom ${finest + 1} and higher enlarge it and look blurred. Choose zoom ${finest} or lower.` : null;
+export function zoomProblem(zoom, finest, gsdMetres) {
+  if (finest === undefined || zoom <= finest) return null;
+  if (!(gsdMetres > 0)) return `This image looks blurred at zoom ${finest + 1} and higher. Choose zoom ${finest} or lower.`;
+  return `This image's resolution (GSD) is ${Number(gsdMetres.toPrecision(2))} m, so zoom ${finest + 1} and higher enlarge it and look blurred. Choose zoom ${finest} or lower.`;
 }
 
 export const RASTER_API = "https://tiles.imagery.hotosm.org/raster";
