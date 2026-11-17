@@ -19,15 +19,37 @@
   <main>
     <form id="setup">
       <div class="card">
-        <h2>Load a finished project</h2>
-        <label>
-          <span>Project link</span>
-          <input id="project-link" type="url" placeholder="https://mapswipe.org/en/projects/..." required>
-        </label>
-        <label>
-          <span>Volunteer share (%)</span>
-          <input id="threshold" type="number" min="1" max="100" value="50">
-        </label>
+        <h2>Load tiles to label</h2>
+        <fieldset class="choices">
+          <legend>Source</legend>
+          <label><input type="radio" name="source" value="project" checked> MapSwipe project</label>
+          <label><input type="radio" name="source" value="area"> Tile URL and area</label>
+        </fieldset>
+        <fieldset id="project-source" class="source-fields">
+          <label>
+            <span>Project link</span>
+            <input id="project-link" type="url" placeholder="https://mapswipe.org/en/projects/..." required>
+          </label>
+          <label>
+            <span>Volunteer share (%)</span>
+            <input id="threshold" type="number" min="1" max="100" value="50">
+          </label>
+          <label class="tick"><input id="all-tiles" type="checkbox"> Also show tiles below the share</label>
+        </fieldset>
+        <fieldset id="area-source" class="source-fields" hidden disabled>
+          <label>
+            <span>Tile URL</span>
+            <input id="tile-template" type="text" placeholder="https://.../{z}/{x}/{y}..." required>
+          </label>
+          <label>
+            <span>Zoom</span>
+            <input id="area-zoom" type="number" min="14" max="22" value="20" required>
+          </label>
+          <label>
+            <span>Area (GeoJSON polygons)</span>
+            <input id="area-file" type="file" accept=".geojson,.json" required>
+          </label>
+        </fieldset>
         <label>
           <span>Model</span>
           <select id="model">
@@ -48,7 +70,7 @@
             <span>Values, separated by commas</span>
             <input id="attribute-values" type="text" placeholder="metal, roof_tiles, concrete">
           </label>
-          <p class="hint">Up to eight values, each with a button above the tile. Fields left empty take the project's saved settings when it loads again.</p>
+          <p class="hint">Up to eight values, each with a button above the tile. Fields left empty take the saved settings when the same tiles load again.</p>
         </fieldset>
         <div class="actions">
           <button type="submit">Load</button>
@@ -69,7 +91,7 @@
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-      <p class="hint">Tap an object, or drag around it. The bright cells inside the yellow line are the cells volunteers marked.</p>
+      <p class="hint">Tap an object, or drag around it.<span id="cells-hint"> The bright cells inside the yellow line reach the volunteer share.</span></p>
       <div id="tile-bar">
         <p id="dataset-count"></p>
         <div id="target-track" aria-hidden="true"><div id="target-bar"></div></div>
@@ -82,6 +104,7 @@
           <button id="next" type="button" class="secondary" disabled>Next</button>
         </div>
       </div>
+      <label id="focus-choice" class="tick"><input id="focus" type="checkbox" checked> Dim cells below the share</label>
       <fieldset class="choices">
         <legend>Output</legend>
         <label><input type="radio" name="mode" value="obb" checked> Boxes</label>

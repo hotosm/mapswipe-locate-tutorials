@@ -11,18 +11,29 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 1. Open the [auto labeller](../../builder/boxes.html).
 2. **Project link**: paste the project link, as in [View the results](../view-results.md#1-load-the-project).
 3. **Volunteer share (%)**: the share of volunteers who must mark a cell before it counts. Enter the share you chose in the results map, for example `50`.
-4. Leave **Model** as it is.
-5. **Object name**, under **What to label**: enter the object, for example `solar panel`.
-6. Click **Load**. The first marked tile opens.
-7. Wait until the status line says **Ready**. The first load downloads the EdgeTAM model (41 MB), which can take up to a minute (observed in the auto labeller).
+4. **Also show tiles below the share**: leave it unticked to label only the marked tiles. Tick it to also go through the other tiles volunteers saw, after the marked tiles, for objects they missed. Those tiles stay dark until you untick **Dim cells below the share**.
+5. Leave **Model** as it is.
+6. **Object name**, under **What to label**: enter the object, for example `solar panel`.
+7. Click **Load**. The first tile opens.
+8. Wait until the status line says **Ready**. The first load downloads the EdgeTAM model (41 MB), which can take up to a minute (observed in the auto labeller).
 
 **Try the Freetown example** loads the example project.
+
+??? note "Label without a MapSwipe project"
+    Under **Source**, choose **Tile URL and area**, then fill in:
+
+    - **Tile URL**: a URL with `{z}`, `{x}` and `{y}`, for example the tile URL from the [area finder](../../builder/area.html).
+    - **Zoom**: the zoom of the tiles to label, for example `20`. The imagery must serve two zoom levels deeper, so zoom 22 for 20.
+    - **Area (GeoJSON polygons)**: a file of Polygon or MultiPolygon features, for example `area-of-interest.geojson` from the area finder.
+
+    The auto labeller lists every tile the polygons touch; an area of more than 5,000 tiles shows an error.
 
 ## 2. Label each tile
 
 1. Tap the middle of each object. A box appears around it, and the counts in the side panel go up. Solar panels are the exception: touching panels form one array and get one box.
 2. When a box is wrong, click **Undo**, then drag a box close around the object, or click **Draw** to draw the box yourself. With **Boxes**, drag along one long side of the object, then tap its opposite side. With **Outlines**, one drag draws an upright box.
 3. Click **Next** for the next tile, and **Previous** to go back.
+4. With a MapSwipe project, untick **Dim cells below the share** to see the whole tile.
 
 ### Objects with types
 

@@ -1,3 +1,4 @@
+import { tileAt } from "./area-tools.js";
 import { imageryTemplate, passesThreshold, subGridSize, tileFractionToLonLat } from "./results-tools.js";
 
 export const TILE_PIXELS = 256;
@@ -5,17 +6,19 @@ export const TILE_PIXELS = 256;
 // A movement smaller than this across or down, in image pixels, is a tap; a larger one is a drag sent to the model as a box.
 export const DRAG_PIXELS = 6;
 
-export function keptTiles(rows, thresholdPercent) {
+export function keptTiles(rows, thresholdPercent, { allMapped = false } = {}) {
   const size = subGridSize(rows);
   const tiles = new Map();
   for (const row of rows) {
-    if (!passesThreshold(row, thresholdPercent)) continue;
+    const kept = passesThreshold(row, thresholdPercent);
+    if (!kept && !(allMapped && row.total_count > 0)) continue;
     if (!tiles.has(row.task_id)) {
       tiles.set(row.task_id, { id: row.task_id, x: row.tile_x, y: row.tile_y, zoom: row.tile_z, template: imageryTemplate(row), size, cells: [] });
     }
-    tiles.get(row.task_id).cells.push(row.task_partition_index);
+    if (kept) tiles.get(row.task_id).cells.push(row.task_partition_index);
   }
-  return [...tiles.values()].map((tile) => ({ ...tile, cells: tile.cells.toSorted((a, b) => a - b) }));
+  const listed = [...tiles.values()].map((tile) => ({ ...tile, cells: tile.cells.toSorted((a, b) => a - b) }));
+  return listed.toSorted((a, b) => Number(b.cells.length > 0) - Number(a.cells.length > 0));
 }
 
 // The imagery server answers a tile beyond the image edge with 404 "... is outside bounds".
@@ -66,10 +69,49 @@ export function maskBox(mask, width, height) {
   return right < 0 ? null : [left, top, right + 1, bottom + 1];
 }
 
-export function savedObjectsKey(rows, threshold) {
+export function savedObjectsKey(rows, threshold, { allMapped = false } = {}) {
   const project = rows[0]?.project_internal_id;
   if (project === undefined || project === null) throw new Error("The results have no project_internal_id column, so the objects cannot be saved for this project.");
-  return `box-helper-objects:${project}:${threshold}`;
+  return `box-helper-objects:${project}:${threshold}${allMapped ? ":all" : ""}`;
+}
+
+export function areaObjectsKey(template, zoom, fileName) {
+  return `box-helper-objects:area:${zoom}:${fileName}:${template}`;
+}
+
+export function parseTileTemplate(text) {
+  const template = text.trim();
+  if (!/^https:\/\//.test(template) || !["{z}", "{x}", "{y}"].every((part) => template.includes(part))) throw new Error("Paste a tile URL that starts with https:// and contains {z}, {x} and {y}.");
+  return template;
+}
+
+// Each listed tile needs one model run and an imagery request per sub-tile.
+export const MAX_AREA_TILES = 5000;
+const MAX_BOUNDING_TILES = 100 * MAX_AREA_TILES;
+
+// Covering a huge area tile by tile would freeze the page, so its bounding box is counted first.
+function boundingTileCount(ring, zoom) {
+  const [west, south, east, north] = ring.reduce(([w, s, e, n], [longitude, latitude]) => [Math.min(w, longitude), Math.min(s, latitude), Math.max(e, longitude), Math.max(n, latitude)], [Infinity, Infinity, -Infinity, -Infinity]);
+  const northWest = tileAt(west, north, zoom);
+  const southEast = tileAt(east, south, zoom);
+  return (southEast.x - northWest.x + 1) * (southEast.y - northWest.y + 1);
+}
+
+// `cover` is @mapbox/tile-cover's tiles(); the tiles are named zoom-x-y as MapSwipe names its tasks.
+export function areaTiles(geojson, zoom, template, cover) {
+  const { shapes } = polygonRings(geojson);
+  if (shapes.length === 0) throw new Error("The area file doesn't hold any polygons. Save the area as Polygon or MultiPolygon features in GeoJSON.");
+  const tooMany = new Error(`The area covers more than ${MAX_AREA_TILES.toLocaleString("en")} tiles at zoom ${zoom}. Draw a smaller area or choose a lower zoom.`);
+  if (shapes.reduce((sum, { ring }) => sum + boundingTileCount(ring, zoom), 0) > MAX_BOUNDING_TILES) throw tooMany;
+  const tiles = new Map();
+  for (const { ring } of shapes) {
+    for (const [x, y] of cover({ type: "Polygon", coordinates: [ring] }, { min_zoom: zoom, max_zoom: zoom })) {
+      const id = `${zoom}-${x}-${y}`;
+      if (!tiles.has(id)) tiles.set(id, { id, x, y, zoom, template, size: 1, cells: [] });
+    }
+    if (tiles.size > MAX_AREA_TILES) throw tooMany;
+  }
+  return [...tiles.values()].toSorted((a, b) => a.y - b.y || a.x - b.x);
 }
 
 // Saved objects for tiles outside this list are dropped; the saved tile is reopened when it is still listed.
@@ -265,14 +307,13 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, pix
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features };
 }
 
-export function datasetReadme({ projectName, projectLink, threshold, modelName, mode, objectName, attribute, values, tiles, objectCount, pixels, detailLevels }) {
+export function datasetReadme({ projectName, projectLink, threshold, allMapped, area, modelName, mode, objectName, attribute, values, tiles, objectCount, pixels, detailLevels }) {
   const templates = [...new Set(tiles.map((tile) => tile.template))];
   return `# ${projectName}
 
 YOLO ${OUTPUTS[mode].dataset} dataset of "${objectName}", marked with the Locate auto labeller.${attribute ? ` Each object has a \`${attribute}\` value, and each value is one class: ${values.join(", ")}.` : ""}
 
-- Project: ${projectLink}
-- Volunteer share: ${threshold}%
+${area ? `- Area: ${area}, zoom ${tiles[0].zoom}` : `- Project: ${projectLink}\n- Volunteer share: ${threshold}%${allMapped ? ", tiles below the share included" : ""}`}
 - Model: ${modelName}
 - Images: ${tiles.length}, objects: ${objectCount}
 

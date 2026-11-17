@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -16,6 +16,71 @@ test("only tiles with a kept cell are listed, each with its kept cells in order"
   assert.deepEqual(tiles[0].cells, [2, 9]);
   assert.equal(tiles[0].size, 4);
   assert.equal(tiles[0].template, "https://tiles.example/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=a.tif");
+});
+
+test("with all mapped tiles, a tile nobody marked is listed without cells after the marked tiles, and a tile nobody mapped is left out", () => {
+  const unmapped = grid("20-485850-499534", 485850, []).map((cell) => ({ ...cell, "0_count": 0, total_count: 0 }));
+  const tiles = keptTiles([...grid("20-485849-499534", 485849, []), ...grid("20-485848-499534", 485848, [9, 2]), ...unmapped], 50, { allMapped: true });
+  assert.deepEqual(tiles.map((tile) => [tile.id, tile.cells]), [["20-485848-499534", [2, 9]], ["20-485849-499534", []]]);
+});
+
+test("a tile URL needs https and {z}, {x} and {y}", () => {
+  assert.equal(parseTileTemplate(" https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=a.tif "), "https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=a.tif");
+  assert.throws(() => parseTileTemplate("https://tiles.example/{z}/{x}.png"), /\{z\}, \{x\} and \{y\}/);
+  assert.throws(() => parseTileTemplate("tiles.example/{z}/{x}/{y}.png"), /https:\/\//);
+  assert.throws(() => parseTileTemplate("http://tiles.example/{z}/{x}/{y}.png"), /https:\/\//);
+});
+
+const square = (west, south, size) => [[west, south], [west + size, south], [west + size, south + size], [west, south + size], [west, south]];
+const AREA = {
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [square(-13.19, 8.46, 0.001)] } },
+    { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: [[square(-13.18, 8.46, 0.001)]] } },
+    { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-13.19, 8.46] } },
+  ],
+};
+
+test("the area's tiles come from every polygon at the chosen zoom, once each, row by row, named zoom-x-y", () => {
+  const calls = [];
+  const cover = (geometry, options) => {
+    calls.push({ geometry, options });
+    return calls.length === 1 ? [[5, 3], [4, 3], [5, 2]] : [[5, 3], [9, 2]];
+  };
+  const tiles = areaTiles(AREA, 20, "https://tiles.example/{z}/{x}/{y}", cover);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], { geometry: { type: "Polygon", coordinates: [square(-13.19, 8.46, 0.001)] }, options: { min_zoom: 20, max_zoom: 20 } });
+  assert.deepEqual(tiles.map((tile) => tile.id), ["20-5-2", "20-9-2", "20-4-3", "20-5-3"]);
+  assert.deepEqual(tiles[0], { id: "20-5-2", x: 5, y: 2, zoom: 20, template: "https://tiles.example/{z}/{x}/{y}", size: 1, cells: [] });
+});
+
+test("an area without polygons, or with more tiles than the limit, is refused with a message", () => {
+  const point = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [0, 0] } };
+  assert.throws(() => areaTiles(point, 20, "https://tiles.example/{z}/{x}/{y}", () => []), /doesn't hold any polygons/);
+  const many = () => Array.from({ length: MAX_AREA_TILES + 1 }, (_, index) => [index, 0]);
+  assert.throws(() => areaTiles(AREA, 20, "https://tiles.example/{z}/{x}/{y}", many), /more than 5,000 tiles at zoom 20/);
+  const atLimit = () => Array.from({ length: MAX_AREA_TILES }, (_, index) => [index, 0]);
+  assert.equal(areaTiles(AREA, 20, "https://tiles.example/{z}/{x}/{y}", atLimit).length, MAX_AREA_TILES);
+});
+
+test("an area's saved labels are kept apart by tile URL, zoom and file name, and apart from any project", () => {
+  const key = areaObjectsKey("https://tiles.example/{z}/{x}/{y}", 20, "area.geojson");
+  assert.notEqual(key, areaObjectsKey("https://tiles.example/{z}/{x}/{y}", 21, "area.geojson"));
+  assert.notEqual(key, areaObjectsKey("https://tiles.example/{z}/{x}/{y}", 20, "other.geojson"));
+  assert.notEqual(key, areaObjectsKey("https://other.example/{z}/{x}/{y}", 20, "area.geojson"));
+  assert.ok(key.startsWith("box-helper-objects:area:"));
+});
+
+test("an area ring of 200,000 points is counted without overflowing the stack", () => {
+  const ring = Array.from({ length: 200000 }, (_, index) => [-13.19 + 0.001 * Math.cos((index / 200000) * 2 * Math.PI), 8.46 + 0.001 * Math.sin((index / 200000) * 2 * Math.PI)]);
+  ring.push(ring[0]);
+  const tiles = areaTiles({ type: "Polygon", coordinates: [ring] }, 20, "https://tiles.example/{z}/{x}/{y}", () => [[1, 1]]);
+  assert.deepEqual(tiles.map((tile) => tile.id), ["20-1-1"]);
+});
+
+test("an area far past the limit is refused from its bounding box before any tile is covered", () => {
+  const country = { type: "Polygon", coordinates: [square(80, 26, 4)] };
+  assert.throws(() => areaTiles(country, 20, "https://tiles.example/{z}/{x}/{y}", () => assert.fail("cover was called")), /more than 5,000 tiles/);
 });
 
 test("a tile two zoom levels deeper is 16 sub-tiles, row by row from the top left", () => {
@@ -103,6 +168,7 @@ test("number keys pick the value at their place in the list, and other keys pick
 
 test("objects are saved per project and share, and results without a project id fail with a message", () => {
   assert.equal(savedObjectsKey([{ project_internal_id: 3451 }], 50), "box-helper-objects:3451:50");
+  assert.equal(savedObjectsKey([{ project_internal_id: 3451 }], 50, { allMapped: true }), "box-helper-objects:3451:50:all");
   assert.throws(() => savedObjectsKey([{ task_id: "20-1-1" }], 50), /project_internal_id/);
   assert.throws(() => savedObjectsKey([{ project_internal_id: null }], 50), /project_internal_id/);
 });
@@ -202,6 +268,17 @@ test("the readme lists each imagery URL once and the QGIS zoom of the stitched s
   assert.match(readme, /set it to 22,/);
   assert.match(readme, /YOLO segmentation dataset of "tank"/);
   assert.match(readme, /Images: 2, objects: 3/);
+});
+
+test("a readme for tiles below the share says so after the share", () => {
+  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, allMapped: true, modelName: "EdgeTAM", mode: "segment", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
+  assert.match(readme, /- Volunteer share: 50%, tiles below the share included\n/);
+});
+
+test("a readme for an area names the area file and zoom in place of the project and share", () => {
+  const readme = datasetReadme({ projectName: "machangara", area: "machangara.geojson", threshold: null, modelName: "EdgeTAM", mode: "segment", objectName: "roof", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
+  assert.match(readme, /- Area: machangara.geojson, zoom 20\n/);
+  assert.doesNotMatch(readme, /Project:|Volunteer share/);
 });
 
 test("with tiles on two imagery URLs the readme lists both and asks for one connection each", () => {

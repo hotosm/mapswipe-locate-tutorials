@@ -61,6 +61,12 @@ input, select, textarea, button { font: inherit; padding: 6px 10px; border: 1px 
 input, select, textarea { color: var(--ink); background: var(--panel); }
 textarea { resize: vertical; }
 input[type="radio"], input[type="range"] { accent-color: var(--ink); }
+label.tick { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); cursor: pointer; }
+label.tick:has(input:disabled) { opacity: 0.4; cursor: not-allowed; }
+label.tick[hidden] { display: none; }
+label.tick input[type="checkbox"] { flex: none; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--ink); }
+.source-fields { align-items: stretch; gap: 12px; }
+.source-fields[hidden] { display: none; }
 
 button { background: var(--ink); color: var(--on-ink); border-color: var(--ink); font-weight: 500; cursor: pointer; }
 button:where(:hover:not(:disabled)) { background: var(--ink-hover); border-color: var(--ink-hover); }

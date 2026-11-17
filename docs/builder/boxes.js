@@ -4,10 +4,11 @@ import { simplify } from "https://cdn.jsdelivr.net/npm/@turf/simplify@7.4.0/+esm
 import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
 import { bboxClip } from "https://cdn.jsdelivr.net/npm/@turf/bbox-clip@7.4.0/+esm";
 import { booleanPointInPolygon } from "https://cdn.jsdelivr.net/npm/@turf/boolean-point-in-polygon@7.4.0/+esm";
+import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-cover@3.0.2/+esm";
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "./boxes-tools.js";
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
@@ -18,7 +19,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", threshold: 0, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -102,32 +103,42 @@ function showCounts() {
   const counts = valueCounts(state.tiles, state.objects, list);
   element("dataset-count").textContent = countText(objects, list, counts);
   element("tile-position").textContent = `Tile ${state.index + 1} of ${tiles}, ${tilesWithObjects} ${tilesWithObjects === 1 ? "tile" : "tiles"} labelled`;
-  element("tile-id").textContent = `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
+  element("tile-id").textContent = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
   const { percent, reached } = targetProgress(list.length > 0 ? Math.max(...counts) : objects, TARGET_OBJECTS);
   const bar = element("target-bar");
   bar.style.width = `${percent}%`;
   bar.classList.toggle("reached", reached);
 }
 
+function showCellsHint() {
+  element("cells-hint").hidden = state.area !== null || !element("focus").checked;
+}
+
+function focusOn() {
+  return element("focus").checked && !element("focus").disabled;
+}
+
 function drawObjects() {
   const context = boxCanvas.getContext("2d");
   context.clearRect(0, 0, PIXELS, PIXELS);
   const tile = currentTile();
-  context.fillStyle = "rgb(0 0 0 / 0.55)";
-  context.fillRect(0, 0, PIXELS, PIXELS);
-  for (const cell of tile.cells) {
-    const [x1, y1, x2, y2] = cellRectangle(cell, tile.size, PIXELS);
-    context.clearRect(x1, y1, x2 - x1, y2 - y1);
+  if (focusOn()) {
+    context.fillStyle = "rgb(0 0 0 / 0.55)";
+    context.fillRect(0, 0, PIXELS, PIXELS);
+    for (const cell of tile.cells) {
+      const [x1, y1, x2, y2] = cellRectangle(cell, tile.size, PIXELS);
+      context.clearRect(x1, y1, x2 - x1, y2 - y1);
+    }
+    context.lineWidth = 4;
+    context.strokeStyle = "#ffd400";
+    context.lineCap = "square";
+    context.beginPath();
+    for (const [[x1, y1], [x2, y2]] of markedAreaEdges(tile.cells, tile.size, PIXELS)) {
+      context.moveTo(x1, y1);
+      context.lineTo(x2, y2);
+    }
+    context.stroke();
   }
-  context.lineWidth = 4;
-  context.strokeStyle = "#ffd400";
-  context.lineCap = "square";
-  context.beginPath();
-  for (const [[x1, y1], [x2, y2]] of markedAreaEdges(tile.cells, tile.size, PIXELS)) {
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
-  }
-  context.stroke();
   context.lineCap = "butt";
   context.setLineDash([12, 8]);
   context.lineWidth = 2;
@@ -154,7 +165,7 @@ function updateControls() {
   element("download").disabled = state.busy || !loaded;
   element("download-images").disabled = state.busy || !loaded;
   element("labels-file").disabled = state.busy || !loaded;
-  for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
+  for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], input[name="source"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
 }
 
@@ -427,16 +438,57 @@ async function loadModel() {
   element("model-link").href = `https://huggingface.co/${choice.value}`;
 }
 
-async function load(link) {
+function chosenSource() {
+  return document.querySelector('input[name="source"]:checked').value;
+}
+
+// A hidden group is also disabled, so its required fields do not block the form.
+function showSourceFields() {
+  const area = chosenSource() === "area";
+  for (const [id, shown] of [["project-source", !area], ["area-source", area]]) {
+    element(id).hidden = !shown;
+    element(id).disabled = !shown;
+  }
+}
+
+async function projectSource() {
+  const link = element("project-link").value.trim();
   const threshold = Number(element("threshold").value);
+  const allMapped = element("all-tiles").checked;
   const { name, fileName, rows } = await loadProject(link, setStatus);
-  const tiles = keptTiles(rows, threshold);
-  if (tiles.length === 0) throw new Error("No cell reaches that share of volunteers. Lower the share and load again.");
-  const storageKey = savedObjectsKey(rows, threshold);
+  const tiles = keptTiles(rows, threshold, { allMapped });
+  if (tiles.length === 0) throw new Error(allMapped ? "None of the tiles in these results has a volunteer answer." : "None of the cells reaches that share of volunteers. Lower the share and load again.");
+  return { tiles, link, identity: link, storageKey: savedObjectsKey(rows, threshold, { allMapped }), name: fileName, projectName: name, threshold, allMapped, area: null, summary: `${name}, ${threshold}% share${allMapped ? ", tiles below the share included" : ""}` };
+}
+
+async function readArea(file) {
+  try {
+    const area = JSON.parse(await file.text());
+    if (typeof area?.type !== "string" || (area.type === "FeatureCollection" && !Array.isArray(area.features))) throw new Error(`${file.name} is not a GeoJSON object.`);
+    return area;
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    throw new Error(`${file.name} is not valid GeoJSON.`, { cause: error });
+  }
+}
+
+async function areaSource() {
+  const template = parseTileTemplate(element("tile-template").value);
+  const zoom = Number(element("area-zoom").value);
+  const [file] = element("area-file").files;
+  const tiles = areaTiles(await readArea(file), zoom, template, coverTiles);
+  const name = file.name.replace(/\.(geo)?json$/i, "");
+  const storageKey = areaObjectsKey(template, zoom, file.name);
+  return { tiles, link: "", identity: storageKey, storageKey, name, projectName: name, threshold: null, allMapped: false, area: file.name, summary: `${file.name}, zoom ${zoom}` };
+}
+
+async function load() {
+  const source = chosenSource() === "area" ? await areaSource() : await projectSource();
+  const { tiles, storageKey } = source;
   const saved = readSaved(storageKey);
   const restored = restoredObjects(saved, tiles);
-  const settings = labelSettings(enteredSettings(link), saved);
-  const objectName = settings.objectName || (link === EXAMPLE_PROJECT ? "solar panel" : "");
+  const settings = labelSettings(enteredSettings(source.identity), saved);
+  const objectName = settings.objectName || (source.identity === EXAMPLE_PROJECT ? "solar panel" : "");
   if (!objectName) {
     element("object-name").value = "";
     throw new Error("Enter the object name under What to label.");
@@ -444,13 +496,19 @@ async function load(link) {
   await loadModel();
   state.tiles = tiles;
   state.images = new Map();
-  state.name = fileName;
-  state.projectName = name;
-  state.projectLink = link;
-  state.threshold = threshold;
+  state.name = source.name;
+  state.projectName = source.projectName;
+  state.projectLink = source.link;
+  state.identity = source.identity;
+  state.threshold = source.threshold;
+  state.area = source.area;
+  state.allMapped = source.allMapped;
   state.storageKey = storageKey;
   state.objects = restored.objects;
-  foldSetup(`${name}, ${threshold}% share`);
+  element("focus").disabled = source.area !== null;
+  showCellsHint();
+  element("focus-choice").hidden = source.area !== null;
+  foldSetup(source.summary);
   element("stage-area").scrollIntoView({ block: "start" });
   element("object-name").value = objectName;
   element("attribute").value = settings.attribute;
@@ -461,10 +519,12 @@ async function load(link) {
 
 element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
-  work(() => load(element("project-link").value.trim()));
+  work(load);
 });
 
 element("example").addEventListener("click", () => {
+  document.querySelector('input[name="source"][value="project"]').checked = true;
+  showSourceFields();
   element("project-link").value = EXAMPLE_PROJECT;
   element("setup").requestSubmit();
 });
@@ -501,9 +561,13 @@ async function download() {
   zip.file("data.yaml", datasetYaml(list.length > 0 ? list : [objectName]));
   zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, pixels: PIXELS })));
   const objectCount = datasetCounts(tiles, state.objects).objects;
-  zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
-  await saveZip(zip, `${state.name}_yolo_${mode}_${state.threshold}.zip`);
+  zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
+  await saveZip(zip, zipName(`yolo_${mode}`));
   setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.`);
+}
+
+function zipName(kind) {
+  return state.threshold === null ? `${state.name}_${kind}.zip` : `${state.name}_${kind}_${state.threshold}.zip`;
 }
 
 async function saveZip(zip, fileName) {
@@ -515,14 +579,14 @@ async function saveZip(zip, fileName) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-// Every marked tile goes in, so the images can be labelled in another tool.
+// Every listed tile goes in, so the images can be labelled in another tool.
 async function downloadImages() {
   const zip = new JSZip();
   for (const [index, tile] of state.tiles.entries()) {
     setStatus(`Preparing image ${index + 1} of ${state.tiles.length}...`);
     zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
   }
-  await saveZip(zip, `${state.name}_images_${state.threshold}.zip`);
+  await saveZip(zip, zipName("images"));
   setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }
 
@@ -625,10 +689,10 @@ function fieldSettings() {
   return { objectName: element("object-name").value.trim(), attribute: attributeName(), values: element("attribute-values").value };
 }
 
-// For another project, a field left as it was when Change opened counts as empty, so that project's saved settings fill it.
-function enteredSettings(link) {
+// For other tiles, a field left as it was when Change opened counts as empty, so their saved settings fill it.
+function enteredSettings(identity) {
   const entered = fieldSettings();
-  if (!state.projectLink || link === state.projectLink) return entered;
+  if (!state.identity || identity === state.identity) return entered;
   return Object.fromEntries(Object.entries(entered).map(([key, value]) => [key, value === state.openedSettings[key] ? "" : value]));
 }
 
@@ -641,6 +705,11 @@ element("object-name").addEventListener("input", () => {
 element("attribute").addEventListener("input", changeValues);
 element("attribute-values").addEventListener("input", changeValues);
 element("download").addEventListener("click", () => work(download));
+for (const choice of document.querySelectorAll('input[name="source"]')) choice.addEventListener("change", showSourceFields);
+element("focus").addEventListener("change", () => {
+  showCellsHint();
+  if (state.tiles.length > 0) drawObjects();
+});
 element("download-images").addEventListener("click", () => work(downloadImages));
 element("labels-file").addEventListener("change", (event) => {
   const [file] = event.target.files;
