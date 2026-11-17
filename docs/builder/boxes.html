@@ -35,6 +35,10 @@
             <input id="threshold" type="number" min="1" max="100" value="50">
           </label>
           <label class="tick"><input id="all-tiles" type="checkbox"> Also show tiles below the share</label>
+          <label>
+            <span>Other imagery URL (optional)</span>
+            <input id="imagery-override" type="text" placeholder="https://.../{z}/{x}/{y}...">
+          </label>
         </fieldset>
         <fieldset id="area-source" class="source-fields" hidden disabled>
           <label>
@@ -59,9 +63,10 @@
         <fieldset id="what-to-label">
           <legend>What to label</legend>
           <label>
-            <span>Object name</span>
+            <span>Object name (the class)</span>
             <input id="object-name" type="text" placeholder="for example, solar panel">
           </label>
+          <p class="hint">Saved on every label as <code>object_name</code>.</p>
           <label>
             <span>Attribute (optional)</span>
             <input id="attribute" type="text" placeholder="roof:material">
@@ -70,7 +75,7 @@
             <span>Values, separated by commas</span>
             <input id="attribute-values" type="text" placeholder="metal, roof_tiles, concrete">
           </label>
-          <p class="hint">Up to eight values, each with a button above the tile. Fields left empty take the saved settings when the same tiles load again.</p>
+          <p class="hint">Up to eight values.</p>
         </fieldset>
         <div class="actions">
           <button type="submit">Load</button>
@@ -81,27 +86,37 @@
       </div>
     </form>
     <div id="stage-area">
-      <fieldset id="value-choices" class="choices" hidden></fieldset>
+      <div id="stage-tools">
+        <fieldset id="tool-choice" class="choices">
+          <legend>Label with</legend>
+          <label title="Switch with d"><input type="radio" name="tool" value="model" aria-keyshortcuts="D" checked disabled> Model (tap)</label>
+          <label title="Switch with d"><input type="radio" name="tool" value="hand" aria-keyshortcuts="D" disabled> Draw by hand</label>
+        </fieldset>
+        <fieldset id="value-choices" class="choices" hidden></fieldset>
+      </div>
       <div id="stage">
         <canvas id="tile-canvas" width="1024" height="1024"></canvas>
         <canvas id="box-canvas" width="1024" height="1024"></canvas>
-        <button id="draw" type="button" class="secondary" aria-pressed="false" disabled>Draw</button>
       </div>
     </div>
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-      <p class="hint">Tap an object, or drag around it.<span id="cells-hint"> The bright cells inside the yellow line reach the volunteer share.</span></p>
+      <p id="cells-hint" class="hint">Bright cells inside the yellow line reach the volunteer share.</p>
       <div id="tile-bar">
         <p id="dataset-count"></p>
         <div id="target-track" aria-hidden="true"><div id="target-bar"></div></div>
         <p id="tile-position"></p>
+        <div id="tile-track" aria-hidden="true"><div id="tile-bar-fill"></div></div>
         <p id="tile-id"></p>
         <p id="status" aria-live="polite"></p>
         <div>
-          <button id="previous" type="button" class="secondary" disabled>Previous</button>
-          <button id="undo" type="button" class="secondary" disabled>Undo</button>
-          <button id="next" type="button" class="secondary" disabled>Next</button>
+          <button id="previous" type="button" class="secondary" title="Previous tile (←)" aria-keyshortcuts="ArrowLeft" disabled>Previous</button>
+          <button id="next" type="button" class="secondary" title="Next tile (→)" aria-keyshortcuts="ArrowRight" disabled>Next</button>
+        </div>
+        <div class="tile-edit">
+          <button id="undo" type="button" class="secondary" title="Undo (z)" aria-keyshortcuts="Z" disabled>Undo</button>
+          <button id="clear" type="button" class="link" title="Remove every label on this tile" disabled>Clear tile</button>
         </div>
       </div>
       <label id="focus-choice" class="tick"><input id="focus" type="checkbox" checked> Dim cells below the share</label>
@@ -110,9 +125,16 @@
         <label><input type="radio" name="mode" value="obb" checked> Boxes</label>
         <label><input type="radio" name="mode" value="segment"> Outlines</label>
       </fieldset>
-      <p class="hint">With values, pick one above the tile, or press its number key, before you tap each object. Tap a label to give it the picked value.</p>
-      <button id="download" type="button" disabled>Download dataset</button>
-      <button id="download-images" type="button" class="secondary" disabled>Download tile images</button>
+      <p id="values-hint" class="hint" hidden>Pick a value with its button or <kbd>1</kbd> to <kbd>8</kbd>, then tap. Tap a label to change its value.</p>
+      <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>d</kbd> switch tool.</p>
+      <div id="download-row">
+        <select id="download-kind" aria-label="What to download" disabled>
+          <option value="labels" selected>Labels (GeoJSON)</option>
+          <option value="dataset">Full dataset (.zip)</option>
+          <option value="images">Tile images (.zip)</option>
+        </select>
+        <button id="download" type="button" disabled>Download</button>
+      </div>
       <label>
         <span>Load labels (GeoJSON)</span>
         <input id="labels-file" type="file" accept=".geojson,.json" disabled>

@@ -100,13 +100,13 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 
 1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and the **Object name**, for example `solar panel`, and click **Load**. **Also show tiles below the share** adds the other tiles volunteers saw, after the marked ones. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
 2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
-3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: drag along one side of the object, then tap the opposite side. A tap before any drag still asks the model. With **Outlines**, a drag keeps an upright box as drawn.
-4. Move between tiles with **Previous** and **Next**.
-5. Choose the **Output** and click **Download dataset**.
+3. When the result is wrong, press **Undo** (++"z"++), which removes the newest object on the tile, and drag closer. **Clear tile** removes every label on the tile, and **Undo** right after brings them back. When it stays wrong, choose **Draw by hand** above the tile (press ++"d"++). With **Boxes**, drag along one side of the object, then tap the opposite side. With **Outlines**, one drag draws an upright box. **Model (tap)** switches back.
+4. Move between tiles with **Previous** and **Next**, or the arrow keys.
+5. Choose the **Output** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
 
 For objects with types, **Attribute** and **Values** add a value to each label, such as `roof:material` with `metal, roof_tiles`. Pick a value with its button above the tile, or with its number key on a keyboard; [Objects with types](../guides/training-data/auto-labeller.md#objects-with-types) shows the steps.
 
-**Download tile images** saves every listed tile image, to label in another tool. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the listed tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
+**Tile images (.zip)** saves every listed tile image, to label in another tool. **Other imagery URL (optional)** labels the same tiles on other imagery. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the listed tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
 
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 
@@ -119,7 +119,7 @@ Every object keeps its outline, and its box is worked out from the outline, so t
 
 **Try the Freetown example** loads the [Freetown solar panel project](../examples/freetown-solar-panels.md).
 
-Without a MapSwipe project, choose **Tile URL and area** under **Source** ([steps](../guides/training-data/auto-labeller.md#1-load-the-project)). The auto labeller lists every tile the polygons touch; an area of more than 5,000 tiles shows an error.
+Without a MapSwipe project, choose **Tile URL and area** under **Source** ([steps](../guides/training-data/auto-labeller.md#1-load-the-project)).
 
 ??? note "What the download holds"
     The `.zip` file holds, for each tile with at least one object:
@@ -146,8 +146,8 @@ Without a MapSwipe project, choose **Tile URL and area** under **Source** ([step
 
     1. The page keeps the cells where Single Feature and Multiple Features answers together reach the chosen share, as the results map does, and lists every tile with at least one kept cell, then, with **Also show tiles below the share**, every other tile with a volunteer answer.
     2. Each tile is shown two zoom levels deeper than the project zoom: 16 imagery tiles joined into one 1024 by 1024 pixel image. For a zoom 20 project, the imagery must serve zoom 22 and send CORS headers. Parts beyond the edge of the image are black.
-    3. The EdgeTAM image encoder (`vision_encoder.onnx` in the [model repository](https://huggingface.co/onnx-community/EdgeTAM-ONNX/tree/main/onnx)) turns the tile into embeddings once, when the tile opens. [Transformers.js](https://huggingface.co/docs/transformers.js) runs it on the CPU with WebAssembly: with the Freetown example in Chromium on an Intel Core i9-14900HX laptop, about 1 second, and about 6 seconds with the CPU slowed four times. On an HTTPS page the browser keeps the model files ([`useBrowserCache`](https://huggingface.co/docs/transformers.js/api/env)).
-    4. A tap is sent to `prompt_encoder_mask_decoder.onnx` as one point, and a drag as a box with its centre point. Each takes under a second. The page keeps the candidate mask with the highest predicted quality score. A box drawn with **Draw** skips the model.
+    3. The EdgeTAM image encoder (`vision_encoder.onnx` in the [model repository](https://huggingface.co/onnx-community/EdgeTAM-ONNX/tree/main/onnx)) turns the tile into embeddings once, with the encoder in a background worker, while the tile before it is labelled. The previous, current and next tiles stay ready, so going back one tile doesn't read it again. [Transformers.js](https://huggingface.co/docs/transformers.js) runs it on the CPU with WebAssembly: with the Freetown example in Chromium on an Intel Core i9-14900HX laptop, about 1 second, and about 6 seconds with the CPU slowed four times. On an HTTPS page the browser keeps the model files ([`useBrowserCache`](https://huggingface.co/docs/transformers.js/api/env)).
+    4. A tap is sent to `prompt_encoder_mask_decoder.onnx` as one point, and a drag as a box with its centre point. Each takes under a second. The page keeps the candidate mask with the highest predicted quality score. A box drawn with **Draw by hand** skips the model.
     5. The outline is traced with [d3-contour](https://github.com/d3/d3-contour), keeps the largest shape and is simplified to within one pixel with [@turf/simplify](https://turfjs.org/docs/api/simplify). The box is the smallest rectangle around the outline's convex hull ([@turf/convex](https://turfjs.org/docs/api/convex)).
 
     The inputs were measured on 20 Freetown tiles with 36 hand-drawn reference boxes, counting a result as tight when it overlaps the reference box by at least 0.75. Simulated drags moved each edge of the reference box by a random share of its size.

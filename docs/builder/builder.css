@@ -175,16 +175,20 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #stage { grid-row: 2; position: relative; height: 100%; aspect-ratio: 1; max-width: 100%; }
 #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 4px; }
 #box-canvas { cursor: crosshair; touch-action: none; }
-#stage #draw { position: absolute; top: 8px; right: 8px; }
-#stage #draw[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
-#stage #draw[aria-pressed="true"]:where(:hover:not(:disabled)) { background: var(--ink-hover); border-color: var(--ink-hover); }
+#stage-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
+#tool-choice legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
+#download-row { display: flex; gap: 8px; }
+#download-row select { flex: 1; min-width: 0; }
+.hint kbd { padding: 0 4px; font: inherit; color: var(--ink); border: 1px solid var(--line-strong); border-radius: 3px; }
 #tile-bar { display: flex; flex-direction: column; gap: 6px; }
 #tile-bar p { margin: 0; font-size: 13px; }
 #tile-bar #dataset-count { font-size: 15px; font-weight: 700; }
-:is(#tile-bar, #target-summary) :is(#target-track, #spread-track) { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-:is(#tile-bar, #target-summary) :is(#target-bar, #spread-bar) { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
+:is(#tile-bar, #target-summary) :is(#target-track, #spread-track, #tile-track) { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+:is(#tile-bar, #target-summary) :is(#target-bar, #spread-bar, #tile-bar-fill) { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
 :is(#tile-bar, #target-summary) #target-bar.reached { background: var(--reached); }
 #tile-id { font-family: var(--mono); font-size: 12px; }
+#tile-bar #status { min-height: 2lh; }
+@media (hover: none) and (pointer: coarse) { #keys-hint { display: none; } }
 #tile-bar div { display: flex; gap: 8px; }
 #what-to-label { align-items: stretch; gap: 12px; }
 #what-to-label legend { margin-bottom: 12px; font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -195,7 +199,10 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #value-choices label { align-items: center; min-height: 44px; padding: 8px 14px; }
 #value-choices kbd { margin-right: 8px; font: 12px var(--mono); opacity: 0.7; }
 #value-choices .swatch { width: 14px; height: 14px; margin-right: 8px; border-radius: 3px; }
-#tile-bar button { flex: 1; }
+#tile-bar button { flex: 1; min-width: 0; }
+#tile-bar .tile-edit { align-items: center; justify-content: space-between; }
+#tile-bar .tile-edit button { flex: 0 1 auto; padding-inline: 16px; }
+#tile-bar .tile-edit button.link { padding: 0; font-size: 13px; }
 body.working #tile-canvas { opacity: 0.6; }
 
 /* The tile and its controls sit together in the middle, with the tile as tall as the screen allows. */
@@ -228,8 +235,8 @@ body.working #tile-canvas { opacity: 0.6; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
   #stage-area { grid-template-rows: auto auto; grid-template-columns: 100%; gap: 0; padding: 0; }
   #stage { width: 100%; height: auto; }
-  body.loaded:not(.editing):has(#tile-bar) { padding-bottom: 220px; }
-  body.loaded:not(.editing):has(#value-choices:not([hidden])) { padding-bottom: 280px; }
+  body.loaded:not(.editing):has(#tile-bar) { padding-bottom: 260px; }
+  body.loaded:not(.editing):has(#value-choices:not([hidden])) { padding-bottom: 320px; }
   #value-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; }
   #value-choices .attribute-name { grid-column: 1 / -1; margin: 0 0 4px; }
   #value-choices label { min-height: 40px; padding: 6px 8px; margin: 0; border-radius: 0; overflow-wrap: anywhere; }

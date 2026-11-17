@@ -11,8 +11,8 @@ Label Studio makes a training dataset to check the boxes on the tile images. It 
 ## 1. Download the tile images
 
 1. In the [auto labeller](../../builder/boxes.html), load the project.
-2. Click **Download tile images**.
-3. Unzip the file. It holds every marked tile as `images/<tile_id>.jpg`.
+2. Choose **Tile images (.zip)** next to **Download**, and click **Download**.
+3. Unzip the file. It holds every listed tile as `images/<tile_id>.jpg`.
 
 ![Download tile images in the auto labeller](../../assets/dataset/labeller-download-images.jpg)
 

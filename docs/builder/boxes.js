@@ -1,4 +1,4 @@
-import { AutoProcessor, EdgeTamModel, RawImage, Tensor } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0";
+import { AutoProcessor, EdgeTamModel, RawImage, Tensor, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0";
 import { contours } from "https://cdn.jsdelivr.net/npm/d3-contour@4.0.2/+esm";
 import { simplify } from "https://cdn.jsdelivr.net/npm/@turf/simplify@7.4.0/+esm";
 import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
@@ -8,7 +8,10 @@ import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-c
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "./boxes-tools.js";
+
+// The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
+env.backends.onnx.wasm.proxy = true;
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
@@ -19,12 +22,12 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
 
-// The model blocks the page while it runs, so the status is drawn first.
+// Image preprocessing and mask post-processing run on the page, so the status is drawn first.
 function nextPaint() {
   return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
 }
@@ -34,7 +37,7 @@ function outputMode() {
 }
 
 function orientedCorners(outline) {
-  return clampedCorners(rotatedBox(convex({ type: "Polygon", coordinates: [outline] }).geometry.coordinates[0]), PIXELS);
+  return clampedCorners(rotatedBox(convex({ type: "Polygon", coordinates: [outline] }).geometry.coordinates[0], PIXELS), PIXELS);
 }
 
 function shownRing({ outline }) {
@@ -105,6 +108,7 @@ function showCounts() {
   element("tile-position").textContent = `Tile ${state.index + 1} of ${tiles}, ${tilesWithObjects} ${tilesWithObjects === 1 ? "tile" : "tiles"} labelled`;
   element("tile-id").textContent = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
   const { percent, reached } = targetProgress(list.length > 0 ? Math.max(...counts) : objects, TARGET_OBJECTS);
+  element("tile-bar-fill").style.width = `${((state.index + 1) / tiles) * 100}%`;
   const bar = element("target-bar");
   bar.style.width = `${percent}%`;
   bar.classList.toggle("reached", reached);
@@ -161,10 +165,11 @@ function updateControls() {
   const loaded = state.tiles.length > 0;
   element("previous").disabled = state.busy || !loaded || state.index === 0;
   element("next").disabled = state.busy || !loaded || state.index === state.tiles.length - 1;
-  element("undo").disabled = state.busy || !loaded || currentObjects().length === 0;
-  element("draw").disabled = state.busy || !loaded;
+  element("undo").disabled = state.busy || !loaded || (currentObjects().length === 0 && !canRestore());
+  element("clear").disabled = state.busy || !loaded || currentObjects().length === 0;
+  for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
-  element("download-images").disabled = state.busy || !loaded;
+  element("download-kind").disabled = state.busy || !loaded;
   element("labels-file").disabled = state.busy || !loaded;
   for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], input[name="source"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
@@ -216,19 +221,35 @@ async function loadImage(url) {
   return createImageBitmap(await response.blob());
 }
 
+function tileImage(tile) {
+  return remembered(state.images, tile.id, () => stitchedImage(tile));
+}
+
 // The deeper sub-tiles are stitched into one image; it is kept so the download needs no second fetch.
-async function tileImage(tile) {
-  if (!state.images.has(tile.id)) {
-    const parts = await Promise.all(detailTiles(tile, DETAIL_LEVELS).map(async (part) => ({ ...part, image: await loadImage(part.url) })));
-    const canvas = new OffscreenCanvas(PIXELS, PIXELS);
-    const context = canvas.getContext("2d");
-    for (const { image, left, top } of parts.filter((part) => part.image)) {
-      context.drawImage(image, left, top, TILE_PIXELS, TILE_PIXELS);
-      image.close();
-    }
-    state.images.set(tile.id, await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 }));
+async function stitchedImage(tile) {
+  const parts = await Promise.all(detailTiles(tile, DETAIL_LEVELS).map(async (part) => ({ ...part, image: await loadImage(part.url) })));
+  const canvas = new OffscreenCanvas(PIXELS, PIXELS);
+  const context = canvas.getContext("2d");
+  for (const { image, left, top } of parts.filter((part) => part.image)) {
+    context.drawImage(image, left, top, TILE_PIXELS, TILE_PIXELS);
+    image.close();
   }
-  return state.images.get(tile.id);
+  return canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
+}
+
+// Transformers.js runs one model call at a time in the browser, so a tap waits for a read ahead in progress (https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/src/backends/onnx.js).
+function tilePrompt(tile) {
+  return remembered(state.prompts, tile.id, async () => {
+    const inputs = await state.processor(await RawImage.fromBlob(await tileImage(tile)));
+    return { inputs, embeddings: await state.model.get_image_embeddings(inputs) };
+  });
+}
+
+function readAhead(index) {
+  const kept = new Set([index - 1, index, index + 1].map((position) => state.tiles[position]?.id));
+  for (const id of state.prompts.keys()) if (!kept.has(id)) state.prompts.delete(id);
+  const next = state.tiles[index + 1];
+  if (next) tilePrompt(next);
 }
 
 async function showTile(index) {
@@ -247,9 +268,8 @@ async function showTile(index) {
   tileCanvas.getContext("2d").drawImage(await createImageBitmap(blob), 0, 0);
   setStatus(`${state.modelName} is reading the image...`);
   await nextPaint();
-  const inputs = await state.processor(await RawImage.fromBlob(blob));
-  const embeddings = await state.model.get_image_embeddings(inputs);
-  state.prompt = { inputs, embeddings };
+  state.prompt = await tilePrompt(tile);
+  readAhead(index);
   setStatus(currentObjects().length === 0 ? "Ready. Tap each object to label it." : `Ready. ${objectCount()}`);
 }
 
@@ -323,11 +343,17 @@ function drawRotated(start, end) {
     setStatus(state.side ? "Tap the opposite side of the object." : "Drag along one side of the object.");
     return;
   }
-  const outline = clampedCorners(rectangleFromSide(...state.side, end), PIXELS);
+  const rectangle = rectangleFromSide(...state.side, end);
   clearSide();
-  if (!isSide(outline[0], outline[1]) || !isSide(outline[1], outline[2])) {
+  if (!isSide(rectangle[0], rectangle[1]) || !isSide(rectangle[1], rectangle[2])) {
     drawObjects();
-    setStatus("That box has no width. Drag along one side of the object, then tap the opposite side.");
+    setStatus("That box doesn't have a width. Drag along one side of the object, then tap the opposite side.");
+    return;
+  }
+  const outline = bboxClip({ type: "Polygon", coordinates: [rectangle] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
+  if (!outline) {
+    drawObjects();
+    setStatus("That box is outside the tile. Draw it on the tile.");
     return;
   }
   currentObjects().push({ outline, source: "drawn by hand", ...newValue() });
@@ -360,7 +386,11 @@ boxCanvas.addEventListener("pointerup", (event) => {
     afterChange(`Set to ${attributeName()}: ${state.value}. ${objectCount()}`);
     return;
   }
-  if (box && drawing()) {
+  if (drawing()) {
+    if (!box) {
+      setStatus(toolHint());
+      return;
+    }
     objects.push({ outline: boxOutline(box), source: "drawn by hand", ...newValue() });
     afterChange(`Drawn by hand. ${objectCount()}`);
     return;
@@ -377,14 +407,21 @@ boxCanvas.addEventListener("pointerup", (event) => {
 });
 
 function drawing() {
-  return element("draw").getAttribute("aria-pressed") === "true";
+  return document.querySelector('input[name="tool"]:checked').value === "hand";
 }
 
-element("draw").addEventListener("click", () => {
-  element("draw").setAttribute("aria-pressed", String(!drawing()));
-  clearSide();
-  if (state.tiles.length > 0) drawObjects();
-});
+function toolHint() {
+  if (!drawing()) return "Model: tap an object, or drag around it.";
+  return outputMode() === "obb" ? "Drawing by hand: drag along one side of the object, then tap the opposite side." : "Drawing by hand: drag a box around the object.";
+}
+
+for (const tool of document.querySelectorAll('input[name="tool"]')) {
+  tool.addEventListener("change", () => {
+    clearSide();
+    if (state.tiles.length > 0) drawObjects();
+    setStatus(toolHint());
+  });
+}
 
 boxCanvas.addEventListener("pointercancel", () => {
   state.drag = null;
@@ -404,14 +441,30 @@ function afterChange(message) {
   }
 }
 
+function canRestore() {
+  return currentObjects().length === 0 && state.cleared?.tileId === currentTile()?.id;
+}
+
 element("undo").addEventListener("click", () => {
   if (state.side) {
     clearSide();
     drawObjects();
     return;
   }
+  if (canRestore()) {
+    currentObjects().push(...state.cleared.objects);
+    state.cleared = null;
+    afterChange(`Brought back the cleared labels. ${objectCount()}`);
+    return;
+  }
   currentObjects().pop();
   afterChange(objectCount());
+});
+
+element("clear").addEventListener("click", () => {
+  const objects = currentObjects();
+  state.cleared = { tileId: currentTile().id, objects: objects.splice(0) };
+  afterChange(`Cleared the tile. Undo brings the labels back. ${objectCount()}`);
 });
 
 function showError(error) {
@@ -457,10 +510,15 @@ async function projectSource() {
   const link = element("project-link").value.trim();
   const threshold = Number(element("threshold").value);
   const allMapped = element("all-tiles").checked;
-  const { name, fileName, rows } = await loadProject(link, setStatus);
-  const tiles = keptTiles(rows, threshold, { allMapped });
+  const imagery = element("imagery-override").value.trim();
+  const template = imagery ? parseTileTemplate(imagery) : null;
+  // MapSwipe results are fetched once per link; reloading the page fetches them again.
+  if (state.results?.link !== link) state.results = { link, ...(await loadProject(link, setStatus)) };
+  const { name, fileName, rows } = state.results;
+  const listed = keptTiles(rows, threshold, { allMapped });
+  const tiles = template ? listed.map((tile) => ({ ...tile, template })) : listed;
   if (tiles.length === 0) throw new Error(allMapped ? "None of the tiles in these results has a volunteer answer." : "None of the cells reaches that share of volunteers. Lower the share and load again.");
-  return { tiles, link, identity: link, storageKey: savedObjectsKey(rows, threshold, { allMapped }), name: fileName, projectName: name, threshold, allMapped, area: null, summary: `${name}, ${threshold}% share${allMapped ? ", tiles below the share included" : ""}` };
+  return { tiles, link, identity: link, storageKey: savedObjectsKey(rows, threshold, { allMapped }), name: fileName, projectName: name, threshold, allMapped, area: null, summary: `${name}, ${threshold}% share${allMapped ? ", tiles below the share included" : ""}${template ? ", own imagery" : ""}` };
 }
 
 async function readArea(file) {
@@ -491,13 +549,11 @@ async function load() {
   const restored = restoredObjects(saved, tiles);
   const settings = labelSettings(enteredSettings(source.identity), saved);
   const objectName = settings.objectName || (source.identity === EXAMPLE_PROJECT ? "solar panel" : "");
-  if (!objectName) {
-    element("object-name").value = "";
-    throw new Error("Enter the object name under What to label.");
-  }
   await loadModel();
   state.tiles = tiles;
   state.images = new Map();
+  state.prompts = new Map();
+  state.cleared = null;
   state.name = source.name;
   state.projectName = source.projectName;
   state.projectLink = source.link;
@@ -532,9 +588,14 @@ element("example").addEventListener("click", () => {
 
 // Only tiles with an object go in the dataset, so skipping past a tile never adds it as an image without objects.
 async function download() {
+  const kind = element("download-kind").value;
+  if (kind === "images") {
+    await downloadImages();
+    return;
+  }
   const objectName = element("object-name").value.trim();
   if (!objectName) {
-    setStatus("Enter the object name: click Change, fill in Object name, then Cancel.");
+    setStatus("Enter the object name under Change.");
     return;
   }
   const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
@@ -551,6 +612,12 @@ async function download() {
   const list = values();
   const mode = outputMode();
   const shaped = mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
+  const geojson = JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, pixels: PIXELS }));
+  if (kind === "labels") {
+    saveBlob(new Blob([geojson], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
+    setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.`);
+    return;
+  }
   const zip = new JSZip();
   for (const [index, tile] of tiles.entries()) {
     setStatus(`Preparing image ${index + 1} of ${tiles.length}...`);
@@ -560,20 +627,23 @@ async function download() {
     zip.file(`labels/${tile.id}.txt`, labels);
   }
   zip.file("data.yaml", datasetYaml(list.length > 0 ? list : [objectName]));
-  zip.file("labels.geojson", JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, pixels: PIXELS })));
+  zip.file("labels.geojson", geojson);
   const objectCount = datasetCounts(tiles, state.objects).objects;
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
-  await saveZip(zip, zipName(`yolo_${mode}`));
+  await saveZip(zip, outputName(`yolo_${mode}`, "zip"));
   setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.`);
 }
 
-function zipName(kind) {
-  return state.threshold === null ? `${state.name}_${kind}.zip` : `${state.name}_${kind}_${state.threshold}.zip`;
+function outputName(kind, extension) {
+  return state.threshold === null ? `${state.name}_${kind}.${extension}` : `${state.name}_${kind}_${state.threshold}.${extension}`;
 }
 
 async function saveZip(zip, fileName) {
+  saveBlob(await zip.generateAsync({ type: "blob" }, ({ percent }) => setStatus(`Packing ${fileName}, ${Math.floor(percent)}%...`)), fileName);
+}
+
+function saveBlob(blob, fileName) {
   const link = document.createElement("a");
-  const blob = await zip.generateAsync({ type: "blob" }, ({ percent }) => setStatus(`Packing ${fileName}, ${Math.floor(percent)}%...`));
   link.href = URL.createObjectURL(blob);
   link.download = fileName;
   link.click();
@@ -587,7 +657,7 @@ async function downloadImages() {
     setStatus(`Preparing image ${index + 1} of ${state.tiles.length}...`);
     zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
   }
-  await saveZip(zip, zipName("images"));
+  await saveZip(zip, outputName("images", "zip"));
   setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }
 
@@ -655,10 +725,20 @@ function pickValue(value) {
   if (!state.busy) setStatus(`Picked ${attributeName()}: ${value}.`);
 }
 
+// A shortcut clicks its control, so a disabled control ignores it; arrow keys on a focused choice keep moving between its options.
 document.addEventListener("keydown", (event) => {
   const { classList } = document.body;
-  if (event.altKey || event.ctrlKey || event.metaKey || !classList.contains("loaded") || classList.contains("editing")) return;
-  if (event.target.closest('input:not([type="radio"]), select, textarea')) return;
+  if (!classList.contains("loaded") || classList.contains("editing")) return;
+  if (event.target.closest('input:not([type="radio"]):not([type="checkbox"]), select, textarea')) return;
+  const action = keyAction(event.key, event);
+  if (action && !(event.target.matches('input[type="radio"]') && (action === "previous" || action === "next"))) {
+    event.preventDefault();
+    if (action === "undo" && event.repeat) return;
+    const control = action === "tool" ? document.querySelector('input[name="tool"]:not(:checked)') : element(action);
+    control.click();
+    return;
+  }
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
   const value = valueForKey(event.key, values());
   if (value !== null) pickValue(value);
 });
@@ -667,6 +747,7 @@ function showValueChoices() {
   const list = values();
   const choices = element("value-choices");
   choices.hidden = list.length === 0;
+  element("values-hint").hidden = list.length === 0;
   if (!list.includes(state.value)) state.value = list[0] ?? "";
   const legend = document.createElement("legend");
   legend.textContent = attributeName();
@@ -711,9 +792,11 @@ element("focus").addEventListener("change", () => {
   showCellsHint();
   if (state.tiles.length > 0) drawObjects();
 });
-element("download-images").addEventListener("click", () => work(downloadImages));
 element("labels-file").addEventListener("change", (event) => {
   const [file] = event.target.files;
   event.target.value = "";
-  if (file) work(() => loadLabels(file));
+  if (file) {
+    state.cleared = null;
+    work(() => loadLabels(file));
+  }
 });

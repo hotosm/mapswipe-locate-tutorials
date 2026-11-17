@@ -75,6 +75,18 @@ export function savedObjectsKey(rows, threshold, { allMapped = false } = {}) {
   return `box-helper-objects:${project}:${threshold}${allMapped ? ":all" : ""}`;
 }
 
+// A promise is kept while it runs, so a tile still being read ahead is read once; a failed one is forgotten, so the next try starts again.
+export function remembered(map, key, create) {
+  if (!map.has(key)) {
+    const value = create();
+    value.catch(() => {
+      if (map.get(key) === value) map.delete(key);
+    });
+    map.set(key, value);
+  }
+  return map.get(key);
+}
+
 export function areaObjectsKey(template, zoom, fileName) {
   return `box-helper-objects:area:${zoom}:${fileName}:${template}`;
 }
@@ -129,6 +141,13 @@ export function labelSettings(entered, saved) {
     attribute: attributeEntered ? entered.attribute : saved?.attribute ?? "",
     values: attributeEntered ? entered.values : saved?.values ?? "",
   };
+}
+
+// Ctrl or Cmd with Shift and Z is redo in most programs, so it is left alone.
+export function keyAction(key, { ctrlKey = false, metaKey = false, altKey = false, shiftKey = false } = {}) {
+  if (altKey) return null;
+  if (ctrlKey || metaKey) return key.toLowerCase() === "z" && !shiftKey ? "undo" : null;
+  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool" }[key] ?? null;
 }
 
 // Number keys 1 to 9 pick the value at that place in the list.
@@ -197,9 +216,11 @@ export function boxOutline([x1, y1, x2, y2]) {
   return [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
 }
 
-// The smallest rectangle around a convex ring has one side along a ring edge (Freeman and Shapira, 1975), so each edge is tried.
-export function rotatedBox(hull) {
+// The smallest rectangle around a convex ring has a side along a ring edge (Freeman and Shapira, 1975); the smallest one inside the image wins.
+export function rotatedBox(hull, pixels = Infinity) {
+  const fits = (corners) => corners.flat().every((value) => value >= -0.5 && value <= pixels + 0.5);
   let best = null;
+  let bestInside = null;
   for (let index = 0; index < hull.length - 1; index++) {
     const [[x1, y1], [x2, y2]] = [hull[index], hull[index + 1]];
     const length = Math.hypot(x2 - x1, y2 - y1);
@@ -209,11 +230,11 @@ export function rotatedBox(hull) {
     const across = hull.map(([x, y]) => y * alongX - x * alongY);
     const [start, end, near, far] = [Math.min(...along), Math.max(...along), Math.min(...across), Math.max(...across)];
     const area = (end - start) * (far - near);
-    if (best && area >= best.area) continue;
     const corners = [[start, near], [end, near], [end, far], [start, far]].map(([a, c]) => [a * alongX - c * alongY, a * alongY + c * alongX]);
-    best = { area, corners };
+    if (!best || area < best.area) best = { area, corners };
+    if (fits(corners) && (!bestInside || area < bestInside.area)) bestInside = { area, corners };
   }
-  return best.corners;
+  return (bestInside ?? best).corners;
 }
 
 // The YOLO OBB format takes corners between 0 and 1, so corners past the image edge are moved onto it.

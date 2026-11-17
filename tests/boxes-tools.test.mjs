@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -154,6 +154,20 @@ test("filled setup fields win over the saved settings, and empty ones take the s
   assert.deepEqual(labelSettings({ objectName: "tree", attribute: "natural", values: "tree, tree_group" }, saved), { objectName: "tree", attribute: "natural", values: "tree, tree_group" });
   assert.deepEqual(labelSettings({ objectName: "", attribute: "natural", values: "" }, saved), { objectName: "building", attribute: "natural", values: "" });
   assert.deepEqual(labelSettings({ objectName: "", attribute: "", values: "" }, null), { objectName: "", attribute: "", values: "" });
+});
+
+test("arrow keys move between tiles, Z undoes with or without Ctrl or Cmd but not with Shift as well, D switches the tool, and other keys do nothing", () => {
+  assert.equal(keyAction("ArrowLeft"), "previous");
+  assert.equal(keyAction("ArrowRight"), "next");
+  assert.equal(keyAction("z"), "undo");
+  assert.equal(keyAction("Z"), "undo");
+  assert.equal(keyAction("z", { ctrlKey: true }), "undo");
+  assert.equal(keyAction("z", { metaKey: true }), "undo");
+  assert.equal(keyAction("d"), "tool");
+  assert.equal(keyAction("d", { ctrlKey: true }), null);
+  assert.equal(keyAction("Z", { ctrlKey: true, shiftKey: true }), null);
+  assert.equal(keyAction("ArrowRight", { altKey: true }), null);
+  assert.equal(keyAction("1"), null);
 });
 
 test("number keys pick the value at their place in the list, and other keys pick nothing", () => {
@@ -309,6 +323,17 @@ test("the rotated box of an upright rectangle with a point midway along a side i
   assert.deepEqual(sortedPoints(rotatedBox(rectangle)), sortedPoints([[100, 100], [300, 100], [300, 150], [100, 150]]));
 });
 
+test("a rotated box cut at the image edge gets the smallest box inside the image, with square corners", () => {
+  const cut = [[900, 100], [1000, 200], [1024, 176], [1024, 64], [980, 20], [900, 100]];
+  const corners = rotatedBox(cut, 1024);
+  assert.ok(corners.flat().every((value) => value >= 0 && value <= 1024));
+  for (let index = 0; index < 4; index++) {
+    const [a, b, c] = [corners[index], corners[(index + 1) % 4], corners[(index + 2) % 4]];
+    assert.ok(Math.abs((b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1])) < 1e-6);
+  }
+  assert.ok(rotatedBox(cut).flat().some((value) => value > 1024));
+});
+
 test("a hand-drawn rotated box runs from the dragged side to the tapped side, on either side of it", () => {
   assert.deepEqual(rectangleFromSide([100, 100], [300, 100], [250, 160]), [[100, 100], [300, 100], [300, 160], [100, 160], [100, 100]]);
   assert.deepEqual(rectangleFromSide([100, 100], [300, 100], [250, 40]), [[100, 100], [300, 100], [300, 40], [100, 40], [100, 100]]);
@@ -400,4 +425,20 @@ test("the target line is reached at the target and stays full past it", () => {
   assert.deepEqual(targetProgress(999, 1000), { percent: 99.9, reached: false });
   assert.deepEqual(targetProgress(1000, 1000), { percent: 100, reached: true });
   assert.deepEqual(targetProgress(1500, 1000), { percent: 100, reached: true });
+});
+
+test("a promise still running is shared for its key, and a failed one is dropped so the next call starts again", async () => {
+  const map = new Map();
+  let calls = 0;
+  const pending = remembered(map, "tile", () => {
+    calls += 1;
+    return new Promise(() => {});
+  });
+  assert.equal(remembered(map, "tile", () => assert.fail("created twice")), pending);
+  assert.equal(calls, 1);
+  const failed = remembered(map, "broken", () => Promise.reject(new Error("offline")));
+  await assert.rejects(failed, /offline/);
+  const retried = remembered(map, "broken", () => Promise.resolve("ok"));
+  assert.notEqual(retried, failed);
+  assert.equal(await retried, "ok");
 });
