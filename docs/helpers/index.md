@@ -99,14 +99,14 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 ![Two taps and a drag mark three solar panel groups, then the outlines show](../assets/helpers/auto-labeller-laptop.gif){ loading=lazy }
 
 1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and the **Object name**, for example `solar panel`, and click **Load**. **Also show tiles below the share** adds the other tiles volunteers saw, after the marked ones. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
-2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
-3. When the result is wrong, press **Undo** (++"z"++), which removes the newest object on the tile, and drag closer. **Clear tile** removes every label on the tile, and **Undo** right after brings them back. When it stays wrong, choose **Draw by hand** above the tile (press ++"d"++). With **Boxes**, drag along one side of the object, then tap the opposite side. With **Outlines**, one drag draws an upright box. **Model (tap)** switches back.
+2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** under **Settings** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
+3. When the result is wrong, press **Undo** (++"z"++) and drag closer. **Clear tile** removes every label on the tile, and **Undo** right after brings them back. When it stays wrong, choose **Draw by hand** above the tile (press ++"d"++) and drag a box around the object. For an angled box on a keyboard with **Output** set to **Boxes**, hold ++shift++, drag along one side, then tap the opposite side. **Model (tap)** switches back.
 4. Move between tiles with **Previous** and **Next**, or the arrow keys.
-5. Choose the **Output** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
+5. Choose the **Output** under **Settings** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
 
 For objects with types, **Attribute** and **Values** add a value to each label, such as `roof:material` with `metal, roof_tiles`. Pick a value with its button above the tile, or with its number key on a keyboard; [Objects with types](../guides/training-data/auto-labeller.md#objects-with-types) shows the steps.
 
-**Tile images (.zip)** saves every listed tile image, to label in another tool. **Other imagery URL (optional)** labels the same tiles on other imagery. **Load labels (GeoJSON)** puts polygons drawn in QGIS or taken from OpenStreetMap on the listed tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
+**Tile images (.zip)** saves every listed tile image, to label in another tool. **Other imagery URL (optional)** labels the same tiles on other imagery. **Load labels (GeoJSON)**, under **Settings**, puts polygons drawn in QGIS or taken from OpenStreetMap on the listed tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
 
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 
@@ -115,7 +115,7 @@ For objects with types, **Attribute** and **Values** add a value to each label, 
 | **Boxes** | The smallest box around the outline, at any angle | Oriented bounding boxes, OBB ([format](https://docs.ultralytics.com/datasets/obb/)) |
 | **Outlines** | The outline of each object | Segmentation ([format](https://docs.ultralytics.com/datasets/segment/)) |
 
-Every object keeps its outline, and its box is worked out from the outline, so the **Output** can change at any time. The objects stay in the browser: loading the same project with the same share and tile choice, or the same tile URL, zoom and area file name, brings them back.
+Every object keeps its outline, and its box is worked out from the outline, so the **Output** can change at any time. The labels and the **What to label** fields are saved in the browser after each change, per project, or per tile URL, zoom and area file name. [Come back later](../guides/training-data/auto-labeller.md#come-back-later) shows how to continue.
 
 **Try the Freetown example** loads the [Freetown solar panel project](../examples/freetown-solar-panels.md).
 

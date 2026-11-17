@@ -32,9 +32,11 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 ## 2. Label each tile
 
 1. Tap the middle of each object. A box appears around it, and the counts in the side panel go up. Solar panels are the exception: touching panels form one array and get one box.
-2. When a box is wrong, click **Undo** (++"z"++), then drag a box close around the object, or choose **Draw by hand** above the tile (press ++"d"++). With **Boxes**, drag along one side of the object, then tap its opposite side. With **Outlines**, one drag draws an upright box. **Model (tap)** switches back. **Clear tile** removes every label on the tile, and **Undo** right after brings them back.
-3. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. The next tile loads while you label.
-4. With a MapSwipe project, untick **Dim cells below the share** to see the whole tile.
+2. When a box is wrong, click **Undo** (++"z"++) and drag a box close around the object.
+3. When that fails, choose **Draw by hand** above the tile (++"d"++) and drag a box around it. For an angled box on a keyboard with **Output** set to **Boxes**, hold ++shift++, drag along one side, then tap the opposite side. **Model (tap)** switches back.
+4. **Clear tile** removes every label on the tile, and **Undo** right after brings them back.
+5. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
+6. With a MapSwipe project, cells below the share are dimmed. To see the whole tile, open **Settings** and untick **Dim cells below the share**.
 
 ### Objects with types
 
@@ -42,17 +44,29 @@ When each object needs an attribute, such as `roof:material` for buildings or `n
 
 1. **Object name**: enter the object, for example `building`.
 2. **Attribute (optional)**: enter the attribute name, for example `roof:material`.
-3. **Values, separated by commas**: enter the values, for example `metal, roof_tiles, concrete`. Up to eight values. One button per value appears above the tile, each with its own colour and number. Set both before **Load labels (GeoJSON)**: each loaded feature then keeps its value of that attribute.
-4. Click the button of a value, or press its number key on a keyboard (`1` for the first value), then tap each object of that type. The label takes the value's colour, and the bold line shows the count of each value. The bar fills with the count of the most common value, so it turns green when one value reaches 1,000. Label every object on the tile, including objects of a value that stays far below 1,000 ([Number of labels](../what-to-deliver.md#number-of-labels)).
+3. **Values, separated by commas**: enter the values, for example `metal, roof_tiles, concrete`. Up to eight values. One button per value appears above the tile, each with its own colour and number. For a file from QGIS or OpenStreetMap, set the attribute and values before **Load labels (GeoJSON)**, so each feature keeps its value.
+4. Click the button of a value, or press its number key on a keyboard (`1` for the first value), then tap each object of that type. The label takes the value's colour. Label every object on the tile, including objects of a value that stays far below 1,000 ([Number of labels](../what-to-deliver.md#number-of-labels)).
 5. To change a label's value, pick the right value, then tap inside the label. The status line says, for example, "Set to roof:material: metal". Where labels overlap, the tap changes the one drawn last.
 
-A grey label doesn't have a listed value, for example one made before the values were set. **Download** names how many labels are grey and saves the file once each one has a value. The object name, attribute and values stay in the browser with the labels, so they fill the empty fields when the same project loads again. In the download, each value is one class in `data.yaml`, and each feature of `labels.geojson` carries its value under the attribute name.
+The bold line in the side panel names the most common value and its count, and the bar under it turns green when that value reaches 1,000. On screens wider than 800 pixels, a table under the bar counts each value and the labels without one.
+
+A grey label doesn't have a listed value, for example one made before the values were set. **Download** names how many labels are grey and saves the file once each one has a value. In the download, each value is one class in `data.yaml`, and each feature of `labels.geojson` carries its value under the attribute name.
 
 ## 3. Download the dataset
 
-1. **Output**: choose **Boxes** for objects such as solar panels or boats, and **Outlines** for buildings and other shapes that follow their edges.
+1. **Output**, under **Settings**: choose **Boxes** for objects such as solar panels or boats, and **Outlines** for buildings and other shapes that follow their edges.
 2. Click **Download**. **Labels (GeoJSON)**, the default, saves only the labels. Choose **Full dataset (.zip)** for the YOLO dataset with images.
 
 <video src="../../assets/dataset/labeller.mp4" autoplay loop muted playsinline aria-label="Loading the project, tapping two solar arrays, moving to the next tile and downloading the dataset"></video>
 
 Then [check the dataset](index.md#check-the-dataset).
+
+## Come back later
+
+The auto labeller saves the labels and the **What to label** fields in the browser after each change. The line under **Download** shows the time of the last save. A red message above the bold count in the side panel means the last change wasn't saved.
+
+When the page opens again, or after **Change**, **Continue where you left off** lists the saved projects and areas. **Continue** opens one at the tile you left. **Remove** deletes its saved labels and settings from the browser; the open project shows only **Continue**. The labels stay when you change the share or **Also show tiles below the share**. They stay until you remove them or delete the site's data in the browser settings. A browser can also delete them when the disk runs low. Safari, with cross-site tracking prevention on, deletes them when the site goes seven days of browser use without a click or tap ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)).
+
+To continue on another computer, or to keep a copy, download **Labels (GeoJSON)**. On the other computer, load the same project, or the same tile URL, zoom and area file, then open **Settings** and choose the file under **Load labels (GeoJSON)**. Each label goes back on its tile with its value. An empty **Object name** or **Attribute** field is filled from the file, with its values. Labels from an auto labeller file that are already on a tile aren't added twice. A file downloaded with **Output** set to **Boxes** holds only boxes; download with **Outlines** to keep the outlines.
+
+A project or area opens in one tab at a time. When a save fails or is still running, the browser asks before the page closes.

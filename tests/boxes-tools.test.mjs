@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -138,11 +138,11 @@ test("values are counted over the listed tiles, and labels without a listed valu
   assert.equal(objectsWithoutValue(tiles, objects, ["metal", "roof_tiles"]), 2);
 });
 
-test("restored objects keep only listed tiles and reopen the saved tile, or the first tile when it is gone", () => {
+test("restored objects keep labels on unlisted tiles and reopen the saved tile, or the first tile when it is gone", () => {
   const tiles = [{ id: "20-1-1" }, { id: "20-2-1" }];
   const object = { outline: [[0, 0], [10, 0], [10, 10], [0, 0]] };
   const restored = restoredObjects({ tile: "20-2-1", objects: { "20-2-1": [object], "20-9-9": [object] } }, tiles);
-  assert.deepEqual([...restored.objects], [["20-2-1", [object]]]);
+  assert.deepEqual([...restored.objects], [["20-2-1", [object]], ["20-9-9", [object]]]);
   assert.equal(restored.index, 1);
   assert.equal(restoredObjects({ tile: "20-9-9", objects: {} }, tiles).index, 0);
   assert.deepEqual(restoredObjects(null, tiles), { objects: new Map(), index: 0 });
@@ -180,11 +180,41 @@ test("number keys pick the value at their place in the list, and other keys pick
   assert.equal(valueForKey("12", list), null);
 });
 
-test("objects are saved per project and share, and results without a project id fail with a message", () => {
-  assert.equal(savedObjectsKey([{ project_internal_id: 3451 }], 50), "box-helper-objects:3451:50");
-  assert.equal(savedObjectsKey([{ project_internal_id: 3451 }], 50, { allMapped: true }), "box-helper-objects:3451:50:all");
-  assert.throws(() => savedObjectsKey([{ task_id: "20-1-1" }], 50), /project_internal_id/);
-  assert.throws(() => savedObjectsKey([{ project_internal_id: null }], 50), /project_internal_id/);
+test("objects are saved per project, whatever the share, and results without a project id fail with a message", () => {
+  assert.equal(savedObjectsKey([{ project_internal_id: 3451 }]), "box-helper-objects:3451");
+  assert.throws(() => savedObjectsKey([{ task_id: "20-1-1" }]), /project_internal_id/);
+  assert.throws(() => savedObjectsKey([{ project_internal_id: null }]), /project_internal_id/);
+});
+
+test("the earlier per-share saves of a project are found under its key, and those of other projects are not", () => {
+  const keys = ["box-helper-objects:3451:50", "box-helper-objects:3451:30:all", "box-helper-objects:34510:50", "other"];
+  assert.deepEqual(legacyKeys(keys, "box-helper-objects:3451"), ["box-helper-objects:3451:50", "box-helper-objects:3451:30:all"]);
+  assert.deepEqual(legacyKeys(["box-helper-objects:area:20:a.geojson:https://t/{z}/{x}/{y}"], "box-helper-objects:area:20:a.geojson:https://t/{z}/{x}/{y}"), ["box-helper-objects:area:20:a.geojson:https://t/{z}/{x}/{y}"]);
+});
+
+test("per-share saves merge into one: each tile keeps its longest list, and settings come from the save with the most labels", () => {
+  const box = { outline: [[0, 0], [9, 0], [9, 9], [0, 0]] };
+  const fifty = { tile: "20-1-1", objects: { "20-1-1": [box], "20-2-2": [] }, attribute: "", values: "" };
+  const thirty = { tile: "20-3-3", objects: { "20-2-2": [box, box], "20-3-3": [box] }, attribute: "roof:material", values: "metal" };
+  const merged = mergedSaves([fifty, thirty]);
+  assert.deepEqual(merged.objects, { "20-1-1": [box], "20-2-2": [box, box], "20-3-3": [box] });
+  assert.equal(merged.attribute, "roof:material");
+  assert.equal(merged.tile, "20-3-3");
+  assert.equal(mergedSaves([]), null);
+});
+
+test("a label counts as already there when its box overlaps an existing one by 90% of their union", () => {
+  const square = [[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]];
+  assert.ok(sameLabel(square, [[0.4, 0.3], [100.2, 0.3], [100.2, 99.6], [0.4, 99.6], [0.4, 0.3]]));
+  assert.ok(!sameLabel(square, [[20, 0], [120, 0], [120, 100], [20, 100], [20, 0]]));
+  assert.ok(!sameLabel(square, [[200, 200], [210, 200], [210, 210], [200, 200]]));
+});
+
+test("a labels.geojson from this page gives back its object name, attribute and values; other files give no settings", () => {
+  const shape = (properties) => ({ ring: [], properties: { tile_id: "20-1-1", object_name: "building", output: "rotated box", source: "EdgeTAM", ...properties } });
+  assert.deepEqual(fileSettings({ type: "FeatureCollection" }, [shape({ "roof:material": "metal" }), shape({ "roof:material": "concrete" }), shape({ "roof:material": "metal" })]), { objectName: "building", attribute: "roof:material", values: "metal, concrete" });
+  assert.deepEqual(fileSettings({ type: "FeatureCollection" }, [shape({})]), { objectName: "building", attribute: "", values: "" });
+  assert.deepEqual(fileSettings({ type: "FeatureCollection" }, [{ ring: [], properties: { fid: 1, building: "yes" } }]), { objectName: "", attribute: "", values: "" });
 });
 
 test("the outline is the outer ring with the largest area, even when a smaller ring has more points", () => {
@@ -441,4 +471,57 @@ test("a promise still running is shared for its key, and a failed one is dropped
   const retried = remembered(map, "broken", () => Promise.resolve("ok"));
   assert.notEqual(retried, failed);
   assert.equal(await retried, "ok");
+});
+
+test("the summary names the most common value, the first one on a tie, against the target", () => {
+  assert.equal(valueSummary(["metal", "roof tiles", "concrete"], [12, 1312, 40], 1000), "Most common: roof tiles, 1,312\u00a0of\u00a01,000");
+  assert.equal(valueSummary(["metal", "concrete"], [5, 5], 1000), "Most common: metal, 5\u00a0of\u00a01,000");
+});
+
+test("a label downloaded in labels.geojson comes back on its tile within half a pixel, with its value", () => {
+  const tile = { id: "20-485867-499535", zoom: 20, x: 485867, y: 499535, cells: [], template: "https://tiles.example/{z}/{x}/{y}" };
+  const outline = [[100.5, 200.25], [400, 210], [380.75, 600], [90, 590.5], [100.5, 200.25]];
+  const geojson = labelsGeojson([tile], new Map([[tile.id, [{ outline, source: "EdgeTAM", value: "metal" }]]]), { mode: "segment", objectName: "building", attribute: "roof:material", values: ["metal", "concrete"], pixels: 1024 });
+  const [{ ring, properties }] = polygonRings(JSON.parse(JSON.stringify(geojson))).shapes;
+  const back = ring.map((point) => lonLatToPixel(tile, point, 1024));
+  for (const point of outline) assert.ok(back.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.5), `${point} came back`);
+  assert.equal(properties.tile_id, tile.id);
+  assert.deepEqual(fileSettings(geojson, [{ ring, properties }]), { objectName: "building", attribute: "roof:material", values: "metal, concrete" });
+});
+
+test("loading labels.geojson again on a narrower share keeps labels on unlisted tiles, skips repeats and cuts other files across tiles", () => {
+  const first = { id: "20-485867-499535", zoom: 20, x: 485867, y: 499535, cells: [], template: "https://tiles.example/{z}/{x}/{y}" };
+  const second = { ...first, id: "20-485868-499535", x: 485868 };
+  const square = [[100, 100], [300, 100], [300, 300], [100, 300], [100, 100]];
+  const file = labelsGeojson([first, second], new Map([[first.id, [{ outline: square, source: "EdgeTAM", value: "metal" }]], [second.id, [{ outline: square, source: "EdgeTAM", value: "concrete" }]]]), { mode: "segment", objectName: "building", attribute: "roof:material", values: ["metal", "concrete"], pixels: 1024 });
+  const { shapes } = polygonRings(JSON.parse(JSON.stringify(file)));
+  const clip = (ring) => (ring.every(([x, y]) => x >= 0 && x <= 1024 && y >= 0 && y <= 1024) ? ring : null);
+  const options = { shapes, tiles: [first], fileName: "labels.geojson", attribute: "roof:material", pixels: 1024, clip, shapesOf: (object) => [object.outline] };
+  const loaded = placedLabels({ ...options, objects: new Map() });
+  assert.deepEqual([loaded.count, loaded.repeated, loaded.unlisted], [2, 0, 1]);
+  assert.equal(loaded.objects.get(second.id)[0].value, "concrete");
+  const again = placedLabels({ ...options, objects: loaded.objects });
+  assert.deepEqual([again.count, again.objects.get(first.id).length, again.objects.get(second.id).length], [2, 1, 1]);
+  const kept = placedLabels({ ...options, fileName: "copy.geojson", objects: loaded.objects });
+  assert.deepEqual([kept.count, kept.repeated], [0, 2]);
+  const plain = { type: "FeatureCollection", features: file.features.map((feature) => ({ ...feature, properties: { building: "yes" } })) };
+  const cut = placedLabels({ ...options, shapes: polygonRings(plain).shapes, tiles: [first, second], objects: new Map() });
+  assert.equal(cut.objects.get(first.id).length, 1);
+  assert.equal(cut.unlisted, 0);
+});
+
+test("a label downloaded as a rotated box counts as a repeat of the outline it came from, and a tile_id at another zoom is cut like any ring", () => {
+  const tile = { id: "20-485867-499535", zoom: 20, x: 485867, y: 499535, cells: [], template: "https://tiles.example/{z}/{x}/{y}" };
+  const turn = ([x, y]) => [400 + (x - 200) * Math.cos(Math.PI / 6) - (y - 200) * Math.sin(Math.PI / 6), 400 + (x - 200) * Math.sin(Math.PI / 6) + (y - 200) * Math.cos(Math.PI / 6)];
+  const ell = [[100, 100], [300, 100], [300, 150], [150, 150], [150, 300], [100, 300], [100, 100]].map(turn);
+  const box = [[100, 100], [300, 100], [300, 300], [100, 300], [100, 100]].map(turn);
+  const file = labelsGeojson([tile], new Map([[tile.id, [{ corners: box.slice(0, 4), source: "EdgeTAM" }]]]), { mode: "obb", objectName: "building", pixels: 1024 });
+  const { shapes } = polygonRings(JSON.parse(JSON.stringify(file)));
+  const objects = new Map([[tile.id, [{ outline: ell, source: "EdgeTAM" }]]]);
+  const options = { shapes, tiles: [tile], objects, fileName: "labels_obb.geojson", attribute: "", pixels: 1024, clip: (ring) => ring };
+  assert.equal(placedLabels({ ...options, shapesOf: (object) => [object.outline] }).repeated, 0);
+  assert.equal(placedLabels({ ...options, shapesOf: (object) => [object.outline, box] }).repeated, 1);
+  const otherZoom = shapes.map((shape) => ({ ...shape, properties: { ...shape.properties, tile_id: "19-242933-249767" } }));
+  const cut = placedLabels({ ...options, shapes: otherZoom, objects: new Map(), shapesOf: (object) => [object.outline] });
+  assert.deepEqual([cut.count, cut.unlisted], [1, 0]);
 });

@@ -69,10 +69,28 @@ export function maskBox(mask, width, height) {
   return right < 0 ? null : [left, top, right + 1, bottom + 1];
 }
 
-export function savedObjectsKey(rows, threshold, { allMapped = false } = {}) {
+// One key per project, whatever the share or tile choice, so changing either keeps the labels and settings.
+export function savedObjectsKey(rows) {
   const project = rows[0]?.project_internal_id;
   if (project === undefined || project === null) throw new Error("The results have no project_internal_id column, so the objects cannot be saved for this project.");
-  return `box-helper-objects:${project}:${threshold}${allMapped ? ":all" : ""}`;
+  return `box-helper-objects:${project}`;
+}
+
+// Earlier saves sat in localStorage under the same key, with the share and tile choice added after a colon.
+export function legacyKeys(keys, key) {
+  return keys.filter((stored) => stored === key || stored.startsWith(`${key}:`));
+}
+
+// Earlier saves have no timestamp, so the longest list per tile wins and the largest save gives the settings.
+export function mergedSaves(saves) {
+  if (saves.length === 0) return null;
+  const size = (save) => Object.values(save.objects ?? {}).reduce((sum, list) => sum + list.length, 0);
+  const largest = saves.reduce((best, save) => (size(save) > size(best) ? save : best));
+  const objects = {};
+  for (const save of saves) {
+    for (const [id, list] of Object.entries(save.objects ?? {})) if (!(id in objects) || list.length > objects[id].length) objects[id] = list;
+  }
+  return { ...largest, objects };
 }
 
 // A promise is kept while it runs, so a tile still being read ahead is read once; a failed one is forgotten, so the next try starts again.
@@ -126,10 +144,9 @@ export function areaTiles(geojson, zoom, template, cover) {
   return [...tiles.values()].toSorted((a, b) => a.y - b.y || a.x - b.x);
 }
 
-// Saved objects for tiles outside this list are dropped; the saved tile is reopened when it is still listed.
+// Labels on unlisted tiles stay, so a later share that lists them shows them again; the saved tile reopens when listed.
 export function restoredObjects(saved, tiles) {
-  const ids = new Set(tiles.map((tile) => tile.id));
-  const objects = new Map(Object.entries(saved?.objects ?? {}).filter(([id]) => ids.has(id)));
+  const objects = new Map(Object.entries(saved?.objects ?? {}));
   return { objects, index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
@@ -148,6 +165,11 @@ export function keyAction(key, { ctrlKey = false, metaKey = false, altKey = fals
   if (altKey) return null;
   if (ctrlKey || metaKey) return key.toLowerCase() === "z" && !shiftKey ? "undo" : null;
   return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool" }[key] ?? null;
+}
+
+export function valueSummary(list, counts, target) {
+  const top = counts.indexOf(Math.max(...counts));
+  return `Most common: ${list[top]}, ${counts[top].toLocaleString("en")}\u00a0of\u00a0${target.toLocaleString("en")}`;
 }
 
 // Number keys 1 to 9 pick the value at that place in the list.
@@ -178,6 +200,65 @@ export function classIndex(object, values) {
 // Objects labelled before the value list was set, or with a value taken off it, have no class.
 export function objectsWithoutValue(tiles, objects, values) {
   return tiles.flatMap((tile) => objects.get(tile.id) ?? []).filter((object) => !values.includes(object.value)).length;
+}
+
+function ringBounds(ring) {
+  const xs = ring.map(([x]) => x);
+  const ys = ring.map(([, y]) => y);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+// Two labels whose bounding boxes overlap by 90% or more of their union count as one.
+export function sameLabel(first, second) {
+  const [ax1, ay1, ax2, ay2] = ringBounds(first);
+  const [bx1, by1, bx2, by2] = ringBounds(second);
+  const overlap = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1)) * Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
+  const union = (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1) - overlap;
+  return union > 0 && overlap / union >= 0.9;
+}
+
+// A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
+export function fileSettings(geojson, shapes) {
+  if (typeof geojson.object_name === "string") return { objectName: geojson.object_name, attribute: geojson.attribute ?? "", values: (geojson.values ?? []).join(", ") };
+  const properties = shapes.map((shape) => shape.properties);
+  if (properties.length === 0 || !properties.every((entry) => typeof entry.tile_id === "string")) return { objectName: "", attribute: "", values: "" };
+  const objectName = properties.find((entry) => typeof entry.object_name === "string")?.object_name ?? "";
+  const attributes = [...new Set(properties.flatMap((entry) => Object.keys(entry).filter((key) => !LABEL_PROPERTIES.includes(key))))];
+  if (attributes.length !== 1) return { objectName, attribute: "", values: "" };
+  const [attribute] = attributes;
+  const values = [...new Set(properties.map((entry) => entry[attribute]).filter((value) => value !== null && value !== undefined).map(String))];
+  return { objectName, attribute, values: values.join(", ") };
+}
+
+function tileFromId(id) {
+  const match = /^(\d+)-(\d+)-(\d+)$/.exec(id ?? "");
+  return match && { id, zoom: Number(match[1]), x: Number(match[2]), y: Number(match[3]) };
+}
+
+// A downloaded file holds each label's outline or its rotated box, so a repeat is matched against both shapes of each label already on the tile; a tile_id at another zoom is from another project and is cut like any other ring.
+export function placedLabels({ shapes, tiles, objects, fileName, attribute, pixels, clip, shapesOf }) {
+  const listed = new Set(tiles.map((tile) => tile.id));
+  const placed = new Map([...objects].map(([id, list]) => [id, list.filter((object) => object.source !== fileName)]));
+  const counts = { count: 0, repeated: 0, unlisted: 0 };
+  for (const { ring, properties } of shapes) {
+    const named = tileFromId(properties.tile_id);
+    const ownTile = named?.zoom === tiles[0]?.zoom ? named : null;
+    for (const tile of ownTile ? [ownTile] : tiles) {
+      const pixelRing = ring.map((point) => lonLatToPixel(tile, point, pixels));
+      const outline = clip(pixelRing);
+      if (!outline || (!ownTile && !keepsCutLabel(outline, pixelRing))) continue;
+      const list = placed.get(tile.id) ?? [];
+      if (ownTile && list.some((object) => shapesOf(object).some((shape) => sameLabel(shape, outline)))) {
+        counts.repeated += 1;
+        continue;
+      }
+      const value = attribute && properties[attribute] != null ? { value: String(properties[attribute]) } : {};
+      placed.set(tile.id, [...list, { outline, source: fileName, ...value }]);
+      counts.count += 1;
+      if (!listed.has(tile.id)) counts.unlisted += 1;
+    }
+  }
+  return { objects: placed, ...counts };
 }
 
 export function targetProgress(objectCount, target) {
@@ -317,15 +398,15 @@ function pixelRing({ outline, corners }, mode) {
 // The properties every feature of labels.geojson carries, so an attribute can't take one of their names.
 export const LABEL_PROPERTIES = ["tile_id", "image", "object_name", "output", "source", "marked_cells", "imagery_url"];
 
-export function labelsGeojson(tiles, objects, { mode, objectName, attribute, pixels }) {
+export function labelsGeojson(tiles, objects, { mode, objectName, attribute, values = [], pixels }) {
   const features = tiles.flatMap((tile) =>
     (objects.get(tile.id) ?? []).map((object) => ({
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [lonLatRing(tile, pixelRing(object, mode), pixels)] },
       properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, ...(attribute && { [attribute]: object.value }), output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
     })));
-  // A Locate project has one tile URL, so it is stated once at the top as well as on each object.
-  return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features };
+  // A Locate project has one tile URL, so it is stated once at the top as well as on each object; the full value list keeps values that no label uses yet.
+  return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
 }
 
 export function datasetReadme({ projectName, projectLink, threshold, allMapped, area, modelName, mode, objectName, attribute, values, tiles, objectCount, pixels, detailLevels }) {

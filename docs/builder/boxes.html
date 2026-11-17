@@ -20,6 +20,10 @@
     <form id="setup">
       <div class="card">
         <h2>Load tiles to label</h2>
+        <section id="resume" hidden>
+          <h3>Continue where you left off</h3>
+          <ul id="resume-list"></ul>
+        </section>
         <fieldset class="choices">
           <legend>Source</legend>
           <label><input type="radio" name="source" value="project" checked> MapSwipe project</label>
@@ -101,14 +105,13 @@
     </div>
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
-      <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-      <p id="cells-hint" class="hint">Bright cells inside the yellow line reach the volunteer share.</p>
       <div id="tile-bar">
+        <p id="save-problem" role="alert" hidden></p>
         <p id="dataset-count"></p>
         <div id="target-track" aria-hidden="true"><div id="target-bar"></div></div>
-        <p id="tile-position"></p>
+        <table id="value-counts" hidden><tbody></tbody></table>
+        <p id="tile-position">Tile <input id="tile-number" type="number" min="1" step="1" inputmode="numeric" aria-label="Tile number" disabled> of <span id="tile-total"></span></p>
         <div id="tile-track" aria-hidden="true"><div id="tile-bar-fill"></div></div>
-        <p id="tile-id"></p>
         <p id="status" aria-live="polite"></p>
         <div>
           <button id="previous" type="button" class="secondary" title="Previous tile (←)" aria-keyshortcuts="ArrowLeft" disabled>Previous</button>
@@ -119,14 +122,23 @@
           <button id="clear" type="button" class="link" title="Remove every label on this tile" disabled>Clear tile</button>
         </div>
       </div>
-      <label id="focus-choice" class="tick"><input id="focus" type="checkbox" checked> Dim cells below the share</label>
-      <fieldset class="choices">
-        <legend>Output</legend>
-        <label><input type="radio" name="mode" value="obb" checked> Boxes</label>
-        <label><input type="radio" name="mode" value="segment"> Outlines</label>
-      </fieldset>
-      <p id="values-hint" class="hint" hidden>Pick a value with its button or <kbd>1</kbd> to <kbd>8</kbd>, then tap. Tap a label to change its value.</p>
-      <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>d</kbd> switch tool.</p>
+      <details id="settings">
+        <summary>Settings</summary>
+        <div class="settings-body">
+          <label id="focus-choice" class="tick"><input id="focus" type="checkbox" checked> Dim cells below the share</label>
+          <fieldset class="choices">
+            <legend>Output</legend>
+            <label><input type="radio" name="mode" value="obb" checked> Boxes</label>
+            <label><input type="radio" name="mode" value="segment"> Outlines</label>
+          </fieldset>
+          <label>
+            <span>Load labels (GeoJSON)</span>
+            <input id="labels-file" type="file" accept=".geojson,.json" disabled>
+          </label>
+          <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
+          <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>d</kbd> switch tool, <kbd>Shift</kbd> and drag for an angled box<span id="values-keys" hidden>, <kbd>1</kbd> to <kbd id="values-last">8</kbd> values</span>.</p>
+        </div>
+      </details>
       <div id="download-row">
         <select id="download-kind" aria-label="What to download" disabled>
           <option value="labels" selected>Labels (GeoJSON)</option>
@@ -134,11 +146,8 @@
           <option value="images">Tile images (.zip)</option>
         </select>
         <button id="download" type="button" disabled>Download</button>
+        <p id="saved-at" class="hint" aria-live="polite"></p>
       </div>
-      <label>
-        <span>Load labels (GeoJSON)</span>
-        <input id="labels-file" type="file" accept=".geojson,.json" disabled>
-      </label>
     </aside>
   </main>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>

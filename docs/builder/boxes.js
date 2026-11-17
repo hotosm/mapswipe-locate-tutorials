@@ -5,10 +5,11 @@ import { convex } from "https://cdn.jsdelivr.net/npm/@turf/convex@7.4.0/+esm";
 import { bboxClip } from "https://cdn.jsdelivr.net/npm/@turf/bbox-clip@7.4.0/+esm";
 import { booleanPointInPolygon } from "https://cdn.jsdelivr.net/npm/@turf/boolean-point-in-polygon@7.4.0/+esm";
 import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-cover@3.0.2/+esm";
+import { del as deleteSaved, entries as savedEntries, get as getSaved, set as putSaved } from "https://cdn.jsdelivr.net/npm/idb-keyval@6.3.0/+esm";
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, labelSettings, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -22,7 +23,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -40,10 +41,12 @@ function orientedCorners(outline) {
   return clampedCorners(rotatedBox(convex({ type: "Polygon", coordinates: [outline] }).geometry.coordinates[0], PIXELS), PIXELS);
 }
 
-function shownRing({ outline }) {
-  if (outputMode() === "segment") return outline;
-  const corners = orientedCorners(outline);
+function closedRing(corners) {
   return [...corners, corners[0]];
+}
+
+function shownRing({ outline }) {
+  return outputMode() === "segment" ? outline : closedRing(orientedCorners(outline));
 }
 
 function strokeRing(context, ring) {
@@ -92,11 +95,36 @@ function labelColour(object) {
 }
 
 function countText(objects, list, counts) {
-  const target = TARGET_OBJECTS.toLocaleString("en");
-  if (list.length === 0) return `${objects.toLocaleString("en")} ${objects === 1 ? "object" : "objects"}, target ${target}`;
-  const named = counts.map((count, index) => `${list[index]} ${count.toLocaleString("en")}`);
+  if (list.length > 0 && Math.max(...counts) > 0) return valueSummary(list, counts, TARGET_OBJECTS);
+  return `${objects.toLocaleString("en")} ${objects === 1 ? "object" : "objects"}, target ${TARGET_OBJECTS.toLocaleString("en")}`;
+}
+
+function showValueTable(list, counts) {
+  const table = element("value-counts");
+  table.hidden = list.length === 0;
+  if (table.hidden) return;
   const missing = objectsWithoutValue(state.tiles, state.objects, list);
-  return `${named.join(", ")}, target ${target} for the most common value${missing > 0 ? `, ${missing.toLocaleString("en")} without a value` : ""}`;
+  const rows = list.map((value, index) => [value, counts[index], VALUE_COLOURS[index]]);
+  if (missing > 0) rows.push(["Without a value", missing, NO_VALUE_COLOUR]);
+  table.tBodies[0].replaceChildren(...rows.map(([name, count, colour]) => {
+    const row = document.createElement("tr");
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = colour;
+    const label = document.createElement("span");
+    label.className = "value-name";
+    label.append(swatch, name);
+    row.insertCell().append(label);
+    row.insertCell().textContent = count.toLocaleString("en");
+    const track = document.createElement("span");
+    track.className = "value-track";
+    const fill = document.createElement("span");
+    fill.style.width = count > 0 ? `max(2px, ${targetProgress(count, TARGET_OBJECTS).percent}%)` : "0";
+    fill.style.background = colour;
+    track.append(fill);
+    row.insertCell().append(track);
+    return row;
+  }));
 }
 
 function showCounts() {
@@ -105,8 +133,11 @@ function showCounts() {
   const list = values();
   const counts = valueCounts(state.tiles, state.objects, list);
   element("dataset-count").textContent = countText(objects, list, counts);
-  element("tile-position").textContent = `Tile ${state.index + 1} of ${tiles}, ${tilesWithObjects} ${tilesWithObjects === 1 ? "tile" : "tiles"} labelled`;
-  element("tile-id").textContent = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
+  showValueTable(list, counts);
+  element("tile-number").value = state.index + 1;
+  element("tile-number").max = tiles;
+  element("tile-total").textContent = `${tiles}, ${tilesWithObjects} labelled`;
+  element("tile-position").title = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
   const { percent, reached } = targetProgress(list.length > 0 ? Math.max(...counts) : objects, TARGET_OBJECTS);
   element("tile-bar-fill").style.width = `${((state.index + 1) / tiles) * 100}%`;
   const bar = element("target-bar");
@@ -117,10 +148,6 @@ function showCounts() {
 // A tile without marked cells shows in full, since dimming it all would hide the objects.
 function focusOn() {
   return element("focus").checked && !element("focus").disabled && currentTile()?.cells.length > 0;
-}
-
-function showCellsHint() {
-  element("cells-hint").hidden = !focusOn();
 }
 
 function drawObjects() {
@@ -171,6 +198,7 @@ function updateControls() {
   element("download").disabled = state.busy || !loaded;
   element("download-kind").disabled = state.busy || !loaded;
   element("labels-file").disabled = state.busy || !loaded;
+  element("tile-number").disabled = state.busy || !loaded;
   for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], input[name="source"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
 }
@@ -190,22 +218,72 @@ async function work(task) {
   }
 }
 
-// Objects stay in this browser per project and share, so loading the same results again continues at the same tile.
-function saveObjects() {
-  localStorage.setItem(state.storageKey, JSON.stringify({ tile: currentTile().id, objects: Object.fromEntries(state.objects), objectName: element("object-name").value.trim(), attribute: attributeName(), values: element("attribute-values").value }));
+function savedRecord() {
+  return { name: state.projectName, source: state.source, savedAt: Date.now(), tile: currentTile().id, objects: Object.fromEntries(state.objects), ...fieldSettings() };
 }
 
-// Unreadable saved data is removed so the next load starts clean.
-function readSaved(key) {
-  const text = localStorage.getItem(key);
-  if (text === null) return null;
+function saveObjects() {
+  state.saveWanted = true;
+  state.saving ??= writeSaves().catch(showError).finally(() => { state.saving = null; });
+}
+
+// IndexedDB rejects with a DOMException when the storage is full or blocked, and idb-keyval passes on a null transaction error when a write is aborted (https://cdn.jsdelivr.net/npm/idb-keyval@6.3.0/dist/index.js); the banner stays until a later save succeeds.
+async function writeSaves() {
+  while (state.saveWanted) {
+    state.saveWanted = false;
+    try {
+      await putSaved(state.storageKey, savedRecord());
+    } catch (error) {
+      if (error !== null && !(error instanceof DOMException)) throw error;
+      element("save-problem").textContent = `The labels could not be saved in this browser (${error?.message ? error.message.replace(/\.$/, "") : "the browser stopped the save"}). Download Labels (GeoJSON) to keep them.`;
+      element("save-problem").hidden = false;
+      element("saved-at").textContent = "";
+      return;
+    }
+    element("save-problem").hidden = true;
+    element("saved-at").textContent = `Saved in this browser at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+  }
+}
+
+// Persistent storage is cleared only by the person; Firefox asks first, so the load doesn't wait (https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria).
+function keepStorage() {
+  navigator.storage.persist().catch(showError);
+}
+
+// Each project is open in one tab at a time, since every save writes the whole project and the last one would win (https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API).
+function heldLock(key) {
+  return new Promise((resolve, reject) => {
+    navigator.locks.request(key, { ifAvailable: true }, (lock) => (lock ? new Promise((done) => resolve(done)) : resolve(null))).catch(reject);
+  });
+}
+
+// The new lock replaces the old one only once the new project is loaded, so a failed load leaves the open project locked.
+async function claimTab(key) {
+  if (state.claimedKey === key) return null;
+  const release = await heldLock(key);
+  if (!release) throw new Error("This project or area is open in another tab. Close that tab, then try again here.");
+  return release;
+}
+
+function keepClaim(key, release) {
+  if (!release) return;
+  state.releaseTab?.();
+  Object.assign(state, { claimedKey: key, releaseTab: release });
+}
+
+// Unreadable saved data from localStorage is removed so the next load starts clean.
+function readLegacy(key) {
   try {
-    return JSON.parse(text);
+    return JSON.parse(localStorage.getItem(key));
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
     localStorage.removeItem(key);
     throw new Error("The saved objects for these results could not be read and were removed. Load again to start without them.");
   }
+}
+
+async function readSaved(key) {
+  return (await getSaved(key)) ?? mergedSaves(legacyKeys(Object.keys(localStorage), key).map(readLegacy));
 }
 
 // A sub-tile beyond the image edge stays empty, so tiles on the edge of the imagery still open.
@@ -258,7 +336,6 @@ async function showTile(index) {
   clearSide();
   const tile = currentTile();
   showCounts();
-  showCellsHint();
   tileCanvas.getContext("2d").clearRect(0, 0, PIXELS, PIXELS);
   drawObjects();
   setStatus("Loading the imagery...");
@@ -303,12 +380,8 @@ function imagePoint(event) {
 boxCanvas.addEventListener("pointerdown", (event) => {
   if (!state.prompt || state.busy) return;
   boxCanvas.setPointerCapture(event.pointerId);
-  state.drag = { start: imagePoint(event), box: null };
+  state.drag = { start: imagePoint(event), box: null, rotated: drawing() && outputMode() === "obb" && event.shiftKey };
 });
-
-function drawingRotated() {
-  return drawing() && outputMode() === "obb";
-}
 
 function isSide(start, end) {
   return Math.hypot(end[0] - start[0], end[1] - start[1]) >= DRAG_PIXELS;
@@ -327,7 +400,7 @@ boxCanvas.addEventListener("pointermove", (event) => {
   }
   if (!state.drag) return;
   const end = imagePoint(event);
-  if (drawingRotated() && !state.side) {
+  if (state.drag.rotated) {
     state.drag.side = isSide(state.drag.start, end) ? [state.drag.start, end] : null;
   } else {
     state.drag.box = isDrag(state.drag.start, end) ? dragBox(state.drag.start, end, PIXELS) : null;
@@ -338,16 +411,16 @@ boxCanvas.addEventListener("pointermove", (event) => {
 // A rotated box is drawn in two steps: a drag along one side of the object, then a tap on the opposite side.
 function drawRotated(start, end) {
   if (!state.side) {
-    if (isSide(start, end)) state.side = [start, end];
+    state.side = [start, end];
     drawObjects();
-    setStatus(state.side ? "Tap the opposite side of the object." : "Drag along one side of the object.");
+    setStatus("Tap the opposite side of the object.");
     return;
   }
   const rectangle = rectangleFromSide(...state.side, end);
   clearSide();
   if (!isSide(rectangle[0], rectangle[1]) || !isSide(rectangle[1], rectangle[2])) {
     drawObjects();
-    setStatus("That box doesn't have a width. Drag along one side of the object, then tap the opposite side.");
+    setStatus("That box doesn't have a width. Hold Shift, drag along one side of the object, then tap the opposite side.");
     return;
   }
   const outline = bboxClip({ type: "Polygon", coordinates: [rectangle] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
@@ -370,10 +443,10 @@ boxCanvas.addEventListener("pointerup", (event) => {
     state.drag = null;
     return;
   }
-  const { start } = state.drag;
+  const { start, rotated } = state.drag;
   state.drag = null;
   const end = imagePoint(event);
-  if (drawingRotated() && (state.side || isSide(start, end))) {
+  if (state.side || (rotated && isSide(start, end))) {
     drawRotated(start, end);
     return;
   }
@@ -412,7 +485,7 @@ function drawing() {
 
 function toolHint() {
   if (!drawing()) return "Model: tap an object, or drag around it.";
-  return outputMode() === "obb" ? "Drawing by hand: drag along one side of the object, then tap the opposite side." : "Drawing by hand: drag a box around the object.";
+  return outputMode() === "obb" ? "Drawing by hand: drag a box around the object. For an angled box, hold Shift, drag along one side, then tap the opposite side." : "Drawing by hand: drag a box around the object.";
 }
 
 for (const tool of document.querySelectorAll('input[name="tool"]')) {
@@ -428,17 +501,11 @@ boxCanvas.addEventListener("pointercancel", () => {
   drawObjects();
 });
 
-// A full or blocked storage throws a DOMException; the object stays on the page and the status says it was not saved.
 function afterChange(message) {
   drawObjects();
   showCounts();
-  try {
-    saveObjects();
-    setStatus(message);
-  } catch (error) {
-    if (!(error instanceof DOMException)) throw error;
-    setStatus(`${message} The objects could not be saved in this browser: ${error.message}`);
-  }
+  saveObjects();
+  setStatus(message);
 }
 
 function canRestore() {
@@ -474,6 +541,15 @@ function showError(error) {
 
 element("previous").addEventListener("click", () => work(() => showTile(state.index - 1)));
 element("next").addEventListener("click", () => work(() => showTile(state.index + 1)));
+element("tile-number").addEventListener("change", (event) => {
+  const number = Number(event.target.value);
+  if (!Number.isInteger(number) || number < 1 || number > state.tiles.length) {
+    event.target.value = state.index + 1;
+    setStatus(`Enter a tile number from 1 to ${state.tiles.length}.`);
+    return;
+  }
+  if (number - 1 !== state.index) work(() => showTile(number - 1));
+});
 
 for (const choice of document.querySelectorAll('input[name="mode"]')) {
   choice.addEventListener("change", () => {
@@ -518,12 +594,12 @@ async function projectSource() {
   const listed = keptTiles(rows, threshold, { allMapped });
   const tiles = template ? listed.map((tile) => ({ ...tile, template })) : listed;
   if (tiles.length === 0) throw new Error(allMapped ? "None of the tiles in these results has a volunteer answer." : "None of the cells reaches that share of volunteers. Lower the share and load again.");
-  return { tiles, link, identity: link, storageKey: savedObjectsKey(rows, threshold, { allMapped }), name: fileName, projectName: name, threshold, allMapped, area: null, summary: `${name}, ${threshold}% share${allMapped ? ", tiles below the share included" : ""}${template ? ", own imagery" : ""}` };
+  return { tiles, link, identity: link, storageKey: savedObjectsKey(rows), saved: { kind: "project", link, threshold, allMapped, imagery }, name: fileName, projectName: name, threshold, allMapped, area: null, summary: `${name}, ${threshold}% share${allMapped ? ", tiles below the share included" : ""}${template ? ", own imagery" : ""}` };
 }
 
-async function readArea(file) {
+function readArea(text, file) {
   try {
-    const area = JSON.parse(await file.text());
+    const area = JSON.parse(text);
     if (typeof area?.type !== "string" || (area.type === "FeatureCollection" && !Array.isArray(area.features))) throw new Error(`${file.name} is not a GeoJSON object.`);
     return area;
   } catch (error) {
@@ -536,20 +612,35 @@ async function areaSource() {
   const template = parseTileTemplate(element("tile-template").value);
   const zoom = Number(element("area-zoom").value);
   const [file] = element("area-file").files;
-  const tiles = areaTiles(await readArea(file), zoom, template, coverTiles);
+  const text = await file.text();
+  const tiles = areaTiles(readArea(text, file), zoom, template, coverTiles);
   const name = file.name.replace(/\.(geo)?json$/i, "");
   const storageKey = areaObjectsKey(template, zoom, file.name);
-  return { tiles, link: "", identity: storageKey, storageKey, name, projectName: name, threshold: null, allMapped: false, area: file.name, summary: `${file.name}, zoom ${zoom}` };
+  return { tiles, link: "", identity: storageKey, storageKey, saved: { kind: "area", template, zoom, fileName: file.name }, areaText: text, name, projectName: name, threshold: null, allMapped: false, area: file.name, summary: `${file.name}, zoom ${zoom}` };
+}
+
+// Labels that failed to save live only on this page, so another project can't replace them.
+async function savedState(source) {
+  const { storageKey, areaText, tiles, identity } = source;
+  await state.saving;
+  if (storageKey !== state.storageKey && !element("save-problem").hidden) throw new Error("The last change wasn't saved. Download Labels (GeoJSON) before opening another project or area.");
+  const saved = storageKey === state.storageKey ? savedRecord() : await readSaved(storageKey);
+  if (areaText !== undefined) await putSaved(`${storageKey}:area`, areaText);
+  return { restored: restoredObjects(saved, tiles), settings: labelSettings(enteredSettings(identity), saved) };
 }
 
 async function load() {
   const source = chosenSource() === "area" ? await areaSource() : await projectSource();
   const { tiles, storageKey } = source;
-  const saved = readSaved(storageKey);
-  const restored = restoredObjects(saved, tiles);
-  const settings = labelSettings(enteredSettings(source.identity), saved);
-  const objectName = settings.objectName || (source.identity === EXAMPLE_PROJECT ? "solar panel" : "");
   await loadModel();
+  keepStorage();
+  const release = await claimTab(storageKey);
+  const { restored, settings } = await savedState(source).catch((error) => {
+    release?.();
+    throw error;
+  });
+  const objectName = settings.objectName || (source.identity === EXAMPLE_PROJECT ? "solar panel" : "");
+  keepClaim(storageKey, release);
   state.tiles = tiles;
   state.images = new Map();
   state.prompts = new Map();
@@ -562,6 +653,7 @@ async function load() {
   state.area = source.area;
   state.allMapped = source.allMapped;
   state.storageKey = storageKey;
+  state.source = source.saved;
   state.objects = restored.objects;
   element("focus").disabled = source.area !== null;
   element("focus-choice").hidden = source.area !== null;
@@ -572,6 +664,107 @@ async function load() {
   element("attribute-values").value = settings.values;
   showValueChoices();
   await showTile(restored.index);
+}
+
+// A save still being written, or one that failed, would be lost, so the browser asks before leaving; returnValue covers Chrome and Edge before 119 (https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event).
+window.addEventListener("beforeunload", (event) => {
+  if (!state.saving && element("save-problem").hidden) return;
+  event.preventDefault();
+  event.returnValue = true;
+});
+
+function savedSummary(record) {
+  const lists = Object.values(record.objects);
+  const labels = lists.reduce((sum, list) => sum + list.length, 0);
+  const tiles = lists.filter((list) => list.length > 0).length;
+  const when = new Date(record.savedAt).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return `${labels.toLocaleString("en")} ${labels === 1 ? "label" : "labels"} on ${tiles} ${tiles === 1 ? "tile" : "tiles"}, saved ${when}`;
+}
+
+// The area file can't be stored in the file field, so a saved area is put back as a new file with the same name.
+async function fillSource(key, source) {
+  document.querySelector(`input[name="source"][value="${source.kind}"]`).checked = true;
+  showSourceFields();
+  if (source.kind === "project") {
+    element("project-link").value = source.link;
+    element("threshold").value = source.threshold;
+    element("all-tiles").checked = source.allMapped;
+    element("imagery-override").value = source.imagery;
+    return;
+  }
+  element("tile-template").value = source.template;
+  element("area-zoom").value = source.zoom;
+  const files = new DataTransfer();
+  const area = await getSaved(`${key}:area`);
+  if (area === undefined) throw new Error(`The area file ${source.fileName} isn't saved in this browser. Choose it again under Area.`);
+  files.items.add(new File([area], source.fileName, { type: "application/geo+json" }));
+  element("area-file").files = files.files;
+}
+
+function resumeItem([key, record]) {
+  const text = savedSummary(record);
+  const item = document.createElement("li");
+  const name = document.createElement("strong");
+  name.textContent = record.name;
+  const details = document.createElement("span");
+  details.className = "hint";
+  details.textContent = text;
+  const resume = document.createElement("button");
+  Object.assign(resume, { type: "button", className: "secondary", textContent: "Continue" });
+  resume.addEventListener("click", () => work(() => resumeSaved(key, record)));
+  const remove = document.createElement("button");
+  Object.assign(remove, { type: "button", className: "link", textContent: "Remove" });
+  remove.addEventListener("click", () => {
+    if (!window.confirm(`Remove the saved labels and settings for ${record.name}? This can't be undone.`)) return;
+    work(() => removeSaved(key));
+  });
+  const actions = document.createElement("div");
+  actions.append(resume);
+  if (key !== state.storageKey) actions.append(remove);
+  item.append(name, details, actions);
+  return item;
+}
+
+// Download and saves read the What to label fields, so a Continue refused before the switch puts back the open project's fields.
+async function resumeSaved(key, record) {
+  const opened = fieldSettings();
+  const openedTiles = state.tiles;
+  try {
+    await fillSource(key, record.source);
+    element("object-name").value = record.objectName;
+    element("attribute").value = record.attribute;
+    element("attribute-values").value = record.values;
+    await load();
+  } catch (error) {
+    if (state.tiles === openedTiles) {
+      element("object-name").value = opened.objectName;
+      element("attribute").value = opened.attribute;
+      element("attribute-values").value = opened.values;
+      showValueChoices();
+    }
+    throw error;
+  }
+}
+
+// A project open in another tab holds its lock, so it can't be removed under that tab.
+async function removeSaved(key) {
+  const release = await heldLock(key);
+  if (!release) throw new Error("This project or area is open in another tab. Close that tab, then remove it here.");
+  try {
+    await deleteSaved(key);
+    await deleteSaved(`${key}:area`);
+    for (const legacy of legacyKeys(Object.keys(localStorage), key)) localStorage.removeItem(legacy);
+  } finally {
+    release();
+  }
+  await showResume();
+}
+
+async function showResume() {
+  const saved = (await savedEntries()).filter(([key, record]) => typeof key === "string" && key.startsWith("box-helper-objects:") && record.source);
+  saved.sort(([, first], [, second]) => second.savedAt - first.savedAt);
+  element("resume-list").replaceChildren(...saved.map(resumeItem));
+  element("resume").hidden = saved.length === 0;
 }
 
 element("setup").addEventListener("submit", (event) => {
@@ -585,6 +778,14 @@ element("example").addEventListener("click", () => {
   element("project-link").value = EXAMPLE_PROJECT;
   element("setup").requestSubmit();
 });
+
+// Labels on tiles outside the loaded list stay saved but leave every download, so the status names them.
+function unloadedLabels() {
+  const listed = new Set(state.tiles.map((tile) => tile.id));
+  const count = [...state.objects].filter(([id]) => !listed.has(id)).reduce((sum, [, objects]) => sum + objects.length, 0);
+  if (count === 0) return "";
+  return count === 1 ? " 1 label is on a tile that isn't loaded, so it isn't in this file." : ` ${count} labels are on tiles that aren't loaded, so they aren't in this file.`;
+}
 
 // Only tiles with an object go in the dataset, so skipping past a tile never adds it as an image without objects.
 async function download() {
@@ -612,10 +813,10 @@ async function download() {
   const list = values();
   const mode = outputMode();
   const shaped = mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
-  const geojson = JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, pixels: PIXELS }));
+  const geojson = JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, values: list, pixels: PIXELS }));
   if (kind === "labels") {
     saveBlob(new Blob([geojson], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
-    setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.`);
+    setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.${unloadedLabels()}`);
     return;
   }
   const zip = new JSZip();
@@ -631,7 +832,7 @@ async function download() {
   const objectCount = datasetCounts(tiles, state.objects).objects;
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   await saveZip(zip, outputName(`yolo_${mode}`, "zip"));
-  setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.`);
+  setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.${unloadedLabels()}`);
 }
 
 function outputName(kind, extension) {
@@ -661,25 +862,37 @@ async function downloadImages() {
   setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }
 
-// Each ring is cut to every listed tile it crosses, so a shape across two tiles becomes one object on each.
-async function loadLabels(file) {
-  const { shapes, skipped } = polygonRings(JSON.parse(await file.text()));
-  if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
-  const attribute = attributeName();
-  for (const [id, objects] of state.objects) state.objects.set(id, objects.filter((object) => object.source !== file.name));
-  let count = 0;
-  for (const tile of state.tiles) {
-    for (const { ring, properties } of shapes) {
-      const pixelRing = ring.map((point) => lonLatToPixel(tile, point, PIXELS));
-      const outline = bboxClip({ type: "Polygon", coordinates: [pixelRing] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
-      if (!outline || !keepsCutLabel(outline, pixelRing)) continue;
-      const value = attribute && properties[attribute] != null ? { value: String(properties[attribute]) } : {};
-      state.objects.set(tile.id, [...(state.objects.get(tile.id) ?? []), { outline, source: file.name, ...value }]);
-      count += 1;
-    }
+function parsedLabels(text, file) {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    throw new Error(`${file.name} is not valid GeoJSON.`, { cause: error });
   }
-  const leftOut = skipped > 0 ? ` ${skipped} features without a polygon were left out.` : "";
-  afterChange(`Loaded ${count} objects from ${file.name} onto the listed tiles.${leftOut} ${objectCount()}`);
+}
+
+async function loadLabels(file) {
+  const geojson = parsedLabels(await file.text(), file);
+  const { shapes, skipped } = polygonRings(geojson);
+  if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
+  fillEmptySettings(fileSettings(geojson, shapes));
+  const clip = (ring) => bboxClip({ type: "Polygon", coordinates: [ring] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
+  const shapesOf = (object) => [object.outline, closedRing(orientedCorners(object.outline))];
+  const { objects, count, repeated, unlisted } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: attributeName(), pixels: PIXELS, clip, shapesOf });
+  state.objects = objects;
+  const alreadyThere = repeated > 0 ? ` ${repeated} ${repeated === 1 ? "was already on its tile" : "were already on their tiles"}.` : "";
+  const elsewhere = unlisted > 0 ? (unlisted === 1 ? " 1 is on a tile that isn't loaded; it stays saved but isn't in the download." : ` ${unlisted} are on tiles that aren't loaded; they stay saved but aren't in the download.`) : "";
+  const leftOut = skipped > 0 ? ` ${skipped} ${skipped === 1 ? "feature without a polygon was" : "features without a polygon were"} left out.` : "";
+  afterChange(`Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut} ${objectCount()}`);
+}
+
+function fillEmptySettings({ objectName, attribute, values: fileValues }) {
+  if (!element("object-name").value.trim()) element("object-name").value = objectName;
+  if (attribute && !attributeName()) {
+    element("attribute").value = attribute;
+    element("attribute-values").value = fileValues;
+    showValueChoices();
+  }
 }
 
 function valuesProblem(attribute, list) {
@@ -747,7 +960,8 @@ function showValueChoices() {
   const list = values();
   const choices = element("value-choices");
   choices.hidden = list.length === 0;
-  element("values-hint").hidden = list.length === 0;
+  element("values-keys").hidden = list.length === 0;
+  element("values-last").textContent = list.length;
   if (!list.includes(state.value)) state.value = list[0] ?? "";
   const legend = document.createElement("legend");
   legend.textContent = attributeName();
@@ -780,7 +994,9 @@ function enteredSettings(identity) {
 
 element("change").addEventListener("click", () => {
   state.openedSettings = fieldSettings();
+  showResume().catch(showError);
 });
+showResume().catch(showError);
 element("object-name").addEventListener("input", () => {
   if (state.tiles.length > 0) saveObjects();
 });
@@ -789,7 +1005,6 @@ element("attribute-values").addEventListener("input", changeValues);
 element("download").addEventListener("click", () => work(download));
 for (const choice of document.querySelectorAll('input[name="source"]')) choice.addEventListener("change", showSourceFields);
 element("focus").addEventListener("change", () => {
-  showCellsHint();
   if (state.tiles.length > 0) drawObjects();
 });
 element("labels-file").addEventListener("change", (event) => {
