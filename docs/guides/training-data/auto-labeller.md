@@ -33,7 +33,7 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 
 1. Tap the middle of each object. A box appears around it, and the counts in the side panel go up. Solar panels are the exception: touching panels form one array and get one box.
 2. When a box is wrong, click **Undo** (++"z"++) and drag a box close around the object.
-3. When that fails, choose **Draw by hand** above the tile (++"d"++) and drag a box around it. For an angled box on a keyboard with **Output** set to **Boxes**, hold ++shift++, drag along one side, then tap the opposite side. **Model (tap)** switches back.
+3. When that fails, choose **Draw by hand** above the tile (++"d"++). With **Output** set to **Boxes**, drag along one side of the object at any angle, then tap the opposite side, or slide to it and lift. **Undo** cancels a side you started. With **Outlines**, drag a box around the object. **Model (tap)** switches back.
 4. **Clear tile** removes every label on the tile, and **Undo** right after brings them back.
 5. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
 6. With a MapSwipe project, cells below the share are dimmed. To see the whole tile, open **Settings** and untick **Dim cells below the share**.

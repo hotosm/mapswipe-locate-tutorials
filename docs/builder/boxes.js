@@ -192,7 +192,7 @@ function updateControls() {
   const loaded = state.tiles.length > 0;
   element("previous").disabled = state.busy || !loaded || state.index === 0;
   element("next").disabled = state.busy || !loaded || state.index === state.tiles.length - 1;
-  element("undo").disabled = state.busy || !loaded || (currentObjects().length === 0 && !canRestore());
+  element("undo").disabled = state.busy || !loaded || (!state.side && currentObjects().length === 0 && !canRestore());
   element("clear").disabled = state.busy || !loaded || currentObjects().length === 0;
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
@@ -380,7 +380,7 @@ function imagePoint(event) {
 boxCanvas.addEventListener("pointerdown", (event) => {
   if (!state.prompt || state.busy) return;
   boxCanvas.setPointerCapture(event.pointerId);
-  state.drag = { start: imagePoint(event), box: null, rotated: drawing() && outputMode() === "obb" && event.shiftKey };
+  state.drag = { start: imagePoint(event), box: null, rotated: drawing() && outputMode() === "obb" };
 });
 
 function isSide(start, end) {
@@ -408,19 +408,19 @@ boxCanvas.addEventListener("pointermove", (event) => {
   drawObjects();
 });
 
-// A rotated box is drawn in two steps: a drag along one side of the object, then a tap on the opposite side.
+// Touch screens have no hover, so the second step also accepts a slide that ends on the opposite side.
 function drawRotated(start, end) {
   if (!state.side) {
     state.side = [start, end];
     drawObjects();
-    setStatus("Tap the opposite side of the object.");
+    setStatus("Tap the opposite side of the object, or slide to it and lift.");
     return;
   }
   const rectangle = rectangleFromSide(...state.side, end);
   clearSide();
   if (!isSide(rectangle[0], rectangle[1]) || !isSide(rectangle[1], rectangle[2])) {
     drawObjects();
-    setStatus("That box doesn't have a width. Hold Shift, drag along one side of the object, then tap the opposite side.");
+    setStatus("That box doesn't have a width. Tap farther from the first side.");
     return;
   }
   const outline = bboxClip({ type: "Polygon", coordinates: [rectangle] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
@@ -485,7 +485,7 @@ function drawing() {
 
 function toolHint() {
   if (!drawing()) return "Model: tap an object, or drag around it.";
-  return outputMode() === "obb" ? "Drawing by hand: drag a box around the object. For an angled box, hold Shift, drag along one side, then tap the opposite side." : "Drawing by hand: drag a box around the object.";
+  return outputMode() === "obb" ? "Drawing by hand: drag along one side of the object, then tap the opposite side." : "Drawing by hand: drag a box around the object.";
 }
 
 for (const tool of document.querySelectorAll('input[name="tool"]')) {
