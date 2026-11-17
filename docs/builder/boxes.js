@@ -110,12 +110,13 @@ function showCounts() {
   bar.classList.toggle("reached", reached);
 }
 
-function showCellsHint() {
-  element("cells-hint").hidden = state.area !== null || !element("focus").checked;
+// A tile without marked cells shows in full, since dimming it all would hide the objects.
+function focusOn() {
+  return element("focus").checked && !element("focus").disabled && currentTile()?.cells.length > 0;
 }
 
-function focusOn() {
-  return element("focus").checked && !element("focus").disabled;
+function showCellsHint() {
+  element("cells-hint").hidden = !focusOn();
 }
 
 function drawObjects() {
@@ -236,6 +237,7 @@ async function showTile(index) {
   clearSide();
   const tile = currentTile();
   showCounts();
+  showCellsHint();
   tileCanvas.getContext("2d").clearRect(0, 0, PIXELS, PIXELS);
   drawObjects();
   setStatus("Loading the imagery...");
@@ -506,7 +508,6 @@ async function load() {
   state.storageKey = storageKey;
   state.objects = restored.objects;
   element("focus").disabled = source.area !== null;
-  showCellsHint();
   element("focus-choice").hidden = source.area !== null;
   foldSetup(source.summary);
   element("stage-area").scrollIntoView({ block: "start" });
@@ -590,7 +591,7 @@ async function downloadImages() {
   setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }
 
-// Each ring is cut to every marked tile it crosses, so a shape across two tiles becomes one object on each.
+// Each ring is cut to every listed tile it crosses, so a shape across two tiles becomes one object on each.
 async function loadLabels(file) {
   const { shapes, skipped } = polygonRings(JSON.parse(await file.text()));
   if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
@@ -608,7 +609,7 @@ async function loadLabels(file) {
     }
   }
   const leftOut = skipped > 0 ? ` ${skipped} features without a polygon were left out.` : "";
-  afterChange(`Loaded ${count} objects from ${file.name} onto the marked tiles.${leftOut} ${objectCount()}`);
+  afterChange(`Loaded ${count} objects from ${file.name} onto the listed tiles.${leftOut} ${objectCount()}`);
 }
 
 function valuesProblem(attribute, list) {

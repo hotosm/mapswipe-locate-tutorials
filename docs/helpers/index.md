@@ -99,7 +99,7 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 ![Two taps and a drag mark three solar panel groups, then the outlines show](../assets/helpers/auto-labeller-laptop.gif){ loading=lazy }
 
 1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and the **Object name**, for example `solar panel`, and click **Load**. **Also show tiles below the share** adds the other tiles volunteers saw, after the marked ones. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
-2. Each tile is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** to see the whole tile. Tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
+2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
 3. When the result is wrong, press **Undo**, which removes the newest object on the tile, and drag closer. When it stays wrong, turn on **Draw**, which stays on until you turn it off: drag along one side of the object, then tap the opposite side. A tap before any drag still asks the model. With **Outlines**, a drag keeps an upright box as drawn.
 4. Move between tiles with **Previous** and **Next**.
 5. Choose the **Output** and click **Download dataset**.

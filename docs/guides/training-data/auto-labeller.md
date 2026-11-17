@@ -11,7 +11,7 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 1. Open the [auto labeller](../../builder/boxes.html).
 2. **Project link**: paste the project link, as in [View the results](../view-results.md#1-load-the-project).
 3. **Volunteer share (%)**: the share of volunteers who must mark a cell before it counts. Enter the share you chose in the results map, for example `50`.
-4. **Also show tiles below the share**: leave it unticked to label only the marked tiles. Tick it to also go through the other tiles volunteers saw, after the marked tiles, for objects they missed. Those tiles stay dark until you untick **Dim cells below the share**.
+4. **Also show tiles below the share**: leave it unticked to label only the marked tiles. Tick it to also go through the other tiles volunteers saw, after the marked tiles, for objects they missed. Those tiles show in full.
 5. Leave **Model** as it is.
 6. **Object name**, under **What to label**: enter the object, for example `solar panel`.
 7. Click **Load**. The first tile opens.
@@ -22,7 +22,7 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
 ??? note "Label without a MapSwipe project"
     Under **Source**, choose **Tile URL and area**, then fill in:
 
-    - **Tile URL**: a URL with `{z}`, `{x}` and `{y}`, for example the tile URL from the [area finder](../../builder/area.html).
+    - **Tile URL**: a URL that starts with `https://` and contains `{z}`, `{x}` and `{y}`, for example the tile URL from the [area finder](../../builder/area.html).
     - **Zoom**: the zoom of the tiles to label, for example `20`. The imagery must serve two zoom levels deeper, so zoom 22 for 20.
     - **Area (GeoJSON polygons)**: a file of Polygon or MultiPolygon features, for example `area-of-interest.geojson` from the area finder.
 
