@@ -420,7 +420,7 @@ function drawRotated(start, end) {
   clearSide();
   if (!isSide(rectangle[0], rectangle[1]) || !isSide(rectangle[1], rectangle[2])) {
     drawObjects();
-    setStatus("That box doesn't have a width. Tap farther from the first side.");
+    setStatus("That box doesn't have a width. End farther from the first side.");
     return;
   }
   const outline = bboxClip({ type: "Polygon", coordinates: [rectangle] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
