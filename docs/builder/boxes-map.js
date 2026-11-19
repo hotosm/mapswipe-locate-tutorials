@@ -1,3 +1,4 @@
+import { rectangleFromSide } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 
 const SELECTED_COLOUR = "#ffd400";
@@ -5,6 +6,8 @@ const LABELLED_COLOUR = "#1f9d55";
 const LABELLED_FILL = "#4ade80";
 const UNLISTED_COLOUR = "#bdbdbd";
 const EMPTY = { type: "FeatureCollection", features: [] };
+// Below this, in screen pixels, a drag is a click and a box has no width.
+const DRAG_SCREEN_PIXELS = 6;
 
 // A loop, since spreading every point into Math.min can pass the engine's argument limit (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply#using_apply_and_built-in_functions).
 function bounds(features) {
@@ -58,12 +61,18 @@ function addLayers(map, view) {
   map.addLayer({ id: "labels-fill", type: "fill", source: "labels", paint: { "fill-color": view.colour, "fill-opacity": 0.15 } });
   map.addLayer({ id: "labels-line", type: "line", source: "labels", paint: { "line-color": view.colour, "line-width": 2 } });
   map.addLayer({ id: "selected", type: "line", source: "selected", paint: { "line-color": SELECTED_COLOUR, "line-width": 3 } });
+  map.addSource("picked", { type: "geojson", data: EMPTY });
+  map.addLayer({ id: "picked-casing", type: "line", source: "picked", paint: { "line-color": "#000000", "line-width": 5 } });
+  map.addLayer({ id: "picked", type: "line", source: "picked", paint: { "line-color": "#ffffff", "line-width": 3 } });
+  map.addSource("draft", { type: "geojson", data: EMPTY });
+  map.addLayer({ id: "draft", type: "line", source: "draft", paint: { "line-color": "#ffffff", "line-width": 2, "line-dasharray": [2, 2] } });
   addImagery(map, view);
   fadeTiles(map, view);
 }
 
 // Call show() only while the container is visible; the first fitBounds needs its size.
-export function createTileMap(container, onPick) {
+// onDraw gets the box ring in longitude and latitude, null when zoomed out too far, or "thin" for a box without width.
+export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rotated }) {
   const map = new maplibregl.Map({ container, style: { version: 8, sources: {}, layers: [] }, center: [0, 0], zoom: 1, attributionControl: false, dragRotate: false, pitchWithRotate: false, keyboard: false, maxPitch: 0 });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
@@ -75,9 +84,10 @@ export function createTileMap(container, onPick) {
 
   // Zoomed out, the tiles outside the list are hidden, so they take neither clicks nor hover until their grey borders show.
   const hidden = ({ listed }) => !listed && (!shown || map.getZoom() < shown.maxzoom - 2 - GRID_CLICKABLE);
+  let editing = false;
   map.on("click", "tiles-fill", (event) => {
     const { properties } = event.features[0];
-    if (hidden(properties)) return;
+    if (editing || hidden(properties)) return;
     hover(null);
     onPick(properties.index);
   });
@@ -86,13 +96,140 @@ export function createTileMap(container, onPick) {
     if (hovered !== null) map.setFeatureState({ source: "tiles", id: hovered }, { hover: false });
     hovered = index;
     if (hovered !== null) map.setFeatureState({ source: "tiles", id: hovered }, { hover: true });
-    map.getCanvas().style.cursor = hovered === null ? "" : "pointer";
+    map.getCanvas().style.cursor = editing ? "crosshair" : hovered === null ? "" : "pointer";
   }
   map.on("mousemove", "tiles-fill", (event) => {
     const { properties } = event.features[0];
     hover(hidden(properties) ? null : properties.index);
   });
   map.on("mouseleave", "tiles-fill", () => hover(null));
+
+  // MapLibre pans only with the left button (https://unpkg.com/maplibre-gl@5.24.0/src/ui/handler/mouse.ts), so the middle button, and Space with a drag in Edit, move the map, as on the Label tile.
+  const surface = map.getCanvasContainer();
+  let space = false;
+  let drag = null;
+  const typing = 'input:not([type="radio"]):not([type="checkbox"]), select, textarea';
+  for (const type of ["keydown", "keyup"]) {
+    document.addEventListener(type, (event) => {
+      if (event.key !== " " || !editing || event.target.closest(typing)) return;
+      event.preventDefault();
+      space = type === "keydown";
+    });
+  }
+  window.addEventListener("blur", () => { space = false; });
+  const pointOf = (event) => {
+    const { left, top } = surface.getBoundingClientRect();
+    return { x: event.clientX - left, y: event.clientY - top };
+  };
+  const boxRing = (a, b) => [[a.x, a.y], [b.x, a.y], [b.x, b.y], [a.x, b.y], [a.x, a.y]].map((point) => map.unproject([point[0], point[1]]).toArray());
+  // With rotated boxes, a drag sets one side and a click or slide sets the opposite one, as on the Label tile; the side is kept in longitude and latitude so a pan in between keeps it in place.
+  let side = null;
+  let pointer = null;
+  const toScreen = (lngLat) => {
+    const { x, y } = map.project(lngLat);
+    return [x, y];
+  };
+  const screenRing = (ring) => ring.map((point) => map.unproject(point).toArray());
+  const drawDraft = (coordinates) => map.getSource("draft")?.setData(coordinates ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} }] } : EMPTY);
+  const sideRectangle = (point) => rectangleFromSide(toScreen(side[0]), toScreen(side[1]), [point.x, point.y]);
+  const tooFar = () => shown && map.getZoom() < shown.maxzoom - 2 - GRID_CLICKABLE;
+
+  function cancelSide() {
+    if (!side) return false;
+    side = null;
+    drawDraft(null);
+    onSide(false);
+    return true;
+  }
+
+  surface.addEventListener("mousedown", (event) => {
+    const point = pointOf(event);
+    if (event.button === 1 || (editing && space && event.button === 0)) {
+      event.preventDefault();
+      event.stopPropagation();
+      drag = { pan: point };
+      return;
+    }
+    if (editing && event.button === 0) {
+      event.stopPropagation();
+      drag = { start: point };
+    }
+  }, { capture: true });
+  window.addEventListener("mousemove", (event) => {
+    const point = pointOf(event);
+    pointer = point;
+    if (!drag) {
+      if (side) drawDraft(screenRing(sideRectangle(point)));
+      return;
+    }
+    // A button released outside the window sends no mouseup here.
+    if ((event.buttons & (drag.pan ? 4 | 1 : 1)) === 0) {
+      drag = null;
+      drawDraft(side ? screenRing(sideRectangle(point)) : null);
+      return;
+    }
+    if (drag.pan) {
+      map.panBy([drag.pan.x - point.x, drag.pan.y - point.y], { animate: false });
+      drag.pan = point;
+      return;
+    }
+    if (side) drawDraft(screenRing(sideRectangle(point)));
+    else if (rotated()) drawDraft([map.unproject([drag.start.x, drag.start.y]).toArray(), map.unproject([point.x, point.y]).toArray()]);
+    else drawDraft(boxRing(drag.start, point));
+  });
+  window.addEventListener("mouseup", (event) => {
+    if (!drag) return;
+    const { start } = drag;
+    drag = null;
+    if (!start) return;
+    const end = pointOf(event);
+    const moved = Math.hypot(end.x - start.x, end.y - start.y) >= DRAG_SCREEN_PIXELS;
+    if (side) {
+      const rectangle = sideRectangle(end);
+      side = null;
+      drawDraft(null);
+      onSide(false);
+      const [a, b, c] = rectangle;
+      if (Math.hypot(b[0] - c[0], b[1] - c[1]) < DRAG_SCREEN_PIXELS) onDraw("thin");
+      else onDraw(tooFar() ? null : screenRing(rectangle));
+      return;
+    }
+    drawDraft(null);
+    if (!moved) {
+      onSelect(map.queryRenderedFeatures([end.x, end.y], { layers: ["labels-fill"] }).map(({ properties }) => properties));
+      return;
+    }
+    if (tooFar()) {
+      onDraw(null);
+      return;
+    }
+    if (rotated()) {
+      side = [map.unproject([start.x, start.y]).toArray(), map.unproject([end.x, end.y]).toArray()];
+      drawDraft(screenRing(sideRectangle(end)));
+      onSide(true);
+      return;
+    }
+    onDraw(boxRing(start, end));
+  });
+  map.on("move", () => {
+    if (side && pointer && !drag) drawDraft(screenRing(sideRectangle(pointer)));
+  });
+
+  function setEditing(on) {
+    editing = on;
+    drag = null;
+    side = null;
+    drawDraft(null);
+    space = false;
+    if (on) map.dragPan.disable();
+    else map.dragPan.enable();
+    map.getCanvas().style.cursor = on ? "crosshair" : "";
+    if (!on) showPicked(EMPTY);
+  }
+
+  function showPicked(geojson) {
+    map.getSource("picked")?.setData(geojson);
+  }
 
   // fitBounds runs only for a new project or tile list, so the map keeps its place between reviews.
   async function render(view) {
@@ -129,5 +266,5 @@ export function createTileMap(container, onPick) {
     return pending;
   }
 
-  return { show };
+  return { show, setEditing, showPicked, cancelSide };
 }

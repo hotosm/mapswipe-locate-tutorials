@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -156,10 +156,13 @@ test("filled setup fields win over the saved settings, and empty ones take the s
   assert.deepEqual(labelSettings({ objectName: "", attribute: "", values: "" }, null), { objectName: "", attribute: "", values: "" });
 });
 
-test("arrow keys move between tiles, Z undoes with or without Ctrl or Cmd but not with Shift as well, D switches the tool, Esc opens the review, + - and 0 zoom the tile, and other keys do nothing", () => {
+test("arrow keys move between tiles, Z undoes with or without Ctrl or Cmd but not with Shift as well, D switches the tool, Esc opens the review, E edits on the map, Delete and Backspace delete the selected label, + - and 0 zoom the tile, and other keys do nothing", () => {
   assert.equal(keyAction("ArrowLeft"), "previous");
   assert.equal(keyAction("ArrowRight"), "next");
   assert.equal(keyAction("Escape"), "review");
+  assert.equal(keyAction("e"), "map-edit");
+  assert.equal(keyAction("Delete"), "map-delete");
+  assert.equal(keyAction("Backspace"), "map-delete");
   assert.equal(keyAction("+"), "zoom-in");
   assert.equal(keyAction("-"), "zoom-out");
   assert.equal(keyAction("0"), "zoom-fit");
@@ -584,4 +587,42 @@ test("tilesFileViewed reads viewed tiles back from tiles.geojson and leaves labe
   assert.equal(tilesFileViewed({ type: "FeatureCollection", features: [] }), null);
   const doneFile = { ...file, features: file.features.map(({ properties: { viewed, ...rest }, ...feature }) => ({ ...feature, properties: { ...rest, done: viewed } })) };
   assert.deepEqual(tilesFileViewed(doneFile), ["1-1-1"]);
+});
+
+test("ringOnTiles cuts a box drawn across a tile edge into one part per tile, keeps every part except a strip thinner than a drag box, keeps a box inside one tile whole, and skips tiles it misses", () => {
+  const left = { id: "20-100-100", zoom: 20, x: 100, y: 100, cells: [] };
+  const right = { id: "20-101-100", zoom: 20, x: 101, y: 100, cells: [] };
+  const far = { id: "20-300-300", zoom: 20, x: 300, y: 300 };
+  const clamp = (ring) => ring.map(([x, y]) => [Math.min(1024, Math.max(0, x)), Math.min(1024, Math.max(0, y))]);
+  const box = (x1, y1, x2, y2) => [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]].map((point) => labelsGeojson([left], new Map([[left.id, [{ outline: [point, point, point, point] }]]]), { mode: "segment", objectName: "", pixels: 1024 }).features[0].geometry.coordinates[0][0]);
+  const across = ringOnTiles(box(824, 100, 1224, 400), [left, right, far], 1024, clamp);
+  assert.deepEqual(across.map(({ tile }) => tile.id), [left.id, right.id]);
+  assert.ok(Math.abs(across[0].outline[0][0] - 824) < 0.5 && Math.abs(across[1].outline[1][0] - 200) < 0.5);
+  assert.deepEqual(ringOnTiles(box(100, 100, 300, 300), [left, right, far], 1024, clamp).map(({ tile }) => tile.id), [left.id]);
+  assert.deepEqual(ringOnTiles(box(1016, 100, 1300, 400), [left, right], 1024, clamp).map(({ tile }) => tile.id), [left.id, right.id]);
+  assert.deepEqual(ringOnTiles(box(1023.95, 100, 1300, 400), [left, right], 1024, clamp).map(({ tile }) => tile.id), [right.id]);
+  assert.deepEqual(ringOnTiles(box(500, 100, 1025, 400), [left, right], 1024, clamp).map(({ tile }) => tile.id), [left.id]);
+});
+
+test("ringOnTiles cuts an angled box at the tile line into the exact part on each tile", () => {
+  const left = { id: "20-100-100", zoom: 20, x: 100, y: 100, cells: [] };
+  const right = { id: "20-101-100", zoom: 20, x: 101, y: 100, cells: [] };
+  const toLonLat = (point) => labelsGeojson([left], new Map([[left.id, [{ outline: [point, point, point, point] }]]]), { mode: "segment", objectName: "", pixels: 1024 }).features[0].geometry.coordinates[0][0];
+  const clipEdge = (points, inside, cross) => points.flatMap((point, index) => {
+    const previous = points.at(index - 1);
+    if (inside(point)) return inside(previous) ? [point] : [cross(previous, point), point];
+    return inside(previous) ? [cross(previous, point)] : [];
+  });
+  const at = (axis, value) => (a, b) => { const t = (value - a[axis]) / (b[axis] - a[axis]); return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]; };
+  const clip = (ring) => {
+    let points = ring.slice(0, -1);
+    for (const [axis, value, keep] of [[0, 0, (v) => v >= 0], [0, 1024, (v) => v <= 1024], [1, 0, (v) => v >= 0], [1, 1024, (v) => v <= 1024]]) points = clipEdge(points, (point) => keep(point[axis]), at(axis, value));
+    return points.length > 2 ? [...points, points[0]] : null;
+  };
+  const area = (ring) => Math.abs(ring.slice(0, -1).reduce((sum, [x, y], index) => sum + x * ring[index + 1][1] - ring[index + 1][0] * y, 0)) / 2;
+  const drawn = [[900, 300], [1100, 400], [1060, 480], [860, 380], [900, 300]];
+  const parts = ringOnTiles(drawn.map(toLonLat), [left, right], 1024, clip);
+  assert.deepEqual(parts.map(({ tile }) => tile.id), [left.id, right.id]);
+  const shifted = parts[1].outline.map(([x, y]) => [x + 1024, y]);
+  assert.ok(Math.abs(area(parts[0].outline) + area(shifted) - area(drawn)) < 0.01 * area(drawn));
 });

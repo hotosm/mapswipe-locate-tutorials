@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -25,7 +25,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1 };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], mapUndo: [], mapVersion: 0 };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -195,7 +195,10 @@ function updateControls() {
   const loaded = state.tiles.length > 0;
   element("previous").disabled = state.busy || !loaded || !state.open || state.index === 0;
   element("next").disabled = state.busy || !loaded || !state.open || state.index === state.tiles.length - 1;
-  element("undo").disabled = state.busy || !loaded || !state.open || (!state.side && currentObjects().length === 0 && !canRestore());
+  element("map-edit").disabled = state.busy || !loaded || state.open || !state.map;
+  element("map-edit").setAttribute("aria-pressed", String(state.mapEdit));
+  element("map-delete").disabled = state.busy || !state.mapEdit || state.picked.length === 0;
+  element("undo").disabled = state.mapEdit ? state.busy || (state.mapUndo.length === 0 && !state.mapSide) : state.busy || !loaded || !state.open || (!state.side && currentObjects().length === 0 && !canRestore());
   element("clear").disabled = state.busy || !loaded || !state.open || currentObjects().length === 0;
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
@@ -208,6 +211,7 @@ function updateControls() {
   for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], input[name="source"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
   document.body.classList.toggle("tile-open", state.open);
+  document.body.classList.toggle("map-editing", state.mapEdit);
 }
 
 async function work(task) {
@@ -523,6 +527,11 @@ function canRestore() {
 }
 
 element("undo").addEventListener("click", () => {
+  if (state.mapEdit) {
+    if (state.map.cancelSide()) return;
+    undoMapEdit();
+    return;
+  }
   if (state.side) {
     clearSide();
     drawObjects();
@@ -565,6 +574,7 @@ for (const choice of document.querySelectorAll('input[name="mode"]')) {
   choice.addEventListener("change", () => {
     clearSide();
     if (state.tiles.length > 0) drawObjects();
+    if (state.mapEdit) setMapEdit(false);
     refreshMap();
   });
 }
@@ -593,8 +603,9 @@ function labelColours() {
 
 function mapView() {
   const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
-  const mode = outputMode();
-  const labels = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName: "", attribute: attributeName(), pixels: PIXELS });
+  // The map shows each label's exact shape, so a box split at tile lines shows as drawn.
+  const labels = labelsGeojson(tiles, state.objects, { mode: "segment", objectName: "", attribute: attributeName(), pixels: PIXELS });
+  numberLabels(labels);
   const all = state.allTiles;
   const listed = new Set(state.tiles.map((tile) => tile.id));
   return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id) };
@@ -609,12 +620,157 @@ function pickTile(index) {
     setStatus("Wait for the labeller to finish, then click the tile again.");
     return;
   }
+  if (state.mapEdit) setMapEdit(false);
   state.open = true;
   updateControls();
   element("stage-area").scrollIntoView({ block: "start" });
   if (index !== state.index || !state.prompt) work(() => showTile(index));
   else setStatus(toolHint());
 }
+
+// Each feature gets its place in its tile's list, and the map data version, so a click finds the object it shows and a click on older data is ignored.
+function numberLabels(labels) {
+  state.mapVersion += 1;
+  let tileId = null;
+  let index = 0;
+  for (const { properties } of labels.features) {
+    index = properties.tile_id === tileId ? index + 1 : 0;
+    tileId = properties.tile_id;
+    properties.object_index = index;
+    properties.map_version = state.mapVersion;
+  }
+}
+
+function busyEditing() {
+  if (state.busy) setStatus("Wait for the labeller to finish, then edit again.");
+  return state.busy;
+}
+
+function pickedGeojson() {
+  const byTile = new Map();
+  for (const { tileId, object } of state.picked) byTile.set(tileId, [...(byTile.get(tileId) ?? []), object]);
+  return labelsGeojson(state.allTiles.filter((tile) => byTile.has(tile.id)), byTile, { mode: "segment", objectName: "", pixels: PIXELS });
+}
+
+function mapChanged(message) {
+  state.tiles = withSavedTiles(state.tiles, state.allTiles, { objects: Object.fromEntries(state.objects) });
+  showCounts();
+  saveObjects();
+  updateControls();
+  refreshMap();
+  state.map.showPicked(pickedGeojson());
+  setStatus(message);
+}
+
+function drawOnMap(ring) {
+  if (busyEditing()) return;
+  if (!ring) {
+    setStatus("Zoom in further, then draw again.");
+    return;
+  }
+  if (ring === "thin") {
+    setStatus("That box doesn't have a width. Click farther from the first side.");
+    return;
+  }
+  const clip = (pixelRing) => bboxClip({ type: "Polygon", coordinates: [pixelRing] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
+  const parts = ringOnTiles(ring, state.allTiles, PIXELS, clip);
+  if (parts.length === 0) {
+    setStatus("That box is outside the tiles. Draw it over a tile.");
+    return;
+  }
+  const value = newValue();
+  const items = parts.map(({ tile, outline }) => {
+    const object = { outline, source: "drawn by hand", ...value };
+    if (!state.objects.has(tile.id)) state.objects.set(tile.id, []);
+    state.objects.get(tile.id).push(object);
+    return { tileId: tile.id, object };
+  });
+  state.mapUndo.push({ kind: "add", items });
+  state.picked = [];
+  mapChanged(parts.length === 1 ? "Drawn by hand." : `Drawn by hand, split into ${parts.length} labels at the tile edges.`);
+}
+
+function editHint() {
+  return `${outputMode() === "obb" ? "Drag along one side of an object, then click the opposite side." : "Drag to draw a box."} Click a label to select it.`;
+}
+
+function sideOnMap(started) {
+  state.mapSide = started;
+  updateControls();
+  setStatus(started ? "Click the opposite side of the object. Esc or Undo cancels." : editHint());
+}
+
+// The map can return a label twice when it spans its own data tiles (https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/#queryrenderedfeatures), so each label is kept once.
+function selectOnMap(found) {
+  if (found.some((properties) => properties.map_version !== state.mapVersion)) {
+    setStatus("Wait for the map to update, then click again.");
+    return;
+  }
+  const picked = found.map((properties) => ({ tileId: properties.tile_id, object: state.objects.get(properties.tile_id)?.[properties.object_index] })).filter(({ object }) => object);
+  state.picked = [...new Map(picked.map((item) => [item.object, item])).values()];
+  state.map.showPicked(pickedGeojson());
+  updateControls();
+  if (state.picked.length === 0) setStatus(editHint());
+  else {
+    const one = state.picked.length === 1;
+    setStatus(`Selected ${one ? "1 label" : `${state.picked.length} labels`}. Delete removes ${one ? "it" : "them"}${values().length > 0 ? `, and a value button changes ${one ? "its value" : "their value"}` : ""}.`);
+  }
+}
+
+function deleteOnMap() {
+  if (busyEditing()) return;
+  const items = state.picked.map(({ tileId, object }) => ({ tileId, object, index: state.objects.get(tileId)?.indexOf(object) ?? -1 })).filter(({ index }) => index !== -1);
+  if (items.length === 0) {
+    state.picked = [];
+    state.map.showPicked(pickedGeojson());
+    updateControls();
+    setStatus("The selected labels are gone. Click a label to select it.");
+    return;
+  }
+  for (const { tileId, object } of items) {
+    const list = state.objects.get(tileId);
+    const at = list.indexOf(object);
+    if (at !== -1) list.splice(at, 1);
+  }
+  state.mapUndo.push({ kind: "delete", items });
+  state.picked = [];
+  mapChanged(items.length === 1 ? "Deleted the label." : `Deleted ${items.length} labels.`);
+}
+
+function undoMapEdit() {
+  const last = state.mapUndo.pop();
+  if (!last) return;
+  if (last.kind === "add") {
+    for (const { tileId, object } of last.items) {
+      const list = state.objects.get(tileId) ?? [];
+      if (list.includes(object)) list.splice(list.indexOf(object), 1);
+    }
+  }
+  if (last.kind === "delete") {
+    for (const { tileId, object, index } of last.items.toSorted((a, b) => a.index - b.index)) {
+      if (!state.objects.has(tileId)) state.objects.set(tileId, []);
+      const list = state.objects.get(tileId);
+      if (!list.includes(object)) list.splice(Math.min(index, list.length), 0, object);
+    }
+  }
+  if (last.kind === "value") for (const { object, value } of last.items) object.value = value;
+  state.picked = [];
+  mapChanged("Undid the last change on the map.");
+}
+
+// The map undo history only lives while Edit is on, since labels changed in Label would make its records stale.
+function setMapEdit(on) {
+  state.mapEdit = on;
+  state.mapSide = false;
+  state.picked = [];
+  state.mapUndo = [];
+  state.map?.setEditing(on);
+  updateControls();
+  setStatus(on ? `${editHint()} Hold Space and drag, or drag with the middle mouse button, to move the map.` : REVIEW_HINT);
+}
+
+element("map-edit").addEventListener("click", () => setMapEdit(!state.mapEdit));
+element("map-delete").addEventListener("click", deleteOnMap);
 
 // A tile of the area that isn't listed yet joins the end of the list, so it counts and downloads like the others.
 function pickFromMap(areaIndex) {
@@ -641,7 +797,7 @@ function showReview() {
   // A failed map is not built again, since a half-built one would stay in the container.
   if (state.map !== false) {
     try {
-      state.map ??= createTileMap(element("tile-map"), pickFromMap);
+      state.map ??= createTileMap(element("tile-map"), pickFromMap, { onDraw: drawOnMap, onSelect: selectOnMap, onSide: sideOnMap, rotated: () => outputMode() === "obb" });
     } catch (error) {
       console.error(error);
       state.map = false;
@@ -769,6 +925,8 @@ async function load() {
   element("attribute").value = settings.attribute;
   element("attribute-values").value = settings.values;
   showValueChoices();
+  if (state.mapEdit) setMapEdit(false);
+  state.mapUndo = [];
   state.open = true;
   await showTile(restored.index);
 }
@@ -1004,6 +1162,7 @@ function restoreViewed(ids, file) {
 }
 
 async function loadLabels(file) {
+  if (state.mapEdit) setMapEdit(false);
   const geojson = parsedLabels(await file.text(), file);
   const viewedIds = tilesFileViewed(geojson);
   if (viewedIds) {
@@ -1074,8 +1233,15 @@ function valueChoice(value, index) {
 
 // The value is read at each tap, so a value picked while the model runs applies to the next object.
 function pickValue(value) {
+  if (state.mapEdit && state.picked.length > 0 && busyEditing()) return;
   state.value = value;
   element("value-choices").querySelector(`input[value="${CSS.escape(value)}"]`).checked = true;
+  if (state.mapEdit && state.picked.length > 0) {
+    state.mapUndo.push({ kind: "value", items: state.picked.map(({ object }) => ({ object, value: object.value })) });
+    for (const { object } of state.picked) object.value = value;
+    mapChanged(`Set ${state.picked.length === 1 ? "the selected label" : `${state.picked.length} selected labels`} to ${attributeName()}: ${value}.`);
+    return;
+  }
   if (!state.busy) setStatus(`Picked ${attributeName()}: ${value}.`);
 }
 
@@ -1089,6 +1255,10 @@ document.addEventListener("keydown", (event) => {
   if (action && !(event.target.matches('input[type="radio"]') && (action === "previous" || action === "next"))) {
     event.preventDefault();
     if (action === "undo" && event.repeat) return;
+    if (action === "review" && state.mapEdit) {
+      state.map.cancelSide();
+      return;
+    }
     if (action === "review" && state.side) {
       clearSide();
       drawObjects();

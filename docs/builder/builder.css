@@ -175,7 +175,11 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #tile-map { position: absolute; inset: 0; }
 #stage { position: absolute; inset: 0; margin: auto; width: calc(min(100cqw, 100cqh) - 24px); height: calc(min(100cqw, 100cqh) - 24px); overflow: hidden; border-radius: 4px; }
 #tile-view { position: absolute; inset: 0; transform-origin: 0 0; }
-body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves, #tile-bar .tile-edit) { display: none; }
+body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves), body:not(.tile-open):not(.map-editing) #tile-bar .tile-edit { display: none; }
+body.tile-open #map-edit, body.map-editing #clear, body:not(.map-editing) #map-delete { display: none; }
+#map-edit[aria-pressed="true"] { color: var(--on-ink); background: var(--ink); border-color: var(--ink); }
+#map-edit[aria-pressed="true"]:hover:not(:disabled) { background: var(--ink-hover); border-color: var(--ink-hover); }
+body.map-editing #tile-bar #value-counts { display: none; }
 .tile-zoom { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
 .tile-zoom button { min-width: 36px; padding: 4px 8px; font-size: 15px; }
 /* A finger drag labels, and touch has no Space or middle button to move a zoomed tile, so touch screens keep the whole tile. */
@@ -185,7 +189,7 @@ body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves
 body:has(input[name="tool"][value="hand"]:checked) #box-canvas { cursor: crosshair; }
 #stage-tools { display: flex; flex-direction: column; gap: 8px; }
 #tool-choice label { flex: 1; justify-content: center; white-space: nowrap; }
-body:not(.tile-open) #stage-tools { display: none; }
+body:not(.tile-open):not(.map-editing) #stage-tools, body.map-editing #tool-choice { display: none; }
 #view-choice label { flex: 1; justify-content: center; }
 :is(#tool-choice, #view-choice) legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
 #download-row { display: flex; flex-wrap: wrap; gap: 8px; }

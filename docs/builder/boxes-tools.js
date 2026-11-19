@@ -177,7 +177,7 @@ export function labelSettings(entered, saved) {
 export function keyAction(key, { ctrlKey = false, metaKey = false, altKey = false, shiftKey = false } = {}) {
   if (altKey) return null;
   if (ctrlKey || metaKey) return key.toLowerCase() === "z" && !shiftKey ? "undo" : null;
-  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool", Escape: "review", "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", 0: "zoom-fit" }[key] ?? null;
+  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool", Escape: "review", e: "map-edit", E: "map-edit", Delete: "map-delete", Backspace: "map-delete", "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", 0: "zoom-fit" }[key] ?? null;
 }
 
 export function valueSummary(list, counts, target) {
@@ -399,6 +399,20 @@ export function polygonRings(geojson) {
   const outside = shapes.flatMap(({ ring }) => ring).find(([longitude, latitude]) => Math.abs(longitude) > 180 || Math.abs(latitude) > 90);
   if (outside) throw new Error(`The position ${outside.join(", ")} is outside longitude and latitude. Save the file again in EPSG:4326.`);
   return { shapes, skipped: features.length - polygons.length };
+}
+
+// Every part of a drawn box is kept so the object stays covered; the tenth rule of keepsCutLabel doesn't apply, only a strip thinner than a drag box is dropped.
+export function ringOnTiles(ring, tiles, pixels, clip) {
+  return tiles.flatMap((tile) => {
+    const pixelRing = ring.map((point) => lonLatToPixel(tile, point, pixels));
+    const xs = pixelRing.map(([x]) => x);
+    const ys = pixelRing.map(([, y]) => y);
+    if (Math.max(...xs) <= 0 || Math.min(...xs) >= pixels || Math.max(...ys) <= 0 || Math.min(...ys) >= pixels) return [];
+    const outline = clip(pixelRing);
+    if (!outline) return [];
+    const [width, height] = [0, 1].map((axis) => Math.max(...outline.map((point) => point[axis])) - Math.min(...outline.map((point) => point[axis])));
+    return width >= DRAG_PIXELS && height >= DRAG_PIXELS ? [{ tile, outline }] : [];
+  });
 }
 
 // A shape cut at the tile edge is kept when it holds at least a tenth of the whole shape, the default of SAHI's min_area_ratio, and is no smaller than the smallest drag box.

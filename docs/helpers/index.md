@@ -99,7 +99,7 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 ![Two taps and a drag mark three solar panel groups, then the outlines show](../assets/helpers/auto-labeller-laptop.gif){ loading=lazy }
 
 - **Label**: in the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share** and the **Object name**, and click **Load**. Click each object on the tile, or drag a box around it. With **Draw by hand** (++"d"++), you draw the box. Each tile you open counts as viewed.
-- **Review** (++escape++): a map of every tile and label over the imagery. Green tiles have labels, solid white ones were viewed, faint ones aren't viewed yet, and grey ones, zoomed in, are the rest of the project. Click any tile to label it.
+- **Review** (++escape++): a map of every tile and label over the imagery. Green tiles have labels, solid white ones were viewed, faint ones aren't viewed yet, and grey ones, zoomed in, are the rest of the project. Click any tile to label it, or click **Edit labels** (++"e"++) to draw and fix labels on the map.
 - **Download**: **Labels (GeoJSON)**, or **Full dataset (.zip)** with the images and YOLO files.
 
 [Label with the auto labeller](../guides/training-data/auto-labeller.md) has every step. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.

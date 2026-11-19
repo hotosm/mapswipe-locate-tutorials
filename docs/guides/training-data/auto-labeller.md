@@ -35,7 +35,7 @@ The **Label** tab, under the project name in the side panel, shows one tile as l
 
 1. Click (or tap) the middle of each object. A box appears around it, and the counts in the side panel go up. Touching solar panels form one array and get one box.
 2. When a box is wrong, click **Undo** (++"z"++) and drag a box close around the object.
-3. When that fails, choose **Draw by hand** in the side panel (++"d"++). With **Output** set to **Boxes**, drag along one side of the object at any angle, then tap the opposite side, or slide to it and lift. **Undo** or ++escape++ cancels a side you started. With **Outlines**, drag a box around the object. **Model (tap)** switches back.
+3. When that fails, choose **Draw by hand** in the side panel (++"d"++). With **Output** set to **Boxes**, drag along one side of the object at any angle, then tap the opposite side, or slide to it and lift. A box across the tile edge is cut at the edge. **Undo** or ++escape++ cancels a side you started. With **Outlines**, drag a box around the object. **Model (tap)** switches back.
 4. To look closer, zoom into the tile with the mouse wheel, the **+** and **-** buttons on the tile, or the ++plus++ and ++minus++ keys. Hold ++space++ and drag, or drag with the middle mouse button, to move around the zoomed tile. **Fit** (++0++) shows the whole tile again. Touch screens hide the **+** and **-** buttons and show the whole tile.
 5. **Clear** removes every label on the tile, and **Undo** right after brings them back.
 6. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. Each tile you open counts as viewed. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
@@ -53,9 +53,16 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
     - Yellow border: the tile open in **Label**.
 
     Zoomed out, the tiles in the list are filled in these colours. Zoomed in, the labels show in their colours.
-2. Zoom with the mouse wheel or the **+** and **-** buttons, and drag to move the map.
+2. Zoom with the mouse wheel or the **+** and **-** buttons. Drag with the left or middle mouse button to move the map.
 3. Click a tile to open it in the **Label** tab, and add the missing labels. A tile with a grey border joins the end of the list. After a reload, it stays in the list.
 4. Click **Review** (++escape++) to go back to the map where you left it.
+5. To fix labels on the map, click **Edit labels** (++"e"++). Click it again to turn it off. While it is on, clicking a tile doesn't open it.
+    - Zoom in close, then draw a box. With **Output** set to **Boxes**, drag along one side of the object at any angle, then click the opposite side. ++escape++ or **Undo** cancels a side you started. With **Outlines**, drag a box around the object. If you set values ([Objects with types](#objects-with-types)), it takes the value picked in the side panel.
+    - A box across tile edges is split at the edges into one label per tile. A tile with a grey border you draw on joins the list. With **Boxes**, the download turns each part into a rotated box around it.
+    - Click a label to select it. Where labels overlap, the click selects all of them. **Delete** (++delete++ or ++backspace++) removes it, and a value button changes its value.
+    - **Undo** (++"z"++) undoes the last change on the map. Turning **Edit labels** off clears this history. Hold ++space++ and drag, or drag with the middle mouse button, to move the map.
+
+    To label with the model, open the tile in **Label**.
 
 ### Objects with types
 
