@@ -102,7 +102,8 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** under **Settings** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
 3. When the result is wrong, click **Undo** (++"z"++) and drag closer. **Clear tile** removes every label on the tile, and **Undo** right after brings them back. When it stays wrong, choose **Draw by hand** above the tile (press ++"d"++). With **Output** set to **Boxes**, drag along one side of the object, then tap the opposite side, or slide to it and lift. **Undo** cancels a side you started. With **Outlines**, drag a box around it. **Model (tap)** switches back.
 4. Move between tiles with **Previous** and **Next**, or the arrow keys.
-5. Choose the **Output** under **Settings** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
+5. Click **Review** to see every label on a map over the imagery. Click a tile to open it and add the missing labels ([steps](../guides/training-data/auto-labeller.md#3-review-the-labels)).
+6. Choose the **Output** under **Settings** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
 
 For objects with types, **Attribute** and **Values** add a value to each label, such as `roof:material` with `metal, roof_tiles`. Pick a value with its button above the tile, or with its number key on a keyboard; [Objects with types](../guides/training-data/auto-labeller.md#objects-with-types) shows the steps.
 

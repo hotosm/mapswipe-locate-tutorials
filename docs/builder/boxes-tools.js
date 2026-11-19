@@ -436,3 +436,19 @@ ${templates.map((template) => `   \`\`\`text\n   ${template}\n   \`\`\``).join("
 3. Drag \`labels.geojson\` into QGIS. It draws above the imagery.
 `;
 }
+
+export function tileGrid(tiles, objects) {
+  const features = tiles.map((tile, index) => {
+    const corners = [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]].map((corner) => pixelToLonLat(tile, corner, 1));
+    return { type: "Feature", geometry: { type: "Polygon", coordinates: [corners] }, properties: { index, tile_id: tile.id, labelled: (objects.get(tile.id)?.length ?? 0) > 0 } };
+  });
+  return { type: "FeatureCollection", features };
+}
+
+export function nextEmptyTile(tiles, objects, after) {
+  for (let step = 1; step <= tiles.length; step += 1) {
+    const index = (after + step) % tiles.length;
+    if (!(objects.get(tiles[index].id)?.length > 0)) return index;
+  }
+  return -1;
+}

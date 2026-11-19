@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, nextEmptyTile, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -524,4 +524,24 @@ test("a label downloaded as a rotated box counts as a repeat of the outline it c
   const otherZoom = shapes.map((shape) => ({ ...shape, properties: { ...shape.properties, tile_id: "19-242933-249767" } }));
   const cut = placedLabels({ ...options, shapes: otherZoom, objects: new Map(), shapesOf: (object) => [object.outline] });
   assert.deepEqual([cut.count, cut.unlisted], [1, 0]);
+});
+
+test("tileGrid gives each tile its square in longitude and latitude and whether it has labels", () => {
+  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }, { id: "1-1-1", zoom: 1, x: 1, y: 1 }];
+  const grid = tileGrid(tiles, new Map([["1-0-0", [{}]], ["1-1-1", []]]));
+  assert.deepEqual(grid.features.map((feature) => feature.properties), [{ index: 0, tile_id: "1-0-0", labelled: true }, { index: 1, tile_id: "1-1-1", labelled: false }]);
+  const [west, north] = grid.features[0].geometry.coordinates[0][0];
+  const [east, south] = grid.features[0].geometry.coordinates[0][2];
+  assert.equal(west, -180);
+  assert.equal(east, 0);
+  assert.equal(south, 0);
+  assert.ok(Math.abs(north - 85.0511) < 0.001);
+});
+
+test("nextEmptyTile finds the next tile without labels and wraps past the last tile", () => {
+  const tiles = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  const objects = new Map([["a", []], ["b", [{}]], ["d", [{}]]]);
+  assert.equal(nextEmptyTile(tiles, objects, 0), 2);
+  assert.equal(nextEmptyTile(tiles, objects, 2), 0);
+  assert.equal(nextEmptyTile(tiles, new Map(tiles.map((tile) => [tile.id, [{}]])), 1), -1);
 });

@@ -9,7 +9,8 @@ import { del as deleteSaved, entries as savedEntries, get as getSaved, set as pu
 import { EXAMPLE_PROJECT } from "./results-tools.js";
 import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { createReview } from "./boxes-review.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, nextEmptyTile, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -23,7 +24,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "" };
+const state = { tiles: [], index: 0, objects: new Map(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", selected: 0 };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -199,6 +200,9 @@ function updateControls() {
   element("download-kind").disabled = state.busy || !loaded;
   element("labels-file").disabled = state.busy || !loaded;
   element("tile-number").disabled = state.busy || !loaded;
+  for (const view of document.querySelectorAll('input[name="view"]')) view.disabled = state.busy || !loaded;
+  element("next-empty").disabled = state.busy || !loaded || nextEmptyTile(state.tiles, state.objects, state.selected) === -1;
+  element("open-selected").disabled = state.busy || !loaded;
   for (const control of document.querySelectorAll('#setup button, #model, #change, input[name="mode"], input[name="source"], #object-name, #attribute, #attribute-values')) control.disabled = state.busy;
   document.body.classList.toggle("working", state.busy);
 }
@@ -555,8 +559,79 @@ for (const choice of document.querySelectorAll('input[name="mode"]')) {
   choice.addEventListener("change", () => {
     clearSide();
     if (state.tiles.length > 0) drawObjects();
+    refreshReview();
   });
 }
+
+const review = createReview(element("review-map"), openTile);
+
+function reviewing() {
+  return document.body.classList.contains("reviewing");
+}
+
+function labelColours() {
+  const list = values();
+  if (list.length === 0) return VALUE_COLOURS[0];
+  return ["match", ["to-string", ["get", attributeName()]], ...list.flatMap((value, index) => [value, VALUE_COLOURS[index]]), NO_VALUE_COLOUR];
+}
+
+function reviewView() {
+  const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
+  const mode = outputMode();
+  const labels = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName: "", attribute: attributeName(), pixels: PIXELS });
+  return { key: [state.storageKey, state.tiles[0].template, state.threshold, state.allMapped, state.tiles.length, state.tiles[0].id, state.tiles.at(-1).id].join(" "), template: state.tiles[0].template, maxzoom: state.tiles[0].zoom + DETAIL_LEVELS, grid: tileGrid(state.tiles, state.objects), labels, colour: labelColours() };
+}
+
+function showReviewCount() {
+  const { tilesWithObjects, tiles } = datasetCounts(state.tiles, state.objects);
+  element("review-count").textContent = `${tiles} ${tiles === 1 ? "tile" : "tiles"}: ${tilesWithObjects} with labels, ${tiles - tilesWithObjects} without.`;
+}
+
+function refreshReview() {
+  if (!reviewing()) return;
+  showReviewCount();
+  review.show(reviewView()).catch(showError);
+}
+
+function showView(view) {
+  document.querySelector(`input[name="view"][value="${view}"]`).checked = true;
+  document.body.classList.toggle("reviewing", view === "review");
+  if (view === "label") {
+    if (state.tiles.length > 0) setStatus(toolHint());
+    return;
+  }
+  clearSide();
+  state.selected = state.index;
+  review.select(state.index);
+  element("stage-area").scrollIntoView({ block: "start" });
+  showReviewCount();
+  updateControls();
+  setStatus("Tap or click a tile to label it. Zoomed out, green tiles have labels and white tiles have none.");
+  review.show(reviewView()).catch((error) => {
+    showView("label");
+    showError(error);
+  });
+}
+
+function openTile(index) {
+  if (state.busy) {
+    setStatus("Wait for the current task to finish, then tap or click the tile again.");
+    return;
+  }
+  showView("label");
+  if (index !== state.index) work(() => showTile(index));
+}
+
+for (const view of document.querySelectorAll('input[name="view"]')) view.addEventListener("change", () => showView(view.value));
+element("next-empty").addEventListener("click", () => {
+  const index = nextEmptyTile(state.tiles, state.objects, state.selected);
+  if (index === -1) return;
+  state.selected = index;
+  review.select(index, { move: true });
+  updateControls();
+  setStatus(`Tile ${index + 1} doesn't have labels. Tap or click Label this tile to open it.`);
+});
+element("open-selected").addEventListener("click", () => openTile(state.selected));
 
 // The model class is fixed, so every option in the Model field is an EdgeTAM checkpoint.
 async function loadModel() {
@@ -663,6 +738,7 @@ async function load() {
   element("attribute").value = settings.attribute;
   element("attribute-values").value = settings.values;
   showValueChoices();
+  showView("label");
   await showTile(restored.index);
 }
 
@@ -812,7 +888,7 @@ async function download() {
   }
   const list = values();
   const mode = outputMode();
-  const shaped = mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
+  const shaped = shapedObjects(tiles, mode);
   const geojson = JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, values: list, pixels: PIXELS }));
   if (kind === "labels") {
     saveBlob(new Blob([geojson], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
@@ -833,6 +909,11 @@ async function download() {
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   await saveZip(zip, outputName(`yolo_${mode}`, "zip"));
   setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.${unloadedLabels()}`);
+}
+
+// Boxes need each label's rotated corners, which only the download and the review map use.
+function shapedObjects(tiles, mode) {
+  return mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
 }
 
 function outputName(kind, extension) {
@@ -884,6 +965,7 @@ async function loadLabels(file) {
   const elsewhere = unlisted > 0 ? (unlisted === 1 ? " 1 is on a tile that isn't loaded; it stays saved but isn't in the download." : ` ${unlisted} are on tiles that aren't loaded; they stay saved but aren't in the download.`) : "";
   const leftOut = skipped > 0 ? ` ${skipped} ${skipped === 1 ? "feature without a polygon was" : "features without a polygon were"} left out.` : "";
   afterChange(`Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut} ${objectCount()}`);
+  refreshReview();
 }
 
 function fillEmptySettings({ objectName, attribute, values: fileValues }) {
@@ -941,7 +1023,7 @@ function pickValue(value) {
 // A shortcut clicks its control, so a disabled control ignores it; arrow keys on a focused choice keep moving between its options.
 document.addEventListener("keydown", (event) => {
   const { classList } = document.body;
-  if (!classList.contains("loaded") || classList.contains("editing")) return;
+  if (!classList.contains("loaded") || classList.contains("editing") || classList.contains("reviewing")) return;
   if (event.target.closest('input:not([type="radio"]):not([type="checkbox"]), select, textarea')) return;
   const action = keyAction(event.key, event);
   if (action && !(event.target.matches('input[type="radio"]') && (action === "previous" || action === "next"))) {
@@ -979,6 +1061,7 @@ function changeValues() {
   drawObjects();
   showCounts();
   setStatus(valuesProblem(attributeName(), enteredValues()) ?? objectCount());
+  refreshReview();
 }
 
 function fieldSettings() {

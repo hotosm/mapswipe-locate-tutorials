@@ -52,7 +52,18 @@ The bold line in the side panel names the most common value and its count, and t
 
 A grey label doesn't have a listed value, for example one made before the values were set. **Download** names how many labels are grey and saves the file once each one has a value. In the download, each value is one class in `data.yaml`, and each feature of `labels.geojson` carries its value under the attribute name.
 
-## 3. Download the dataset
+## 3. Review the labels
+
+When every tile is done:
+
+1. Click **Review**, next to **Label**, in the bottom-left corner. On a phone, it is above the buttons at the bottom of the screen. A map shows every label over the imagery. Zoomed out, tiles with labels are green and tiles without labels are white. Zoomed in, each tile has a white outline: solid with labels, dashed without. The selected tile has a yellow outline. At first, it is the tile open in **Label**.
+2. Zoom in and look for objects without a label.
+3. Click a tile to open it in **Label** and add the missing labels. Click **Review** to go back: the map stays where it was and shows the new labels.
+4. Click **Next tile without labels** to zoom to the next tile without labels. It has a yellow outline. **Label this tile** opens it. **Next tile without labels** is greyed out when every tile has labels.
+
+The keyboard shortcuts work only in **Label**.
+
+## 4. Download the dataset
 
 1. **Output**, under **Settings**: choose **Boxes** for objects such as solar panels or boats, and **Outlines** for buildings and other shapes that follow their edges.
 2. Click **Download**. **Labels (GeoJSON)**, the default, saves only the labels. Choose **Full dataset (.zip)** for the YOLO dataset with images.
