@@ -27,10 +27,10 @@ export function keptTiles(rows, thresholdPercent, { allMapped = false } = {}) {
   return listed.toSorted((a, b) => Number(b.cells.length > 0) - Number(a.cells.length > 0));
 }
 
-// Tiles opened from the review map are added to the list, so on a reload every tile with saved labels or marked done, and the last tile open, are listed again.
+// Tiles opened from the review map are added to the list, so on a reload every tile with saved labels or viewed, and the last tile open, are listed again.
 export function withSavedTiles(listed, all, saved) {
   const ids = new Set(listed.map((tile) => tile.id));
-  const wanted = (tile) => !ids.has(tile.id) && ((saved?.objects?.[tile.id]?.length ?? 0) > 0 || tile.id === saved?.tile || (saved?.done ?? []).includes(tile.id));
+  const wanted = (tile) => !ids.has(tile.id) && ((saved?.objects?.[tile.id]?.length ?? 0) > 0 || tile.id === saved?.tile || (saved?.viewed ?? []).includes(tile.id));
   return [...listed, ...all.filter(wanted)];
 }
 
@@ -103,7 +103,7 @@ export function mergedSaves(saves) {
   for (const save of saves) {
     for (const [id, list] of Object.entries(save.objects ?? {})) if (!(id in objects) || list.length > objects[id].length) objects[id] = list;
   }
-  return { ...largest, objects, done: [...new Set(saves.flatMap((save) => save.done ?? []))] };
+  return { ...largest, objects, viewed: [...new Set(saves.flatMap((save) => save.viewed ?? []))] };
 }
 
 // A promise is kept while it runs, so a tile still being read ahead is read once; a failed one is forgotten, so the next try starts again.
@@ -160,7 +160,7 @@ export function areaTiles(geojson, zoom, template, cover) {
 // Labels on unlisted tiles stay, so a later share that lists them shows them again; the saved tile reopens when listed.
 export function restoredObjects(saved, tiles) {
   const objects = new Map(Object.entries(saved?.objects ?? {}));
-  return { objects, done: new Set(saved?.done ?? []), index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
+  return { objects, viewed: new Set([...(saved?.viewed ?? []), ...(saved?.done ?? [])]), index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
 // A field filled in the setup card wins; an empty one takes the project's saved setting.
@@ -177,7 +177,7 @@ export function labelSettings(entered, saved) {
 export function keyAction(key, { ctrlKey = false, metaKey = false, altKey = false, shiftKey = false } = {}) {
   if (altKey) return null;
   if (ctrlKey || metaKey) return key.toLowerCase() === "z" && !shiftKey ? "undo" : null;
-  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool", Escape: "review", c: "done-tile", C: "done-tile", "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", 0: "zoom-fit" }[key] ?? null;
+  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool", Escape: "review", "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", 0: "zoom-fit" }[key] ?? null;
 }
 
 export function valueSummary(list, counts, target) {
@@ -230,13 +230,21 @@ export function sameLabel(first, second) {
   return union > 0 && overlap / union >= 0.9;
 }
 
-// A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
-// One square per listed tile with its label count and Done mark, since an empty tile marked Done has no label to carry it.
-export function tilesGeojson(tiles, objects, done) {
-  const { features } = tileGrid(tiles, objects, new Set(), done);
-  return { type: "FeatureCollection", features: features.map(({ geometry, properties }) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, done: properties.done } })) };
+// tiles.geojson squares are tiles, not labels; a file from the earlier Done button has `done` in place of `viewed`.
+export function tilesFileViewed(geojson) {
+  const features = geojson?.type === "FeatureCollection" && Array.isArray(geojson.features) ? geojson.features : [];
+  const seen = (properties) => properties?.viewed ?? properties?.done;
+  const isTiles = features.length > 0 && features.every(({ properties }) => typeof properties?.tile_id === "string" && typeof properties.labels === "number" && typeof seen(properties) === "boolean");
+  return isTiles ? features.filter(({ properties }) => seen(properties)).map(({ properties }) => properties.tile_id) : null;
 }
 
+// One square per listed tile with its label count and whether it was viewed, since an empty viewed tile has no label to carry it.
+export function tilesGeojson(tiles, objects, viewed) {
+  const { features } = tileGrid(tiles, objects, new Set(), viewed);
+  return { type: "FeatureCollection", features: features.map(({ geometry, properties }) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, viewed: properties.viewed } })) };
+}
+
+// A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
 export function fileSettings(geojson, shapes) {
   if (typeof geojson.object_name === "string") return { objectName: geojson.object_name, attribute: geojson.attribute ?? "", values: (geojson.values ?? []).join(", ") };
   const properties = shapes.map((shape) => shape.properties);
@@ -444,7 +452,7 @@ ${area ? `- Area: ${area}, zoom ${tiles[0].zoom}` : `- Project: ${projectLink}\n
 - \`labels/\`: one YOLO label file per image.
 - \`data.yaml\`: the dataset file for Ultralytics.
 - \`labels.geojson\`: every object as a polygon in longitude and latitude (EPSG:4326), with its tile, source and imagery.
-- \`tiles.geojson\`: every listed tile as a square, with its number of labels and \`done\` (true when the tile was marked Done).
+- \`tiles.geojson\`: every listed tile as a square, with \`labels\` (its number of labels) and \`viewed\` (true when the tile was opened).
 
 ## Open in QGIS
 
@@ -457,10 +465,10 @@ ${templates.map((template) => `   \`\`\`text\n   ${template}\n   \`\`\``).join("
 `;
 }
 
-export function tileGrid(tiles, objects, listed, done = new Set()) {
+export function tileGrid(tiles, objects, listed, viewed = new Set()) {
   const features = tiles.map((tile, index) => {
     const corners = [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]].map((corner) => pixelToLonLat(tile, corner, 1));
-    return { type: "Feature", geometry: { type: "Polygon", coordinates: [corners] }, properties: { index, tile_id: tile.id, listed: listed.has(tile.id), labelled: (objects.get(tile.id)?.length ?? 0) > 0, done: done.has(tile.id) } };
+    return { type: "Feature", geometry: { type: "Polygon", coordinates: [corners] }, properties: { index, tile_id: tile.id, listed: listed.has(tile.id), labelled: (objects.get(tile.id)?.length ?? 0) > 0, viewed: viewed.has(tile.id) } };
   });
   return { type: "FeatureCollection", features };
 }

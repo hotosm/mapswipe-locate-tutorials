@@ -37,10 +37,9 @@ The **Label** tab, under the project name in the side panel, shows one tile as l
 2. When a box is wrong, click **Undo** (++"z"++) and drag a box close around the object.
 3. When that fails, choose **Draw by hand** in the side panel (++"d"++). With **Output** set to **Boxes**, drag along one side of the object at any angle, then tap the opposite side, or slide to it and lift. **Undo** or ++escape++ cancels a side you started. With **Outlines**, drag a box around the object. **Model (tap)** switches back.
 4. To look closer, zoom into the tile with the mouse wheel, the **+** and **-** buttons on the tile, or the ++plus++ and ++minus++ keys. Hold ++space++ and drag, or drag with the middle mouse button, to move around the zoomed tile. **Fit** (++0++) shows the whole tile again. Touch screens hide the **+** and **-** buttons and show the whole tile.
-5. **Clear tile** removes every label on the tile, and **Undo** right after brings them back.
-6. When you have checked a tile, click **Done** (++"c"++). In **Review**, a done tile without labels has a blue border. Click **Done** again to remove the mark.
-7. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
-8. With a MapSwipe project, cells below the share are dimmed. To see the whole tile, open **Settings** and untick **Dim cells below the share**.
+5. **Clear** removes every label on the tile, and **Undo** right after brings them back.
+6. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. Each tile you open counts as viewed. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
+7. With a MapSwipe project, cells below the share are dimmed. To see the whole tile, open **Settings** and untick **Dim cells below the share**.
 
 ### Review the labels
 
@@ -48,14 +47,14 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
 
 1. The map marks each tile:
     - Green border: in the list, with labels.
-    - Blue border: in the list, marked **Done**, without labels.
-    - White border: in the list, not checked yet.
+    - Solid white border: in the list, viewed, without labels.
+    - Faint white border: in the list, not viewed yet.
     - Thin grey border, as you zoom in: another tile of the MapSwipe project. With **Tile URL and area**, every tile is in the list.
     - Yellow border: the tile open in **Label**.
 
     Zoomed out, the tiles in the list are filled in these colours. Zoomed in, the labels show in their colours.
 2. Zoom with the mouse wheel or the **+** and **-** buttons, and drag to move the map.
-3. Click a tile to open it in the **Label** tab, and add the missing labels. A tile with a grey border joins the end of the list. After a reload, it stays in the list if it has a label, is marked **Done**, or was the last tile open.
+3. Click a tile to open it in the **Label** tab, and add the missing labels. A tile with a grey border joins the end of the list. After a reload, it stays in the list.
 4. Click **Review** (++escape++) to go back to the map where you left it.
 
 ### Objects with types
@@ -83,10 +82,10 @@ Then [check the dataset](index.md#check-the-dataset).
 
 ## Come back later
 
-The auto labeller saves the labels and the **What to label** fields in the browser after each change. The line under **Download** shows the time of the last save. A red message above the bold count in the side panel means the last change wasn't saved.
+The auto labeller saves the labels, the tiles you viewed and the **What to label** fields in the browser after each change. The line under **Download** shows the time of the last save. A red message above the bold count in the side panel means the last change wasn't saved.
 
 When the page opens again, or after **Change**, **Continue where you left off** lists the saved projects and areas. **Continue** opens it at the tile you left. **Remove** deletes its saved labels and settings from the browser; the project that is open can't be removed, so it shows only **Continue**. The labels stay until you remove them or delete the site's data in the browser settings, even when you change the share or **Also show tiles below the share**. A browser can also delete them when the disk runs low. Safari, with cross-site tracking prevention on, deletes them when the site goes seven days of browser use without a click or tap ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)).
 
-To continue on another computer, or to keep a copy, download **Labels (GeoJSON)**. On the other computer, load the same project, or the same tile URL, zoom and area file, then open **Settings** and choose the file under **Load labels (GeoJSON)**. Each label goes back on its tile with its value. An empty **Object name** or **Attribute** field is filled from the file, with its values. Labels from an auto labeller file that are already on a tile aren't added twice. A file downloaded with **Output** set to **Boxes** holds only boxes; download with **Outlines** to keep the outlines.
+To continue on another computer, or to keep a copy, download **Labels (GeoJSON)**. On the other computer, load the same project, or the same tile URL, zoom and area file, then open **Settings** and choose the file under **Load labels (GeoJSON)**. Each label goes back on its tile with its value. An empty **Object name** or **Attribute** field is filled from the file, with its values. Labels from an auto labeller file that are already on a tile aren't added twice. A file downloaded with **Output** set to **Boxes** holds only boxes; download with **Outlines** to keep the outlines. To restore which tiles you viewed, unzip the **Full dataset (.zip)** and load its `tiles.geojson` the same way.
 
 A project or area opens in one tab at a time. When a save fails or is still running, the browser asks before the page closes.

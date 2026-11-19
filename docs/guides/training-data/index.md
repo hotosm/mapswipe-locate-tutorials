@@ -25,7 +25,7 @@ For the delivery, only `labels.geojson` is sent ([What to deliver](../what-to-de
 | `labels/<tile_id>.txt` | One line per object: its class (`0`, or one class per attribute value), then the four corners of its box as shares of the image side ([YOLO OBB format](https://docs.ultralytics.com/datasets/obb/)) |
 | `data.yaml` | The image folders and the class names |
 
-The auto labeller also writes `labels.geojson` (every label in longitude and latitude), `tiles.geojson` (every listed tile, with its number of labels and whether it was marked **Done**) and a `README.md` with the QGIS steps. The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
+The auto labeller also writes `labels.geojson` (every label in longitude and latitude), `tiles.geojson` (every tile in the auto labeller's list, with its number of labels and whether it was viewed) and a `README.md` with the QGIS steps. The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
 
 ## Choose a method
 
@@ -53,7 +53,7 @@ Before training, check every tile:
 - Each label matches its object. Ultralytics describes annotation accuracy as "how close the annotated data is to the true values" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)).
 - The same rule applies on every tile. Ultralytics describes annotation precision as "giving the same label to the same object or feature throughout the dataset" ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#understanding-accuracy-and-precision)). For solar panels: one box per array of touching panels, a separate box where a clear gap splits two arrays, and a tile left without labels (press **Next**) where the object cannot be told apart from the roof.
 
-In the auto labeller, above **Previous** and **Next**, the bold line shows how many objects are labelled so far, and the bar under it fills toward 1,000 objects and turns green at 1,000. With several types, the bold line and bar follow the most common type, which needs 1,000 labels ([Objects with types](auto-labeller.md#objects-with-types)); the other types still get a label wherever they appear. The line below, for example **Tile 3 of 40, 5 labelled**, shows which tile is open and how many tiles have labels; its bar shows how far through the tiles you are.
+In the auto labeller, above **Previous** and **Next**, the bold line shows how many objects are labelled so far, and the bar under it fills toward 1,000 objects and turns green at 1,000. With several types, the bold line and bar follow the most common type, which needs 1,000 labels ([Objects with types](auto-labeller.md#objects-with-types)); the other types still get a label wherever they appear. The line below, for example **Tile 3 of 40, 5 labelled, 12 viewed**, shows which tile is open, how many tiles have labels and how many you opened; its bar shows how far through the tiles you are.
 
 `data.yaml` uses all images for both training and validation. Before a real training run, move some images and their labels into separate validation folders and point `val` at them. The delivery doesn't need this step.
 

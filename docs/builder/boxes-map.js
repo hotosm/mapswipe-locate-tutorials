@@ -3,9 +3,7 @@ import { showMapLoading } from "./map-loading.js";
 const SELECTED_COLOUR = "#ffd400";
 const LABELLED_COLOUR = "#1f9d55";
 const LABELLED_FILL = "#4ade80";
-const DONE_COLOUR = "#2f7fe0";
-const DONE_FILL = "#93c5fd";
-const UNLISTED_COLOUR = "#b8bec7";
+const UNLISTED_COLOUR = "#bdbdbd";
 const EMPTY = { type: "FeatureCollection", features: [] };
 
 // A loop, since spreading every point into Math.min can pass the engine's argument limit (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply#using_apply_and_built-in_functions).
@@ -28,6 +26,8 @@ function shownZoom(view) {
 }
 
 const HOVERED = ["boolean", ["feature-state", "hover"], false];
+// A tile with labels counts as seen even when they came from a file and the tile was never opened.
+const SEEN = ["any", ["get", "labelled"], ["get", "viewed"]];
 // Levels below the tile zoom where the grey grid starts to fade in and where it is fully drawn; MapLibre zoom counts 512-pixel tiles, so a tile is 32 pixels wide 4 levels below.
 const GRID_HIDDEN = 4.5;
 const GRID_SHOWN = 3.5;
@@ -38,8 +38,8 @@ const GRID_CLICKABLE = GRID_HIDDEN - 0.3;
 function fadeTiles(map, view) {
   const tileZoom = view.maxzoom - 2;
   const byZoom = (zoomedOut, zoomedIn, from, to) => ["interpolate", ["linear"], ["zoom"], tileZoom - from, zoomedOut, tileZoom - to, zoomedIn];
-  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, ["get", "listed"], 0.85, 0], ["case", HOVERED, 0.2, 0], 3, 2));
-  map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, ["get", "listed"], 0.9, 0], ["case", HOVERED, 1, ["get", "listed"], 0.9, 0.7], GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.35, SEEN, 0.2, 0], 3, 2));
+  map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0.7], GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.2], GRID_HIDDEN, GRID_SHOWN));
 }
 
@@ -52,9 +52,9 @@ function addLayers(map, view) {
   map.addSource("tiles", { type: "geojson", data: view.grid, promoteId: "index" });
   map.addSource("labels", { type: "geojson", data: view.labels });
   map.addSource("selected", { type: "geojson", data: EMPTY });
-  map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, ["get", "done"], DONE_FILL, "#ffffff"], "fill-opacity": 0 } });
+  map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, "#ffffff"], "fill-opacity": 0 } });
   map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 1] } });
-  map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "done"], DONE_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "done"], 3, ["get", "listed"], 2, 1] } });
+  map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1] } });
   map.addLayer({ id: "labels-fill", type: "fill", source: "labels", paint: { "fill-color": view.colour, "fill-opacity": 0.15 } });
   map.addLayer({ id: "labels-line", type: "line", source: "labels", paint: { "line-color": view.colour, "line-width": 2 } });
   map.addLayer({ id: "selected", type: "line", source: "selected", paint: { "line-color": SELECTED_COLOUR, "line-width": 3 } });

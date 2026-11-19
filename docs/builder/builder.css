@@ -232,10 +232,6 @@ body:not(.tile-open) #stage-tools { display: none; }
 #settings .settings-body { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; }
 #value-choices .swatch { flex: none; width: 14px; height: 14px; margin-right: 8px; border-radius: 3px; }
 #tile-bar button { flex: 1; min-width: 0; }
-#tile-bar .tile-edit { align-items: center; justify-content: space-between; }
-#tile-bar .tile-edit button { flex: 0 1 auto; padding-inline: 16px; }
-#tile-bar .tile-edit button.link { padding: 0; font-size: 13px; }
-#done-tile[aria-pressed="true"] { color: #fff; background: #2f7fe0; border-color: #2f7fe0; }
 body.working #tile-canvas { opacity: 0.6; }
 
 @media (min-width: 801px) {

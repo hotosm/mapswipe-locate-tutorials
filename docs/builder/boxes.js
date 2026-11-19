@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, projectTiles, withSavedTiles, tilesGeojson, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -25,7 +25,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), done: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1 };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1 };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -138,8 +138,8 @@ function showCounts() {
   showValueTable(list, counts);
   element("tile-number").value = state.index + 1;
   element("tile-number").max = tiles;
-  const done = state.tiles.filter((listed) => state.done.has(listed.id)).length;
-  element("tile-total").textContent = `${tiles}, ${tilesWithObjects} labelled, ${done} done`;
+  const viewed = state.tiles.filter((listed) => state.viewed.has(listed.id)).length;
+  element("tile-total").textContent = `${tiles}, ${tilesWithObjects} labelled, ${viewed} viewed`;
   element("tile-position").title = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
   const { percent, reached } = targetProgress(list.length > 0 ? Math.max(...counts) : objects, TARGET_OBJECTS);
   element("tile-bar-fill").style.width = `${((state.index + 1) / tiles) * 100}%`;
@@ -197,8 +197,6 @@ function updateControls() {
   element("next").disabled = state.busy || !loaded || !state.open || state.index === state.tiles.length - 1;
   element("undo").disabled = state.busy || !loaded || !state.open || (!state.side && currentObjects().length === 0 && !canRestore());
   element("clear").disabled = state.busy || !loaded || !state.open || currentObjects().length === 0;
-  element("done-tile").disabled = state.busy || !loaded || !state.open;
-  element("done-tile").setAttribute("aria-pressed", String(loaded && state.done.has(currentTile().id)));
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
   element("download-kind").disabled = state.busy || !loaded;
@@ -228,7 +226,7 @@ async function work(task) {
 }
 
 function savedRecord() {
-  return { name: state.projectName, source: state.source, savedAt: Date.now(), tile: currentTile().id, objects: Object.fromEntries(state.objects), done: [...state.done], ...fieldSettings() };
+  return { name: state.projectName, source: state.source, savedAt: Date.now(), tile: currentTile().id, objects: Object.fromEntries(state.objects), viewed: [...state.viewed], ...fieldSettings() };
 }
 
 function saveObjects() {
@@ -351,6 +349,8 @@ async function showTile(index) {
   setStatus("Loading the imagery...");
   const blob = await tileImage(tile);
   if (!state.objects.has(tile.id)) state.objects.set(tile.id, []);
+  state.viewed.add(tile.id);
+  showCounts();
   saveObjects();
   tileCanvas.getContext("2d").drawImage(await createImageBitmap(blob), 0, 0);
   setStatus(`${state.modelName} is reading the image...`);
@@ -538,17 +538,6 @@ element("undo").addEventListener("click", () => {
   afterChange(objectCount());
 });
 
-// A tile checked and found empty would look like one not looked at yet, so Done marks it.
-element("done-tile").addEventListener("click", () => {
-  const { id } = currentTile();
-  if (state.done.has(id)) state.done.delete(id);
-  else state.done.add(id);
-  showCounts();
-  saveObjects();
-  updateControls();
-  setStatus(state.done.has(id) ? `Tile ${state.index + 1} marked done.` : `Tile ${state.index + 1} is no longer marked done.`);
-});
-
 element("clear").addEventListener("click", () => {
   const objects = currentObjects();
   state.cleared = { tileId: currentTile().id, objects: objects.splice(0) };
@@ -594,7 +583,7 @@ element("zoom-in").addEventListener("click", () => tileZoom.zoomIn());
 element("zoom-out").addEventListener("click", () => tileZoom.zoomOut());
 element("zoom-fit").addEventListener("click", resetZoom);
 
-const REVIEW_HINT = "Click a tile to label it. Green tiles have labels, blue ones are done and empty, and white ones are still to check. Zoom in to see grey tiles, which aren't in your list. Clicking one adds it.";
+const REVIEW_HINT = "Click a tile to label it. Green tiles have labels, solid white ones were viewed, and faint ones aren't viewed yet. Zoom in to see grey tiles, which aren't in your list. Clicking one adds it to your list.";
 
 function labelColours() {
   const list = values();
@@ -608,7 +597,7 @@ function mapView() {
   const labels = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName: "", attribute: attributeName(), pixels: PIXELS });
   const all = state.allTiles;
   const listed = new Set(state.tiles.map((tile) => tile.id));
-  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.done), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id) };
+  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id) };
 }
 
 function refreshMap() {
@@ -771,7 +760,7 @@ async function load() {
   state.storageKey = storageKey;
   state.source = source.saved;
   state.objects = restored.objects;
-  state.done = restored.done;
+  state.viewed = restored.viewed;
   element("focus").disabled = source.area !== null;
   element("focus-choice").hidden = source.area !== null;
   foldSetup(source.summary);
@@ -796,8 +785,9 @@ function savedSummary(record) {
   const labels = lists.reduce((sum, list) => sum + list.length, 0);
   const tiles = lists.filter((list) => list.length > 0).length;
   const when = new Date(record.savedAt).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  const done = record.done?.length > 0 ? `, ${record.done.length} done` : "";
-  return `${labels.toLocaleString("en")} ${labels === 1 ? "label" : "labels"} on ${tiles} ${tiles === 1 ? "tile" : "tiles"}${done}, saved ${when}`;
+  const seen = (record.viewed ?? record.done ?? []).length;
+  const viewed = seen > 0 ? `, ${seen} viewed` : "";
+  return `${labels.toLocaleString("en")} ${labels === 1 ? "label" : "labels"} on ${tiles} ${tiles === 1 ? "tile" : "tiles"}${viewed}, saved ${when}`;
 }
 
 // The area file can't be stored in the file field, so a saved area is put back as a new file with the same name.
@@ -948,7 +938,7 @@ async function download() {
   }
   zip.file("data.yaml", datasetYaml(list.length > 0 ? list : [objectName]));
   zip.file("labels.geojson", geojson);
-  zip.file("tiles.geojson", JSON.stringify(tilesGeojson(state.tiles, state.objects, state.done)));
+  zip.file("tiles.geojson", JSON.stringify(tilesGeojson(state.tiles, state.objects, state.viewed)));
   const objectCount = datasetCounts(tiles, state.objects).objects;
   zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
   await saveZip(zip, outputName(`yolo_${mode}`, "zip"));
@@ -996,8 +986,30 @@ function parsedLabels(text, file) {
   }
 }
 
+function restoreViewed(ids, file) {
+  const known = new Set(state.allTiles.map((tile) => tile.id));
+  const found = ids.filter((id) => known.has(id) && !state.viewed.has(id));
+  const other = ids.filter((id) => !known.has(id)).length;
+  for (const id of found) state.viewed.add(id);
+  state.tiles = withSavedTiles(state.tiles, state.allTiles, { viewed: [...state.viewed] });
+  const elsewhere = other > 0 ? ` ${other} ${other === 1 ? "tile isn't" : "tiles aren't"} in this project or area.` : "";
+  const matched = ids.length - other;
+  const added = found.length > 0
+    ? `Added ${found.length} viewed ${found.length === 1 ? "tile" : "tiles"} from ${file.name}.`
+    : matched > 0
+      ? `Every viewed tile in ${file.name} was already viewed here.`
+      : ids.length === 0 ? `${file.name} doesn't list any viewed tiles.` : `None of the viewed tiles in ${file.name} were added.`;
+  afterChange(`${added}${elsewhere}`);
+  refreshMap();
+}
+
 async function loadLabels(file) {
   const geojson = parsedLabels(await file.text(), file);
+  const viewedIds = tilesFileViewed(geojson);
+  if (viewedIds) {
+    restoreViewed(viewedIds, file);
+    return;
+  }
   const { shapes, skipped } = polygonRings(geojson);
   if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
   fillEmptySettings(fileSettings(geojson, shapes));
