@@ -44,10 +44,13 @@ element("change").addEventListener("click", () => {
   element("setup-status").textContent = "";
   document.body.classList.add("editing");
   element("setup").scrollIntoView({ block: "start" });
-  element("setup").querySelector("input").focus();
+  element("setup").scrollTop = 0;
+  element("setup").querySelector("input").focus({ preventScroll: true });
 });
 element("cancel").addEventListener("click", closeSetup);
 document.addEventListener("keydown", (event) => {
   const { classList } = document.body;
-  if (event.key === "Escape" && classList.contains("editing") && !classList.contains("working")) closeSetup();
+  if (event.key !== "Escape" || !classList.contains("editing") || classList.contains("working")) return;
+  event.preventDefault();
+  closeSetup();
 });

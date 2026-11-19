@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
   <link rel="icon" href="fair-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
@@ -90,6 +91,26 @@
       </div>
     </form>
     <div id="stage-area">
+      <div id="stage">
+        <div id="tile-view">
+          <canvas id="tile-canvas" width="1024" height="1024"></canvas>
+          <canvas id="box-canvas" width="1024" height="1024"></canvas>
+        </div>
+        <div class="tile-zoom">
+          <button id="zoom-in" type="button" class="secondary" title="Zoom in (+)" aria-label="Zoom in" aria-keyshortcuts="+">+</button>
+          <button id="zoom-out" type="button" class="secondary" title="Zoom out (-)" aria-label="Zoom out" aria-keyshortcuts="-">&minus;</button>
+          <button id="zoom-fit" type="button" class="secondary" title="Fit the tile (0)" aria-keyshortcuts="0">Fit</button>
+        </div>
+      </div>
+      <div id="tile-map"></div>
+    </div>
+    <aside>
+      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
+      <fieldset id="view-choice" class="choices">
+        <legend>View</legend>
+        <label><input id="label-view" type="radio" name="view" value="label" disabled> Label</label>
+        <label title="All tiles (Esc)"><input id="review" type="radio" name="view" value="review" aria-keyshortcuts="Escape" checked disabled> Review</label>
+      </fieldset>
       <div id="stage-tools">
         <fieldset id="tool-choice" class="choices">
           <legend>Label with</legend>
@@ -98,38 +119,21 @@
         </fieldset>
         <fieldset id="value-choices" class="choices" hidden></fieldset>
       </div>
-      <div id="stage">
-        <canvas id="tile-canvas" width="1024" height="1024"></canvas>
-        <canvas id="box-canvas" width="1024" height="1024"></canvas>
-      </div>
-      <div id="review-map"></div>
-    </div>
-    <aside>
-      <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
       <div id="tile-bar">
-        <fieldset id="view-choice" class="choices">
-          <legend>View</legend>
-          <label><input type="radio" name="view" value="label" checked disabled> Label</label>
-          <label><input type="radio" name="view" value="review" disabled> Review</label>
-        </fieldset>
         <p id="save-problem" role="alert" hidden></p>
         <p id="dataset-count"></p>
         <div id="target-track" aria-hidden="true"><div id="target-bar"></div></div>
         <table id="value-counts" hidden><tbody></tbody></table>
         <p id="tile-position">Tile <input id="tile-number" type="number" min="1" step="1" inputmode="numeric" aria-label="Tile number" disabled> of <span id="tile-total"></span></p>
         <div id="tile-track" aria-hidden="true"><div id="tile-bar-fill"></div></div>
-        <p id="review-count"></p>
         <p id="status" aria-live="polite"></p>
-        <div class="review-controls">
-          <button id="next-empty" type="button" class="secondary">Next tile without labels</button>
-          <button id="open-selected" type="button">Label this tile</button>
-        </div>
         <div class="tile-moves">
           <button id="previous" type="button" class="secondary" title="Previous tile (←)" aria-keyshortcuts="ArrowLeft" disabled>Previous</button>
           <button id="next" type="button" class="secondary" title="Next tile (→)" aria-keyshortcuts="ArrowRight" disabled>Next</button>
         </div>
         <div class="tile-edit">
           <button id="undo" type="button" class="secondary" title="Undo (z)" aria-keyshortcuts="Z" disabled>Undo</button>
+          <button id="done-tile" type="button" class="secondary" title="Mark or unmark this tile as checked (c)" aria-keyshortcuts="C" aria-pressed="false" disabled>Done</button>
           <button id="clear" type="button" class="link" title="Remove every label on this tile" disabled>Clear tile</button>
         </div>
       </div>
@@ -147,7 +151,7 @@
             <input id="labels-file" type="file" accept=".geojson,.json" disabled>
           </label>
           <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-          <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>d</kbd> switch tool<span id="values-keys" hidden>, <kbd>1</kbd> to <kbd id="values-last">8</kbd> values</span>.</p>
+          <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>c</kbd> done, <kbd>d</kbd> switch tool, <kbd>Esc</kbd> review, <kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd> zoom, <kbd>Space</kbd> and drag to move the zoomed tile<span id="values-keys" hidden>, <kbd>1</kbd> to <kbd id="values-last">8</kbd> values</span>.</p>
         </div>
       </details>
       <div id="download-row">
@@ -163,6 +167,7 @@
   </main>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script defer src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script type="module" src="nav-menu.js"></script>
   <script type="module" src="boxes.js"></script>
 </body>

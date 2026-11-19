@@ -171,16 +171,22 @@ body.working #status::before, body.working #setup-status::before { display: inli
 .maplibregl-popup-content td:first-child { white-space: nowrap; }
 .maplibregl-popup-content td + td { overflow-wrap: anywhere; }
 
-#stage-area { display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; gap: 8px; min-height: 300px; padding: 12px; background: var(--stage); }
-#stage { grid-row: 2; position: relative; height: 100%; aspect-ratio: 1; max-width: 100%; }
+#stage-area { position: relative; min-height: 300px; background: var(--stage); container-type: size; }
+#tile-map { position: absolute; inset: 0; }
+#stage { position: absolute; inset: 0; margin: auto; width: calc(min(100cqw, 100cqh) - 24px); height: calc(min(100cqw, 100cqh) - 24px); overflow: hidden; border-radius: 4px; }
+#tile-view { position: absolute; inset: 0; transform-origin: 0 0; }
+body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves, #tile-bar .tile-edit) { display: none; }
+.tile-zoom { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
+.tile-zoom button { min-width: 36px; padding: 4px 8px; font-size: 15px; }
+/* A finger drag labels, and touch has no Space or middle button to move a zoomed tile, so touch screens keep the whole tile. */
+@media (pointer: coarse) { .tile-zoom { display: none; } }
 #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 4px; }
 #box-canvas { cursor: pointer; touch-action: none; }
 body:has(input[name="tool"][value="hand"]:checked) #box-canvas { cursor: crosshair; }
-#stage-tools { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
-#review-map { grid-row: 2; position: relative; height: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 4px; overflow: hidden; }
-body:not(.reviewing) #review-map, body.reviewing #stage { display: none; }
-body:not(.reviewing) #tile-bar :is(#review-count, .review-controls), body.reviewing #tile-bar :is(#tile-position, #tile-track, .tile-moves, .tile-edit) { display: none; }
-body:is(:not(.loaded), .editing) #view-choice { display: none; }
+#stage-tools { display: flex; flex-direction: column; gap: 8px; }
+#tool-choice label { flex: 1; justify-content: center; white-space: nowrap; }
+body:not(.tile-open) #stage-tools { display: none; }
+#view-choice label { flex: 1; justify-content: center; }
 :is(#tool-choice, #view-choice) legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
 #download-row { display: flex; flex-wrap: wrap; gap: 8px; }
 #download-row #saved-at { flex-basis: 100%; }
@@ -198,11 +204,11 @@ body:is(:not(.loaded), .editing) #view-choice { display: none; }
 #tile-bar div { display: flex; gap: 8px; }
 #what-to-label { align-items: stretch; gap: 12px; }
 #what-to-label legend { margin-bottom: 12px; font-size: 15px; font-weight: 600; color: var(--ink); }
-#value-choices { flex-wrap: wrap; align-items: center; justify-content: center; max-width: 100%; }
+#value-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #value-choices[hidden] { display: none; }
 #value-choices legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
-#value-choices .attribute-name { margin-right: 10px; font-size: 13px; color: var(--muted); }
-#value-choices label { align-items: center; min-height: 44px; padding: 8px 14px; }
+#value-choices .attribute-name { grid-column: 1 / -1; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+#value-choices label { align-items: center; min-height: 40px; padding: 6px 10px; margin: 0; border-radius: 0; overflow-wrap: anywhere; }
 #value-choices kbd { margin-right: 8px; font: 12px var(--mono); opacity: 0.7; }
 #value-counts { width: 100%; border-collapse: collapse; font-size: 13px; }
 #value-counts td { padding: 2px 0; overflow-wrap: anywhere; }
@@ -217,7 +223,7 @@ body:is(:not(.loaded), .editing) #view-choice { display: none; }
 #saved-at { margin: 0; }
 #saved-at:empty { display: none; }
 #resume:not([hidden]) { display: grid; gap: 8px; }
-#resume h3 { margin: 0; font-size: 15px; }
+#resume h3 { margin: 0; font-size: 15px; font-weight: 400; }
 #resume-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 #resume-list li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 #resume-list li div { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
@@ -229,16 +235,21 @@ body:is(:not(.loaded), .editing) #view-choice { display: none; }
 #tile-bar .tile-edit { align-items: center; justify-content: space-between; }
 #tile-bar .tile-edit button { flex: 0 1 auto; padding-inline: 16px; }
 #tile-bar .tile-edit button.link { padding: 0; font-size: 13px; }
+#done-tile[aria-pressed="true"] { color: #fff; background: #2f7fe0; border-color: #2f7fe0; }
 body.working #tile-canvas { opacity: 0.6; }
 
-/* The tile and its controls sit together in the middle, with the tile as tall as the screen allows. */
 @media (min-width: 801px) {
-  main:has(#stage-area) { display: flex; justify-content: center; gap: 24px; padding: 16px 16px 72px; background: var(--stage); }
-  main:has(#stage-area) #stage-area { padding: 0; }
-  main:has(#stage-area) aside { flex: none; width: 320px; align-self: center; max-height: 100%; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
-  #view-choice { position: fixed; left: 16px; bottom: 16px; z-index: 5; }
-  body.reviewing :is(#tool-choice, #value-choices) { visibility: hidden; }
+  main:has(#stage-area) aside { padding: 20px; scroll-padding-bottom: 88px; }
+  main:has(#stage-area) #download-row { border-top: 1px solid var(--line); }
   main:has(#stage-area) #download-row { position: sticky; bottom: -20px; padding-block: 12px 20px; margin-block: -12px -20px; background: var(--panel); }
+}
+
+/* On a short laptop screen the panel would pass the window, so its spacing tightens and the per-value table folds away; the headline keeps the most common value. */
+@media (min-width: 801px) and (max-height: 800px) {
+  main:has(#stage-area) aside { gap: 10px; padding-block: 14px; }
+  main:has(#stage-area) #download-row { bottom: -14px; margin-block-end: -14px; padding-block-end: 14px; }
+  #tile-bar #status { min-height: 1lh; }
+  #tile-bar #value-counts { display: none; }
 }
 
 /* The title and all links need about 1,050 px on one line; below that the links fold into the menu. */
@@ -262,20 +273,11 @@ body.working #tile-canvas { opacity: 0.6; }
   .editor-card { width: 100%; padding: 12px; }
   #tile { width: 100%; min-width: 0; }
   aside { border-left: 0; border-top: 1px solid var(--line); }
-  #stage-area { grid-template-rows: auto auto; grid-template-columns: 100%; gap: 0; padding: 0; }
-  #stage, #review-map { width: 100%; height: auto; }
+  #stage-area { height: 70svh; }
   body.loaded:not(.editing):has(#tile-bar) { padding-bottom: 290px; }
-  body.loaded:not(.editing):has(#value-choices:not([hidden])) { padding-bottom: 310px; }
-  body.loaded:not(.editing):has(#save-problem:not([hidden])) { padding-bottom: 390px; }
-  #view-choice { align-self: flex-start; }
-  body.reviewing :is(#tool-choice, #value-choices) { display: none; }
-  body.loaded.reviewing:not(.editing):has(#tile-bar) { padding-bottom: 240px; }
-  body.loaded.reviewing:not(.editing):has(#save-problem:not([hidden])) { padding-bottom: 320px; }
+  body.loaded:not(.editing):has(#save-problem:not([hidden])) { padding-bottom: 370px; }
   #tile-number { min-height: 32px; font-size: 16px; }
   #settings { border-top: 0; padding-top: 0; }
-  #value-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; }
-  #value-choices .attribute-name { grid-column: 1 / -1; margin: 0 0 4px; }
-  #value-choices label { min-height: 40px; padding: 6px 8px; margin: 0; border-radius: 0; overflow-wrap: anywhere; }
   body:not(.loaded) #tile-bar, body.editing #tile-bar { display: none; }
   #tile-bar #value-counts { display: none; }
   #tile-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--line); }

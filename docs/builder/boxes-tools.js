@@ -6,19 +6,32 @@ export const TILE_PIXELS = 256;
 // A movement smaller than this across or down, in image pixels, is a tap; a larger one is a drag sent to the model as a box.
 export const DRAG_PIXELS = 6;
 
-export function keptTiles(rows, thresholdPercent, { allMapped = false } = {}) {
+// `mapped` holds the tiles with at least one volunteer answer.
+export function projectTiles(rows, thresholdPercent) {
   const size = subGridSize(rows);
   const tiles = new Map();
+  const mapped = new Set();
   for (const row of rows) {
-    const kept = passesThreshold(row, thresholdPercent);
-    if (!kept && !(allMapped && row.total_count > 0)) continue;
     if (!tiles.has(row.task_id)) {
       tiles.set(row.task_id, { id: row.task_id, x: row.tile_x, y: row.tile_y, zoom: row.tile_z, template: imageryTemplate(row), size, cells: [] });
     }
-    if (kept) tiles.get(row.task_id).cells.push(row.task_partition_index);
+    if (row.total_count > 0) mapped.add(row.task_id);
+    if (passesThreshold(row, thresholdPercent)) tiles.get(row.task_id).cells.push(row.task_partition_index);
   }
-  const listed = [...tiles.values()].map((tile) => ({ ...tile, cells: tile.cells.toSorted((a, b) => a - b) }));
+  return { tiles: [...tiles.values()].map((tile) => ({ ...tile, cells: tile.cells.toSorted((a, b) => a - b) })), mapped };
+}
+
+export function keptTiles(rows, thresholdPercent, { allMapped = false } = {}) {
+  const { tiles, mapped } = projectTiles(rows, thresholdPercent);
+  const listed = tiles.filter((tile) => tile.cells.length > 0 || (allMapped && mapped.has(tile.id)));
   return listed.toSorted((a, b) => Number(b.cells.length > 0) - Number(a.cells.length > 0));
+}
+
+// Tiles opened from the review map are added to the list, so on a reload every tile with saved labels or marked done, and the last tile open, are listed again.
+export function withSavedTiles(listed, all, saved) {
+  const ids = new Set(listed.map((tile) => tile.id));
+  const wanted = (tile) => !ids.has(tile.id) && ((saved?.objects?.[tile.id]?.length ?? 0) > 0 || tile.id === saved?.tile || (saved?.done ?? []).includes(tile.id));
+  return [...listed, ...all.filter(wanted)];
 }
 
 // The imagery server answers a tile beyond the image edge with 404 "... is outside bounds".
@@ -90,7 +103,7 @@ export function mergedSaves(saves) {
   for (const save of saves) {
     for (const [id, list] of Object.entries(save.objects ?? {})) if (!(id in objects) || list.length > objects[id].length) objects[id] = list;
   }
-  return { ...largest, objects };
+  return { ...largest, objects, done: [...new Set(saves.flatMap((save) => save.done ?? []))] };
 }
 
 // A promise is kept while it runs, so a tile still being read ahead is read once; a failed one is forgotten, so the next try starts again.
@@ -147,7 +160,7 @@ export function areaTiles(geojson, zoom, template, cover) {
 // Labels on unlisted tiles stay, so a later share that lists them shows them again; the saved tile reopens when listed.
 export function restoredObjects(saved, tiles) {
   const objects = new Map(Object.entries(saved?.objects ?? {}));
-  return { objects, index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
+  return { objects, done: new Set(saved?.done ?? []), index: Math.max(0, tiles.findIndex((tile) => tile.id === saved?.tile)) };
 }
 
 // A field filled in the setup card wins; an empty one takes the project's saved setting.
@@ -164,7 +177,7 @@ export function labelSettings(entered, saved) {
 export function keyAction(key, { ctrlKey = false, metaKey = false, altKey = false, shiftKey = false } = {}) {
   if (altKey) return null;
   if (ctrlKey || metaKey) return key.toLowerCase() === "z" && !shiftKey ? "undo" : null;
-  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool" }[key] ?? null;
+  return { ArrowLeft: "previous", ArrowRight: "next", z: "undo", Z: "undo", d: "tool", D: "tool", Escape: "review", c: "done-tile", C: "done-tile", "+": "zoom-in", "=": "zoom-in", "-": "zoom-out", 0: "zoom-fit" }[key] ?? null;
 }
 
 export function valueSummary(list, counts, target) {
@@ -218,6 +231,12 @@ export function sameLabel(first, second) {
 }
 
 // A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
+// One square per listed tile with its label count and Done mark, since an empty tile marked Done has no label to carry it.
+export function tilesGeojson(tiles, objects, done) {
+  const { features } = tileGrid(tiles, objects, new Set(), done);
+  return { type: "FeatureCollection", features: features.map(({ geometry, properties }) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, done: properties.done } })) };
+}
+
 export function fileSettings(geojson, shapes) {
   if (typeof geojson.object_name === "string") return { objectName: geojson.object_name, attribute: geojson.attribute ?? "", values: (geojson.values ?? []).join(", ") };
   const properties = shapes.map((shape) => shape.properties);
@@ -425,6 +444,7 @@ ${area ? `- Area: ${area}, zoom ${tiles[0].zoom}` : `- Project: ${projectLink}\n
 - \`labels/\`: one YOLO label file per image.
 - \`data.yaml\`: the dataset file for Ultralytics.
 - \`labels.geojson\`: every object as a polygon in longitude and latitude (EPSG:4326), with its tile, source and imagery.
+- \`tiles.geojson\`: every listed tile as a square, with its number of labels and \`done\` (true when the tile was marked Done).
 
 ## Open in QGIS
 
@@ -437,18 +457,10 @@ ${templates.map((template) => `   \`\`\`text\n   ${template}\n   \`\`\``).join("
 `;
 }
 
-export function tileGrid(tiles, objects) {
+export function tileGrid(tiles, objects, listed, done = new Set()) {
   const features = tiles.map((tile, index) => {
     const corners = [[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]].map((corner) => pixelToLonLat(tile, corner, 1));
-    return { type: "Feature", geometry: { type: "Polygon", coordinates: [corners] }, properties: { index, tile_id: tile.id, labelled: (objects.get(tile.id)?.length ?? 0) > 0 } };
+    return { type: "Feature", geometry: { type: "Polygon", coordinates: [corners] }, properties: { index, tile_id: tile.id, listed: listed.has(tile.id), labelled: (objects.get(tile.id)?.length ?? 0) > 0, done: done.has(tile.id) } };
   });
   return { type: "FeatureCollection", features };
-}
-
-export function nextEmptyTile(tiles, objects, after) {
-  for (let step = 1; step <= tiles.length; step += 1) {
-    const index = (after + step) % tiles.length;
-    if (!(objects.get(tiles[index].id)?.length > 0)) return index;
-  }
-  return -1;
 }

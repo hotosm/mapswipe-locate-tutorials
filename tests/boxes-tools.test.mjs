@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, nextEmptyTile, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesGeojson, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -145,7 +145,7 @@ test("restored objects keep labels on unlisted tiles and reopen the saved tile, 
   assert.deepEqual([...restored.objects], [["20-2-1", [object]], ["20-9-9", [object]]]);
   assert.equal(restored.index, 1);
   assert.equal(restoredObjects({ tile: "20-9-9", objects: {} }, tiles).index, 0);
-  assert.deepEqual(restoredObjects(null, tiles), { objects: new Map(), index: 0 });
+  assert.deepEqual(restoredObjects(null, tiles), { objects: new Map(), done: new Set(), index: 0 });
 });
 
 test("filled setup fields win over the saved settings, and empty ones take the saved settings", () => {
@@ -156,9 +156,15 @@ test("filled setup fields win over the saved settings, and empty ones take the s
   assert.deepEqual(labelSettings({ objectName: "", attribute: "", values: "" }, null), { objectName: "", attribute: "", values: "" });
 });
 
-test("arrow keys move between tiles, Z undoes with or without Ctrl or Cmd but not with Shift as well, D switches the tool, and other keys do nothing", () => {
+test("arrow keys move between tiles, Z undoes with or without Ctrl or Cmd but not with Shift as well, D switches the tool, Esc opens the review, C marks the tile done, + - and 0 zoom the tile, and other keys do nothing", () => {
   assert.equal(keyAction("ArrowLeft"), "previous");
   assert.equal(keyAction("ArrowRight"), "next");
+  assert.equal(keyAction("Escape"), "review");
+  assert.equal(keyAction("c"), "done-tile");
+  assert.equal(keyAction("C"), "done-tile");
+  assert.equal(keyAction("+"), "zoom-in");
+  assert.equal(keyAction("-"), "zoom-out");
+  assert.equal(keyAction("0"), "zoom-fit");
   assert.equal(keyAction("z"), "undo");
   assert.equal(keyAction("Z"), "undo");
   assert.equal(keyAction("z", { ctrlKey: true }), "undo");
@@ -528,8 +534,8 @@ test("a label downloaded as a rotated box counts as a repeat of the outline it c
 
 test("tileGrid gives each tile its square in longitude and latitude and whether it has labels", () => {
   const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }, { id: "1-1-1", zoom: 1, x: 1, y: 1 }];
-  const grid = tileGrid(tiles, new Map([["1-0-0", [{}]], ["1-1-1", []]]));
-  assert.deepEqual(grid.features.map((feature) => feature.properties), [{ index: 0, tile_id: "1-0-0", labelled: true }, { index: 1, tile_id: "1-1-1", labelled: false }]);
+  const grid = tileGrid(tiles, new Map([["1-0-0", [{}]], ["1-1-1", []]]), new Set(["1-0-0"]));
+  assert.deepEqual(grid.features.map((feature) => feature.properties), [{ index: 0, tile_id: "1-0-0", listed: true, labelled: true, done: false }, { index: 1, tile_id: "1-1-1", listed: false, labelled: false, done: false }]);
   const [west, north] = grid.features[0].geometry.coordinates[0][0];
   const [east, south] = grid.features[0].geometry.coordinates[0][2];
   assert.equal(west, -180);
@@ -538,10 +544,34 @@ test("tileGrid gives each tile its square in longitude and latitude and whether 
   assert.ok(Math.abs(north - 85.0511) < 0.001);
 });
 
-test("nextEmptyTile finds the next tile without labels and wraps past the last tile", () => {
-  const tiles = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
-  const objects = new Map([["a", []], ["b", [{}]], ["d", [{}]]]);
-  assert.equal(nextEmptyTile(tiles, objects, 0), 2);
-  assert.equal(nextEmptyTile(tiles, objects, 2), 0);
-  assert.equal(nextEmptyTile(tiles, new Map(tiles.map((tile) => [tile.id, [{}]])), 1), -1);
+test("projectTiles lists every tile in the results, including tiles without a volunteer answer", () => {
+  const unmapped = grid("20-485850-499534", 485850, []).map((row) => ({ ...row, total_count: 0 }));
+  const { tiles, mapped } = projectTiles([...grid("20-485848-499534", 485848, [9, 2]), ...unmapped], 50);
+  assert.deepEqual(tiles.map((tile) => [tile.id, tile.cells]), [["20-485848-499534", [2, 9]], ["20-485850-499534", []]]);
+  assert.deepEqual([...mapped], ["20-485848-499534"]);
+});
+
+test("withSavedTiles adds tiles with saved labels and the last open tile after the listed ones", () => {
+  const all = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  const listed = [{ id: "b" }];
+  const saved = { tile: "d", objects: { a: [{}], b: [{}], c: [] } };
+  assert.deepEqual(withSavedTiles(listed, all, saved).map((tile) => tile.id), ["b", "a", "d"]);
+  assert.deepEqual(withSavedTiles(listed, all, null).map((tile) => tile.id), ["b"]);
+});
+
+test("a tile marked done is restored, listed again after a reload, merged from old saves and flagged on the grid", () => {
+  const saved = { tile: "a", objects: {}, done: ["c"] };
+  assert.deepEqual([...restoredObjects(saved, [{ id: "a" }]).done], ["c"]);
+  assert.deepEqual(withSavedTiles([{ id: "a" }], [{ id: "a" }, { id: "b" }, { id: "c" }], saved).map((tile) => tile.id), ["a", "c"]);
+  assert.deepEqual(mergedSaves([{ objects: {}, done: ["c"] }, { objects: {}, done: ["d", "c"] }, { objects: {} }]).done, ["c", "d"]);
+  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }];
+  assert.equal(tileGrid(tiles, new Map(), new Set(["1-0-0"]), new Set(["1-0-0"])).features[0].properties.done, true);
+});
+
+test("tiles.geojson gives every listed tile its label count and Done mark", () => {
+  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }, { id: "1-1-1", zoom: 1, x: 1, y: 1 }];
+  const objects = new Map([["1-0-0", [{}, {}]]]);
+  const { features } = tilesGeojson(tiles, objects, new Set(["1-1-1"]));
+  assert.deepEqual(features.map((feature) => feature.properties), [{ tile_id: "1-0-0", labels: 2, done: false }, { tile_id: "1-1-1", labels: 0, done: true }]);
+  assert.equal(features[0].geometry.type, "Polygon");
 });

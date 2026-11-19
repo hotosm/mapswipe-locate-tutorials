@@ -98,16 +98,11 @@ Use it to mark each object on the tiles of a finished project or an area, as tra
 
 ![Two taps and a drag mark three solar panel groups, then the outlines show](../assets/helpers/auto-labeller-laptop.gif){ loading=lazy }
 
-1. In the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share**, for example 50, and the **Object name**, for example `solar panel`, and click **Load**. **Also show tiles below the share** adds the other tiles volunteers saw, after the marked ones. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
-2. Each tile with marked cells is darker outside the cells that reach the volunteer share, with a yellow line around them. Untick **Dim cells below the share** under **Settings** to see the whole tile. Tiles below the share and tiles from an area show in full. For each object, tap its middle or drag a box close around it. Touching solar panels form one array and get one label.
-3. When the result is wrong, click **Undo** (++"z"++) and drag closer. **Clear tile** removes every label on the tile, and **Undo** right after brings them back. When it stays wrong, choose **Draw by hand** above the tile (press ++"d"++). With **Output** set to **Boxes**, drag along one side of the object, then tap the opposite side, or slide to it and lift. **Undo** cancels a side you started. With **Outlines**, drag a box around it. **Model (tap)** switches back.
-4. Move between tiles with **Previous** and **Next**, or the arrow keys.
-5. Click **Review** to see every label on a map over the imagery. Click a tile to open it and add the missing labels ([steps](../guides/training-data/auto-labeller.md#3-review-the-labels)).
-6. Choose the **Output** under **Settings** and click **Download**. **Labels (GeoJSON)** is the default; **Full dataset (.zip)** adds the images and YOLO files.
+- **Label**: in the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share** and the **Object name**, and click **Load**. Click each object on the tile, or drag a box around it. With **Draw by hand** (++"d"++), you draw the box. **Done** (++"c"++) marks a checked tile.
+- **Review** (++escape++): a map of every tile and label over the imagery. Green tiles have labels, blue ones are done and empty, white ones are still to check, and grey ones, zoomed in, are the rest of the project. Click any tile to label it.
+- **Download**: **Labels (GeoJSON)**, or **Full dataset (.zip)** with the images and YOLO files.
 
-For objects with types, **Attribute** and **Values** add a value to each label, such as `roof:material` with `metal, roof_tiles`. Pick a value with its button above the tile, or with its number key on a keyboard; [Objects with types](../guides/training-data/auto-labeller.md#objects-with-types) shows the steps.
-
-**Tile images (.zip)** saves every listed tile image, to label in another tool. **Other imagery URL (optional)** labels the same tiles on other imagery. **Load labels (GeoJSON)**, under **Settings**, puts polygons drawn in QGIS or taken from OpenStreetMap on the listed tiles, as in [Create a training dataset](../guides/training-data/index.md#how-the-auto-labeller-loads-a-geojson-file).
+[Label with the auto labeller](../guides/training-data/auto-labeller.md) has every step. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
 
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 
@@ -131,6 +126,7 @@ Without a MapSwipe project, choose **Tile URL and area** under **Source** ([step
     | `labels/<tile_id>.txt` | One line per object, class first (`0`, or the value's place in **Values** counting from `0`), positions as shares of the image side. A box corner past the image edge is moved onto it, because the format takes values between 0 and 1 |
     | `data.yaml` | The image folders and the class names for Ultralytics: the object name, or each value. It uses all images for both training and validation; split them before a real training run |
     | `labels.geojson` | One polygon per object in longitude and latitude (EPSG:4326), in the chosen output |
+    | `tiles.geojson` | One square per listed tile, with `labels` (its number of labels) and `done` (`true` when it was marked **Done**) |
     | `README.md` | The project, share, model and counts, the tile URL to add in QGIS as an XYZ connection, and the QGIS steps |
 
     Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, the attribute with its value when one is set, `output` (`rotated box` or `outline`), `source` (the model, `drawn by hand`, or the name of a loaded GeoJSON file), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.

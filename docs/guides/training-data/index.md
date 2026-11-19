@@ -25,7 +25,7 @@ For the delivery, only `labels.geojson` is sent ([What to deliver](../what-to-de
 | `labels/<tile_id>.txt` | One line per object: its class (`0`, or one class per attribute value), then the four corners of its box as shares of the image side ([YOLO OBB format](https://docs.ultralytics.com/datasets/obb/)) |
 | `data.yaml` | The image folders and the class names |
 
-The auto labeller also writes `labels.geojson` (every label in longitude and latitude) and a `README.md` with the QGIS steps. The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
+The auto labeller also writes `labels.geojson` (every label in longitude and latitude), `tiles.geojson` (every listed tile, with its number of labels and whether it was marked **Done**) and a `README.md` with the QGIS steps. The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
 
 ## Choose a method
 
