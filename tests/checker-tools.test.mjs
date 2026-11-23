@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { closedShapeCheck, collectionCheck, duplicateCheck, featureList, fileChecks, hasBrokenShape, imageryUrlCheck, isLine, isMappable, isWellFormed, lonLatCheck, objectNameCheck, parseLabels, shapeCheck, labelledTiles, spreadCheck, holdsLines, lineTargetCheck, targetCheck, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "../docs/builder/checker-tools.js";
+import { closedShapeCheck, collectionCheck, commonObjectName, withClosedRings, withImageryUrl, withObjectName, withoutDuplicates, duplicateCheck, featureList, fileChecks, hasBrokenShape, imageryUrlCheck, isLine, isMappable, isWellFormed, lonLatCheck, objectNameCheck, parseLabels, shapeCheck, labelledTiles, spreadCheck, holdsLines, lineTargetCheck, targetCheck, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "../docs/builder/checker-tools.js";
 
 const TILE_URL = "https://tiles.imagery.hotosm.org/raster/collections/openaerialmap/items/69075f1de47603686de24fe8/tiles/WebMercatorQuad/{z}/{x}/{y}?assets=visual&expression=b1;b2;b3&rescale=0,255&nodata=0";
 const square = (x, y, size = 0.0001) => ({ type: "Polygon", coordinates: [[[x, y], [x + size, y], [x + size, y + size], [x, y + size], [x, y]]] });
@@ -208,4 +208,56 @@ test("a feature is mappable only when well formed and within longitude and latit
   assert.equal(isMappable(feature(square(0, 0))), true);
   assert.equal(isMappable(feature({ type: "LineString", coordinates: [[500000, 945000], [500100, 945000]] })), false);
   assert.equal(isMappable(feature(null)), false);
+});
+
+test("setting imagery_url puts it after type and leaves the input as it was", () => {
+  const original = { type: "FeatureCollection", name: "labels", features: [] };
+  const fixed = withImageryUrl(original, ` ${TILE_URL} `);
+  assert.deepEqual(Object.keys(fixed), ["type", "imagery_url", "name", "features"]);
+  assert.equal(fixed.imagery_url, TILE_URL);
+  assert.equal(imageryUrlCheck(fixed).ok, true);
+  assert.equal("imagery_url" in original, false);
+  assert.equal(imageryUrlCheck(original).fix, "imagery_url");
+  assert.equal(imageryUrlCheck(labels([])).fix, undefined);
+});
+
+test("setting object_name fills only the features without one, and the most common name is offered", () => {
+  const original = labels([feature(square(0, 0), {}), feature(square(1, 1), { object_name: " " }), feature(square(2, 2), { object_name: "roof" }), feature(square(3, 3), { object_name: "roof" }), feature(square(4, 4))]);
+  assert.equal(objectNameCheck(original).fix, "object_name");
+  assert.equal(commonObjectName(original), "roof");
+  assert.equal(commonObjectName(labels([feature(square(0, 0), {})])), "");
+  const fixed = withObjectName(original, " roof ");
+  assert.deepEqual(fixed.features.map((item) => item.properties.object_name), ["roof", "roof", "roof", "roof", "solar panel"]);
+  assert.equal(objectNameCheck(fixed).ok, true);
+  assert.equal(original.features[0].properties.object_name, undefined);
+});
+
+test("an open ring is closed by repeating its first position, and a short or flat ring offers no fix", () => {
+  const open = { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1]]] };
+  const original = labels([feature(open), feature({ type: "MultiPolygon", coordinates: [open.coordinates] })]);
+  assert.equal(closedShapeCheck(original).fix, "close_rings");
+  const fixed = withClosedRings(original);
+  assert.deepEqual(fixed.features[0].geometry.coordinates[0].at(-1), [0, 0]);
+  assert.equal(closedShapeCheck(fixed).ok, true);
+  assert.equal(original.features[0].geometry.coordinates[0].length, 4);
+  const holed = { type: "Polygon", coordinates: [square(0, 0, 10).coordinates[0], [[1, 1], [2, 1], [2, 2], [1, 2]]] };
+  assert.equal(closedShapeCheck(withClosedRings(labels([feature(holed)]))).ok, true);
+  const flat = { type: "Polygon", coordinates: [[[0, 0], [1, 1], [2, 2]]] };
+  assert.equal(closedShapeCheck(labels([feature(flat)])).fix, undefined);
+});
+
+test("removing copies keeps the first of each exact copy and leaves the same shape with other properties", () => {
+  const original = labels([feature(square(0, 0), { object_name: "a" }), feature(square(1, 1)), feature(square(0, 0), { object_name: "a" }), feature(square(0, 0), { object_name: "b" }), feature(null), feature(null)]);
+  assert.equal(duplicateCheck(original).fix, "duplicates");
+  const fixed = withoutDuplicates(original);
+  assert.deepEqual(fixed.features.map((item) => item.properties.object_name), ["a", "solar panel", "b", "solar panel", "solar panel"]);
+  assert.equal(duplicateCheck(fixed).ok, false);
+  assert.equal(duplicateCheck(fixed).fix, undefined);
+  assert.equal(original.features.length, 6);
+});
+
+test("the same shape and properties under two ids are two records and stay", () => {
+  const twoIds = labels([{ ...feature(square(0, 0)), id: 1 }, { ...feature(square(0, 0)), id: 2 }]);
+  assert.equal(duplicateCheck(twoIds).fix, undefined);
+  assert.equal(withoutDuplicates(twoIds).features.length, 2);
 });

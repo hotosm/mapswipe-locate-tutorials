@@ -24,7 +24,7 @@ export function featureList(numbers) {
 }
 
 function failingFeatureNumbers(features, isBad) {
-  return features.flatMap((feature, index) => (isBad(feature) ? [index + 1] : []));
+  return features.flatMap((feature, index) => (isBad(feature, index) ? [index + 1] : []));
 }
 
 function checkResult(title, bad, problem) {
@@ -42,10 +42,15 @@ export function collectionCheck(geojson) {
 export function imageryUrlCheck(geojson) {
   const title = "imagery_url at the top of the file";
   const url = geojson.imagery_url;
-  if (typeof url !== "string" || url === "") return { title, ok: false, detail: "imagery_url is missing next to \"type\" and \"features\"." };
-  if (!url.startsWith("https://")) return { title, ok: false, detail: "imagery_url needs to start with https://." };
+  if (typeof url !== "string" || url === "") return { title, ok: false, fix: "imagery_url", detail: "imagery_url is missing next to \"type\" and \"features\"." };
+  if (!url.startsWith("https://")) return { title, ok: false, fix: "imagery_url", detail: "imagery_url needs to start with https://." };
   const missing = ["{z}", "{x}", "{y}"].filter((part) => !url.includes(part));
-  return missing.length === 0 ? { title, ok: true, detail: "" } : { title, ok: false, detail: `imagery_url is missing ${missing.join(", ")}.` };
+  return missing.length === 0 ? { title, ok: true, detail: "" } : { title, ok: false, fix: "imagery_url", detail: `imagery_url is missing ${missing.join(", ")}.` };
+}
+
+export function withImageryUrl(geojson, url) {
+  const { type, imagery_url: _old, ...rest } = geojson;
+  return { type, imagery_url: url.trim(), ...rest };
 }
 
 function positions(geometry) {
@@ -81,9 +86,22 @@ export function isMappable(feature) {
   return isWellFormed(feature) && !positions(feature.geometry).some(outsideLonLat);
 }
 
+const named = (feature) => typeof feature.properties?.object_name === "string" && feature.properties.object_name.trim() !== "";
+
 export function objectNameCheck(geojson) {
-  const named = (feature) => typeof feature.properties?.object_name === "string" && feature.properties.object_name.trim() !== "";
-  return checkResult("object_name on every feature", failingFeatureNumbers(geojson.features, (feature) => !named(feature)), "object_name is missing");
+  const result = checkResult("object_name on every feature", failingFeatureNumbers(geojson.features, (feature) => !named(feature)), "object_name is missing");
+  return result.ok ? result : { ...result, fix: "object_name" };
+}
+
+export function commonObjectName(geojson) {
+  const counts = new Map();
+  for (const feature of geojson.features.filter(named)) counts.set(feature.properties.object_name, (counts.get(feature.properties.object_name) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+}
+
+export function withObjectName(geojson, name) {
+  const features = geojson.features.map((feature) => (named(feature) ? feature : { ...feature, properties: { ...feature.properties, object_name: name.trim() } }));
+  return { ...geojson, features };
 }
 
 function ringProblem(ring) {
@@ -105,21 +123,53 @@ export function hasBrokenShape(geometry) {
   return geometry.coordinates.some(lineProblem);
 }
 
+const isBroken = (feature) => isWellFormed(feature) && hasBrokenShape(feature.geometry);
+
 export function closedShapeCheck(geojson) {
-  const bad = failingFeatureNumbers(geojson.features, (feature) => isWellFormed(feature) && hasBrokenShape(feature.geometry));
-  return checkResult("Closed outlines and lines with a length", bad, "Lacks an area or a length");
+  const result = checkResult("Closed outlines and lines with a length", failingFeatureNumbers(geojson.features, isBroken), "Lacks an area or a length");
+  const closable = result.bad.some((number) => !isBroken(withClosedRings({ features: [geojson.features[number - 1]] }).features[0]));
+  return closable ? { ...result, fix: "close_rings" } : result;
 }
 
-export function duplicateCheck(geojson) {
+const samePosition = (a, b) => a[0] === b[0] && a[1] === b[1];
+const closeRing = (ring) => (ring.length >= 3 && !samePosition(ring[0], ring.at(-1)) ? [...ring, ring[0]] : ring);
+
+// A ring with fewer than three positions stays broken, as no outline can be made from it.
+export function withClosedRings(geojson) {
+  const close = (feature) => {
+    if (!isWellFormed(feature)) return feature;
+    const { geometry } = feature;
+    if (geometry.type === "Polygon") return { ...feature, geometry: { ...geometry, coordinates: geometry.coordinates.map(closeRing) } };
+    if (geometry.type === "MultiPolygon") return { ...feature, geometry: { ...geometry, coordinates: geometry.coordinates.map((polygon) => polygon.map(closeRing)) } };
+    return feature;
+  };
+  return { ...geojson, features: geojson.features.map(close) };
+}
+
+function repeatedKeys(features, keyOf) {
   const seen = new Set();
-  const bad = failingFeatureNumbers(geojson.features, (feature) => {
+  return features.map((feature) => {
     if (!feature.geometry) return false;
-    const key = JSON.stringify(feature.geometry);
+    const key = keyOf(feature);
     if (seen.has(key)) return true;
     seen.add(key);
     return false;
   });
-  return checkResult("One feature per object, each shape once", bad, "The same shape twice");
+}
+
+const shapeKey = (feature) => JSON.stringify(feature.geometry);
+const featureKey = (feature) => JSON.stringify([feature.id, feature.geometry, feature.properties ?? {}]);
+
+export function duplicateCheck(geojson) {
+  const repeated = repeatedKeys(geojson.features, shapeKey);
+  const result = checkResult("One feature per object, each shape once", failingFeatureNumbers(geojson.features, (_feature, index) => repeated[index]), "The same shape twice");
+  return repeatedKeys(geojson.features, featureKey).some(Boolean) ? { ...result, fix: "duplicates" } : result;
+}
+
+// Only exact copies go, so the same shape with two different classes stays for a person to decide.
+export function withoutDuplicates(geojson) {
+  const repeated = repeatedKeys(geojson.features, featureKey);
+  return { ...geojson, features: geojson.features.filter((_feature, index) => !repeated[index]) };
 }
 
 // Properties that the auto labeller writes for its own use; any other property can hold the object's type.

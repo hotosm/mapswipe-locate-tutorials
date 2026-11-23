@@ -316,7 +316,7 @@ aside .actions button { flex: 1; }
 /* Labels checker */
 #checks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 #checks:empty { display: none; }
-#checks li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; font-size: 14px; }
+#checks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px; font-size: 14px; }
 #checks li.pass { border-left-color: var(--reached); }
 #checks li.fail { border-left-color: var(--overlay); }
 #checks li.warn { border-left-color: var(--warning); }
@@ -326,6 +326,10 @@ aside .actions button { flex: 1; }
 #checks li.warn .verdict { color: var(--warning); }
 #checks strong { font-weight: 500; }
 #checks .detail { grid-column: 2; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+#checks .fix { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+#checks .fix input { flex: 1 1 100%; min-width: 0; font-size: 13px; }
+#checks .fix button { flex: none; font-size: 13px; }
+@media (max-width: 800px) { #checks .fix input { font-size: 16px; } }
 #counts { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 #counts caption { text-align: left; font-size: 13px; color: var(--muted); padding-bottom: 4px; }
 #counts th, #counts td { padding: 4px; border-bottom: 1px solid var(--line); text-align: left; }

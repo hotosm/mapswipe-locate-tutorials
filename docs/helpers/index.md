@@ -166,9 +166,20 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
 
 1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
 2. Each check shows **Passed**, **To fix** or **Warning**, and checks on single labels list the feature numbers. Those labels are red on the map. A warning leaves the delivery accepted.
-3. Choose the **Project zoom** (filled in for auto labeller files) and, for types, the **Type attribute**, such as `surface`.
-4. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines. For boxes and outlines, a second bar counts the tiles all labels touch: red below 500, amber from 500, green at 1,000.
-5. Check on the map that every object inside the area has a label.
+3. Some **To fix** checks have a button that fixes the file:
+
+    | Button | Fixes |
+    |---|---|
+    | **Set imagery_url** | Writes the URL you enter to the top of the file |
+    | **Set object_name** | Gives each feature without one the name in the box, which starts as the most common name in the file |
+    | **Close the outlines** | Ends each open outline of three or more points at its first point |
+    | **Remove the copies** | Removes each feature with the same id, shape and properties as an earlier one |
+
+    Click **Download the fixed file**. If a check is still **To fix**, such as the same shape twice with different types, fix it in QGIS, check the file again and deliver it.
+
+4. Choose the **Project zoom** (filled in for auto labeller files) and, for types, the **Type attribute**, such as `surface`.
+5. **Labels per type** shows the labels, share, kilometres of line and tiles at the project zoom for each type. The bar above it counts labels, or tiles when the file holds only lines. For boxes and outlines, a second bar counts the tiles all labels touch: red below 500, amber from 500, green at 1,000.
+6. Check on the map that every object inside the area has a label.
 
 **Try the Stellenbosch example** checks 1,056 buildings and their `roof:material` from a block of 16 tiles of HOT's [roof type training dataset](https://huggingface.co/datasets/hotosm/fAIr-guru-td-roof-type), with each building's whole outline from OpenStreetMap ([© OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL), on the OpenAerialMap image Khayamandi Drone Imagery by Integrated Aerial Systems (CC-BY 4.0). Every check passes except the spread check: the labels touch 33 tiles at zoom 19, below the 500 a delivery needs.
 

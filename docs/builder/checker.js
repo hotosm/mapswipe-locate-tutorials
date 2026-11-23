@@ -1,5 +1,5 @@
 import { tiles as coverTiles } from "https://cdn.jsdelivr.net/npm/@mapbox/tile-cover@3.0.2/+esm";
-import { TARGET_OBJECTS, collectionCheck, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, labelledTiles, lineTargetCheck, parseLabels, SPREAD_TILES, spreadCheck, targetCheck, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
+import { TARGET_OBJECTS, collectionCheck, commonObjectName, imageryUrlCheck, withClosedRings, withImageryUrl, withObjectName, withoutDuplicates, featureList, fileChecks, holdsLines, isLine, isMappable, isWellFormed, labelledTiles, lineTargetCheck, parseLabels, SPREAD_TILES, spreadCheck, targetCheck, topLineRow, topType, typeCounts, typeKeys, typeTable, zoomFromTileIds } from "./checker-tools.js";
 import { targetProgress } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 import { foldSetup, setStatus, working } from "./setup-card.js";
@@ -8,7 +8,7 @@ const EXAMPLE_LABELS = "../examples/files/stellenbosch-roofs-labels.geojson";
 const EXAMPLE_AREA = "../examples/files/stellenbosch-roofs-aoi.geojson";
 // The zoom of the training dataset the example comes from; whole buildings lack a tile_id to read it from.
 const EXAMPLE_ZOOM = 19;
-const state = { labels: null, area: null };
+const state = { labels: null, area: null, name: "", fixed: false };
 const element = (id) => document.getElementById(id);
 
 const map = new maplibregl.Map({
@@ -46,8 +46,54 @@ function showChecks(checks) {
     verdict.textContent = check.ok ? "Passed" : check.warning ? "Warning" : "To fix";
     item.append(verdict, title);
     if (check.detail) item.append(Object.assign(document.createElement("span"), { className: "detail", textContent: check.detail }));
+    if (check.fix) item.append(fixForm(check.fix));
     return item;
   }));
+}
+
+const FIXES = {
+  imagery_url: { field: { label: "imagery_url", placeholder: "https://.../{z}/{x}/{y}", value: (labels) => (typeof labels.imagery_url === "string" ? labels.imagery_url : "") }, button: "Set imagery_url", apply: withImageryUrl, valid: imageryUrlCheck, done: "imagery_url is set." },
+  object_name: { field: { label: "object_name", value: commonObjectName }, button: "Set object_name", apply: withObjectName, done: "object_name is set on the features without one." },
+  close_rings: { button: "Close the outlines", apply: withClosedRings, done: "Open outlines of three or more points are closed." },
+  duplicates: { button: "Remove the copies", apply: withoutDuplicates, done: "The copies are removed. The first of each stays." },
+};
+
+function fixForm(name) {
+  const fix = FIXES[name];
+  const form = Object.assign(document.createElement("form"), { className: "fix" });
+  let input = null;
+  if (fix.field) {
+    const { label, placeholder = "", value } = fix.field;
+    input = Object.assign(document.createElement("input"), { type: "text", required: true, pattern: ".*\\S.*", spellcheck: false, placeholder, value: value(state.labels) });
+    input.setAttribute("aria-label", label);
+    input.addEventListener("input", () => input.setCustomValidity(""));
+    form.append(input);
+  }
+  form.append(Object.assign(document.createElement("button"), { type: "submit", className: "secondary", textContent: fix.button }));
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const fixed = input ? fix.apply(state.labels, input.value) : fix.apply(state.labels);
+    const refused = fix.valid?.(fixed);
+    if (refused && !refused.ok) {
+      setStatus(`The file is unchanged: ${refused.detail}`);
+      input.setCustomValidity(refused.detail);
+      input.reportValidity();
+      return;
+    }
+    state.labels = fixed;
+    state.fixed = true;
+    check();
+    setStatus(`${fix.done} ${element("status").textContent}`);
+  });
+  return form;
+}
+
+function downloadFixed() {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(state.labels)], { type: "application/geo+json" }));
+  link.download = state.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 const lineKilometres = (feature) => turf.length(feature, { units: "kilometers" });
@@ -156,6 +202,7 @@ function check() {
   const spread = tiles === null ? null : spreadCheck(tiles, zoom);
   if (collection.ok) checks.push(crossingCheck(labels.features), ...(area ? [areaCheck(labels.features, area)] : []), target, ...(spread ? [spread] : []));
   showChecks(checks);
+  element("download-fixed").hidden = !state.fixed;
   showCounts(rows, collection.ok && labels.features.filter(isWellFormed).some(isLine), zoom !== null);
   if (!collection.ok) element("target-summary").hidden = true;
   else if (lines && zoom === null) element("target-summary").hidden = true;
@@ -198,7 +245,7 @@ function areaFeatures(geojson) {
 }
 
 // Several Locate projects bring one area file each; together they form the area of interest.
-async function load(labelsSource, areaSources, name, knownZoom = null) {
+async function load(labelsSource, areaSources, name, fileName, knownZoom = null) {
   setStatus("Reading the files...");
   const labels = await readGeojson(labelsSource);
   const areas = await Promise.all(areaSources.map(readGeojson));
@@ -206,6 +253,8 @@ async function load(labelsSource, areaSources, name, knownZoom = null) {
   if (area && !area.features.some(isPolygon)) throw new Error("The area of interest lacks a Polygon or MultiPolygon.");
   state.labels = labels;
   state.area = area;
+  state.name = fileName;
+  state.fixed = false;
   showTypeChoice(labels);
   const zoom = knownZoom ?? (collectionCheck(labels).ok ? zoomFromTileIds(labels) : null);
   const listed = [...element("zoom").options].some((option) => option.value === String(zoom));
@@ -223,14 +272,15 @@ function showError(error) {
 element("setup").addEventListener("submit", (event) => {
   event.preventDefault();
   const labelsFile = element("labels-file").files[0];
-  working(() => load(labelsFile, [...element("area-file").files], labelsFile.name)).catch(showError);
+  working(() => load(labelsFile, [...element("area-file").files], labelsFile.name, labelsFile.name)).catch(showError);
 });
 
 element("example").addEventListener("click", () => {
-  working(() => load(EXAMPLE_LABELS, [EXAMPLE_AREA], "Stellenbosch roofs", EXAMPLE_ZOOM)).catch(showError);
+  working(() => load(EXAMPLE_LABELS, [EXAMPLE_AREA], "Stellenbosch roofs", "labels.geojson", EXAMPLE_ZOOM)).catch(showError);
 });
 
 element("type-key").addEventListener("change", check);
+element("download-fixed").addEventListener("click", downloadFixed);
 element("zoom").addEventListener("change", check);
 
 function propertyTable(properties) {
