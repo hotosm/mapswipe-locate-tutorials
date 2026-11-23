@@ -72,8 +72,8 @@ For each array of touching panels, left-click two corners along one long edge, t
 ## 8. Load the file in the auto labeller
 
 1. In the [auto labeller](../../builder/boxes.html), load the project.
-2. Under **Load labels (GeoJSON)**, click the file field (**Choose File** or **Browse…**) and pick the file.
-3. Check each tile with **Next**, then download the **Full dataset (.zip)**.
+2. Open **Settings**, and under **Load labels (GeoJSON)**, click the file field (**Choose File** or **Browse…**) and pick the file.
+3. Check each tile with **Next**, then download **Labels (GeoJSON)**.
 4. [Check the dataset](index.md#check-the-dataset).
 
 ![QGIS rectangles loaded on a tile in the auto labeller](../../assets/dataset/labeller-load-labels.jpg)

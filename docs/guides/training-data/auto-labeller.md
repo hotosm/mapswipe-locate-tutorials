@@ -24,7 +24,7 @@ The [auto labeller](../../builder/boxes.html) runs EdgeTAM in the browser and dr
     Under **Source**, choose **Tile URL and area**, then fill in:
 
     - **Tile URL**: a URL that starts with `https://` and contains `{z}`, `{x}` and `{y}`, for example the tile URL from the [area finder](../../builder/area.html).
-    - **Zoom**: the zoom of the tiles to label, for example `20`. The imagery must serve two zoom levels deeper, so zoom 22 for 20.
+    - **Zoom**: the zoom of the tiles to label, for example `20`. A tile URL without `@1x` must serve two zoom levels deeper, so zoom 22 when **Zoom** is 20.
     - **Area (GeoJSON polygons)**: a file of Polygon or MultiPolygon features, for example `area-of-interest.geojson` from the area finder.
 
     The auto labeller lists every tile the polygons touch; an area of more than 5,000 tiles shows an error.
@@ -58,7 +58,7 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
 4. Click **Review** (++escape++) to go back to the map where you left it.
 5. To fix labels on the map, click **Edit labels** (++"e"++). Click it again to turn it off. While it is on, clicking a tile doesn't open it.
     - Zoom in close, then draw a box. With **Output** set to **Boxes**, drag along one side of the object at any angle, then click the opposite side. ++escape++ or **Undo** cancels a side you started. With **Outlines**, drag a box around the object. If you set values ([Objects with types](#objects-with-types)), it takes the value picked in the side panel.
-    - A box across tile edges is split at the edges into one label per tile. A tile with a grey border you draw on joins the list. With **Boxes**, the download turns each part into a rotated box around it.
+    - A box across tile edges is split at the edges into one label per tile. A tile with a grey border you draw on joins the list. Each part keeps its shape in the download.
     - Click a label to select it. Where labels overlap, the click selects all of them. **Delete** (++delete++ or ++backspace++) removes it, and a value button changes its value.
     - **Undo** (++"z"++) undoes the last change on the map. Turning **Edit labels** off clears this history. Hold ++space++ and drag, or drag with the middle mouse button, to move the map.
 
@@ -76,14 +76,14 @@ When each object needs an attribute, such as `roof:material` for buildings or `n
 
 The bold line in the side panel names the most common value and its count, and the bar under it turns green when that value reaches 1,000. On screens wider and taller than 800 pixels, a table under the bar counts each value and the labels without one.
 
-A grey label doesn't have a listed value, for example one made before the values were set. **Download** names how many labels are grey and saves the file once each one has a value. In the download, each value is one class in `data.yaml`, and each feature of `labels.geojson` carries its value under the attribute name.
+A grey label doesn't have a listed value, for example one made before the values were set. **Download** names how many labels are grey and saves the file once each one has a value. Each feature of `labels.geojson` carries its value under the attribute name.
 
-## 3. Download the dataset
+## 3. Download the labels
 
 1. **Output**, under **Settings**: choose **Boxes** for objects such as solar panels or boats, and **Outlines** for buildings and other shapes that follow their edges.
-2. Click **Download**. **Labels (GeoJSON)**, the default, saves only the labels. Choose **Full dataset (.zip)** for the YOLO dataset with images.
+2. In the list next to **Download**, choose **Labels (GeoJSON)**, the default, for the labels, or **Tiles (GeoJSON)** for the list of tiles ([What the downloads hold](../../helpers/index.md#auto-labeller)). Click **Download**.
 
-<video src="../../assets/dataset/labeller.mp4" autoplay loop muted playsinline aria-label="Loading the project, tapping two solar arrays, moving to the next tile and downloading the dataset"></video>
+<video src="../../assets/dataset/labeller.mp4" autoplay loop muted playsinline aria-label="Loading the project, tapping two solar arrays, moving to the next tile and downloading the labels"></video>
 
 Then [check the dataset](index.md#check-the-dataset).
 
@@ -93,6 +93,6 @@ The auto labeller saves the labels, the tiles you viewed and the **What to label
 
 When the page opens again, or after **Change**, **Continue where you left off** lists the saved projects and areas. **Continue** opens it at the tile you left. **Remove** deletes its saved labels and settings from the browser; the project that is open can't be removed, so it shows only **Continue**. The labels stay until you remove them or delete the site's data in the browser settings, even when you change the share or **Also show tiles below the share**. A browser can also delete them when the disk runs low. Safari, with cross-site tracking prevention on, deletes them when the site goes seven days of browser use without a click or tap ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)).
 
-To continue on another computer, or to keep a copy, download **Labels (GeoJSON)**. On the other computer, load the same project, or the same tile URL, zoom and area file, then open **Settings** and choose the file under **Load labels (GeoJSON)**. Each label goes back on its tile with its value. An empty **Object name** or **Attribute** field is filled from the file, with its values. Labels from an auto labeller file that are already on a tile aren't added twice. A file downloaded with **Output** set to **Boxes** holds only boxes; download with **Outlines** to keep the outlines. To restore which tiles you viewed, unzip the **Full dataset (.zip)** and load its `tiles.geojson` the same way.
+To continue on another computer, or to keep a copy, download **Labels (GeoJSON)**. On the other computer, load the same project, or the same tile URL, zoom and area file, then open **Settings** and choose the file under **Load labels (GeoJSON)**. Each label goes back on its tile with its value. An empty **Object name** or **Attribute** field is filled from the file, with its values. Labels from an auto labeller file that are already on a tile aren't added twice. With **Output** set to **Boxes**, the model's labels are saved as boxes and labels drawn by hand as drawn; download with **Outlines** to keep the model's outlines. To keep which tiles you viewed, also download **Tiles (GeoJSON)**, and on the other computer load that file the same way.
 
 A project or area opens in one tab at a time. When a save fails or is still running, the browser asks before the page closes.

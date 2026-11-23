@@ -4,7 +4,7 @@ icon: lucide/database
 
 # Create a training dataset
 
-The results show which cells of each tile hold the object. A model learns from a label around each object, so this section turns the marked tiles into a training dataset: tile images and one label per object.
+The results show which cells of each tile hold the object. A model learns from a label around each object, so this section turns the marked tiles into one label per object.
 
 ## From marked cells to labels
 
@@ -15,28 +15,19 @@ The results show which cells of each tile hold the object. A model learns from a
 
 The picture boxes the fully visible boats. Boats cut off at the tile edge, like the two in the top row, still need a label, as [Check the dataset](#check-the-dataset) explains.
 
-Each method below turns the red cells into the yellow boxes. [What to deliver](../what-to-deliver.md) lists what the final file needs.
-
-For the delivery, only `labels.geojson` is sent ([What to deliver](../what-to-deliver.md)). For training, every method ends in the same layout, which [Ultralytics](https://docs.ultralytics.com/datasets/obb/) trains on directly. The tools write these files:
-
-| File | Content |
-|---|---|
-| `images/<tile_id>.jpg` | One 1024 by 1024 pixel image per labelled tile, two zoom levels deeper than the project zoom |
-| `labels/<tile_id>.txt` | One line per object: its class (`0`, or one class per attribute value), then the four corners of its box as shares of the image side ([YOLO OBB format](https://docs.ultralytics.com/datasets/obb/)) |
-| `data.yaml` | The image folders and the class names |
-
-The auto labeller also writes `labels.geojson` (every label in longitude and latitude), `tiles.geojson` (every tile in the auto labeller's list, with its number of labels and whether it was viewed) and a `README.md` with the QGIS steps. The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
+Each method below turns the red cells into the yellow boxes and ends in `labels.geojson`, the file you deliver ([What to deliver](../what-to-deliver.md)). The auto labeller also writes `tiles.geojson`, with each tile's image URL ([What the downloads hold](../../helpers/index.md#auto-labeller)). To train a model, fetch each tile's image from that URL and turn the labels into the format the model needs.
 
 ## Choose a method
+
+The steps use the [Freetown example](../../examples/freetown-solar-panels.md) at a 50% volunteer share: a cell counts as marked when at least half the volunteers who saw it marked it.
 
 | Method | Labels come from | Needs |
 |---|---|---|
 | [Auto labeller](auto-labeller.md) | EdgeTAM, from a tap or a drag on each object | A browser |
 | [QGIS](qgis.md) | Rectangles you draw over the imagery | QGIS |
-| [Label Studio](label-studio.md) | Boxes you draw on the tile images, to check a dataset; it doesn't write `labels.geojson` | Python and Label Studio |
 | [OpenStreetMap](openstreetmap.md) | Areas you trace in iD over the project imagery and upload | An OpenStreetMap account |
 
-QGIS and OpenStreetMap labels end as a GeoJSON file, which the auto labeller turns into the dataset with **Load labels (GeoJSON)**. The methods can be combined: load labels from a file, then add the missing objects with a tap.
+QGIS and OpenStreetMap labels end as a GeoJSON file. Load it in the auto labeller with **Load labels (GeoJSON)** and check it tile by tile. The methods can be combined: load labels from a file, then add the missing objects with a tap.
 
 ## How the auto labeller loads a GeoJSON file
 
@@ -55,6 +46,4 @@ Before training, check every tile:
 
 In the auto labeller, above **Previous** and **Next**, the bold line shows how many objects are labelled so far, and the bar under it fills toward 1,000 objects and turns green at 1,000. With several types, the bold line and bar follow the most common type, which needs 1,000 labels ([Objects with types](auto-labeller.md#objects-with-types)); the other types still get a label wherever they appear. The line below, for example **Tile 3 of 40, 5 labelled, 12 viewed**, shows which tile is open, how many tiles have labels and how many you opened; its bar shows how far through the tiles you are.
 
-`data.yaml` uses all images for both training and validation. Before a real training run, move some images and their labels into separate validation folders and point `val` at them. The delivery doesn't need this step.
-
-Freetown datasets from the auto labeller, QGIS, Label Studio and the solar areas already in OpenStreetMap were checked by training a small YOLO26 model (`yolo26n-obb`) on each; Ultralytics read every image and label without errors. They hold 10 to 47 images. Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" for reliable real-world performance ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so a dataset for real training covers more projects or a larger area.
+Ultralytics recommends "at least 1,500 images and 10,000 labeled instances per class" for reliable real-world performance ([source](https://docs.ultralytics.com/guides/data-collection-and-annotation/#how-many-images-do-i-need-for-training-ultralytics-yolo-models)), so a dataset for real training covers more projects or a larger area.

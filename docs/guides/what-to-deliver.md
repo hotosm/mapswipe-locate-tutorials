@@ -4,7 +4,7 @@ icon: lucide/package-check
 
 # What to deliver
 
-Deliver one `labels.geojson` per object type, from the auto labeller's `.zip` or the HOT Export Tool, with the `area-of-interest.geojson` of each Locate project. One delivery can cover several Locate projects with one tile URL and one zoom; for several images, use the URL from the [imagery merger](../helpers/index.md#imagery-merger).
+Deliver one `labels.geojson` per object type, from the auto labeller or the HOT Export Tool, with the `area-of-interest.geojson` of each Locate project. One delivery can cover several Locate projects with one tile URL and one zoom; for several images, use the URL from the [imagery merger](../helpers/index.md#imagery-merger).
 
 ![Left: red cells volunteers marked on a tile with fishing boats. Right: a yellow box around each fully visible boat](../assets/dataset/cells-to-labels.jpg)
 
@@ -19,7 +19,7 @@ Licence: imagery CC BY 4.0; labels CC BY 4.0, or ODbL when traced in OpenStreetM
 
 ## Checklist
 
-Check each line in the [labels checker](../helpers/index.md#labels-checker) and over the imagery in QGIS (see the auto labeller's `README.md`):
+Check each line in the [labels checker](../helpers/index.md#labels-checker) and over the imagery in QGIS ([Label in QGIS](training-data/qgis.md)):
 
 1. One labels GeoJSON file per object type, in longitude and latitude, EPSG:4326 ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-4)).
 2. `imagery_url` at the top of the file ([see below](#the-imagery-url-at-the-top)).

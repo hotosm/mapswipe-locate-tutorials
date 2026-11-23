@@ -11,13 +11,15 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, segmentLabels, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
+// Two class buttons share a row in the side panel only while each name fits on about one line.
+const LONG_VALUE = 10;
 const clipToTile = (ring) => bboxClip({ type: "Polygon", coordinates: [ring] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
 // One pixel keeps the label files small; on 36 Freetown objects the outline area changed by at most 2%.
 const OUTLINE_TOLERANCE = 1;
@@ -26,7 +28,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", projectLink: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], mapUndo: [], mapVersion: 0 };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], mapUndo: [], mapVersion: 0 };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -48,8 +50,8 @@ function closedRing(corners) {
   return [...corners, corners[0]];
 }
 
-function shownRing({ outline }) {
-  return outputMode() === "segment" ? outline : closedRing(orientedCorners(outline));
+function shownRing(object) {
+  return outputMode() === "segment" || keepsDrawnShape(object) ? object.outline : closedRing(orientedCorners(object.outline));
 }
 
 function strokeRing(context, ring) {
@@ -313,16 +315,17 @@ async function loadImage(url) {
 }
 
 function tileImage(tile) {
-  return remembered(state.images, tile.id, () => stitchedImage(tile));
+  return remembered(state.images, tile.id, () => tileDetailImage(tile));
 }
 
-// The deeper sub-tiles are stitched into one image; it is kept so the download needs no second fetch.
-async function stitchedImage(tile) {
-  const parts = await Promise.all(detailTiles(tile, DETAIL_LEVELS).map(async (part) => ({ ...part, image: await loadImage(part.url) })));
+async function tileDetailImage(tile) {
+  const whole = detailImage(tile, DETAIL_LEVELS);
+  const pieces = whole.pixels === PIXELS ? [{ url: whole.url, left: 0, top: 0, size: PIXELS }] : detailTiles(tile, DETAIL_LEVELS).map((part) => ({ ...part, size: TILE_PIXELS }));
+  const parts = await Promise.all(pieces.map(async (part) => ({ ...part, image: await loadImage(part.url) })));
   const canvas = new OffscreenCanvas(PIXELS, PIXELS);
   const context = canvas.getContext("2d");
-  for (const { image, left, top } of parts.filter((part) => part.image)) {
-    context.drawImage(image, left, top, TILE_PIXELS, TILE_PIXELS);
+  for (const { image, left, top, size } of parts.filter((part) => part.image)) {
+    context.drawImage(image, left, top, size, size);
     image.close();
   }
   return canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
@@ -445,7 +448,7 @@ function drawRotated(start, end) {
     setStatus("That box is outside the tile. Draw it on the tile.");
     return;
   }
-  currentObjects().push({ outline, source: "drawn by hand", ...newValue() });
+  currentObjects().push({ outline, source: HAND_DRAWN, ...newValue() });
   afterChange(`Drawn by hand. ${objectCount()}`);
 }
 
@@ -480,7 +483,7 @@ boxCanvas.addEventListener("pointerup", (event) => {
       setStatus(toolHint());
       return;
     }
-    objects.push({ outline: boxOutline(box), source: "drawn by hand", ...newValue() });
+    objects.push({ outline: boxOutline(box), source: HAND_DRAWN, ...newValue() });
     afterChange(`Drawn by hand. ${objectCount()}`);
     return;
   }
@@ -681,7 +684,7 @@ function drawOnMap(ring) {
   }
   const value = newValue();
   const items = parts.map(({ tile, outline }) => {
-    const object = { outline, source: "drawn by hand", ...value };
+    const object = { outline, source: HAND_DRAWN, ...value };
     if (!state.objects.has(tile.id)) state.objects.set(tile.id, []);
     state.objects.get(tile.id).push(object);
     return { tileId: tile.id, object };
@@ -910,7 +913,6 @@ async function load() {
   state.cleared = null;
   state.name = source.name;
   state.projectName = source.projectName;
-  state.projectLink = source.link;
   state.identity = source.identity;
   state.threshold = source.threshold;
   state.area = source.area;
@@ -1047,7 +1049,7 @@ element("example").addEventListener("click", () => {
   element("setup").requestSubmit();
 });
 
-// Labels on tiles outside the loaded list stay saved but leave every download, so the status names them.
+// Labels on tiles outside the loaded list stay saved but leave the labels download, so its status names them.
 function unloadedLabels() {
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const count = [...state.objects].filter(([id]) => !listed.has(id)).reduce((sum, [, objects]) => sum + objects.length, 0);
@@ -1055,11 +1057,16 @@ function unloadedLabels() {
   return count === 1 ? " 1 label is on a tile that isn't loaded, so it isn't in this file." : ` ${count} labels are on tiles that aren't loaded, so they aren't in this file.`;
 }
 
-// Only tiles with an object go in the dataset, so skipping past a tile never adds it as an image without objects.
-async function download() {
-  const kind = element("download-kind").value;
-  if (kind === "images") {
-    await downloadImages();
+// The tiles file holds every listed tile, viewed or not, so a later session can restore what was checked.
+function downloadTiles() {
+  saveBlob(new Blob([JSON.stringify(tilesGeojson(state.tiles, state.objects, state.viewed, DETAIL_LEVELS))], { type: "application/geo+json" }), outputName("tiles", "geojson"));
+  setStatus(`Downloaded ${state.tiles.length} ${state.tiles.length === 1 ? "tile" : "tiles"}, ${state.viewed.size} viewed.`);
+}
+
+// Only tiles with an object go in the labels file, so skipping past a tile never adds it.
+function download() {
+  if (element("download-kind").value === "tiles") {
+    downloadTiles();
     return;
   }
   const objectName = element("object-name").value.trim();
@@ -1078,43 +1085,19 @@ async function download() {
     setStatus(problem);
     return;
   }
-  const list = values();
   const mode = outputMode();
-  const shaped = shapedObjects(tiles, mode);
-  const geojson = JSON.stringify(labelsGeojson(tiles, shaped, { mode, objectName, attribute, values: list, pixels: PIXELS }));
-  if (kind === "labels") {
-    saveBlob(new Blob([geojson], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
-    setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.${unloadedLabels()}`);
-    return;
-  }
-  const zip = new JSZip();
-  for (const [index, tile] of tiles.entries()) {
-    setStatus(`Preparing image ${index + 1} of ${tiles.length}...`);
-    const objects = shaped.get(tile.id);
-    zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
-    const labels = mode === "segment" ? segmentLabels(objects.map((object) => ({ classIndex: classIndex(object, list), outline: object.outline })), PIXELS) : obbLabels(objects.map((object) => ({ classIndex: classIndex(object, list), corners: object.corners })), PIXELS);
-    zip.file(`labels/${tile.id}.txt`, labels);
-  }
-  zip.file("data.yaml", datasetYaml(list.length > 0 ? list : [objectName]));
-  zip.file("labels.geojson", geojson);
-  zip.file("tiles.geojson", JSON.stringify(tilesGeojson(state.tiles, state.objects, state.viewed)));
-  const objectCount = datasetCounts(tiles, state.objects).objects;
-  zip.file("README.md", datasetReadme({ projectName: state.projectName, projectLink: state.projectLink, threshold: state.threshold, allMapped: state.allMapped, area: state.area, modelName: state.modelName, mode, objectName, attribute, values: list, tiles, objectCount, pixels: PIXELS, detailLevels: DETAIL_LEVELS }));
-  await saveZip(zip, outputName(`yolo_${mode}`, "zip"));
-  setStatus(`Downloaded ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} with objects.${unloadedLabels()}`);
+  const geojson = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName, attribute, values: values(), pixels: PIXELS });
+  saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
+  setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.${unloadedLabels()}`);
 }
 
-// Boxes need each label's rotated corners, which only the download and the map use.
 function shapedObjects(tiles, mode) {
-  return mode === "obb" ? new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => ({ ...object, corners: orientedCorners(object.outline) }))])) : state.objects;
+  if (mode !== "obb") return state.objects;
+  return new Map(tiles.map((tile) => [tile.id, state.objects.get(tile.id).map((object) => (keepsDrawnShape(object) ? object : { ...object, corners: orientedCorners(object.outline) }))]));
 }
 
 function outputName(kind, extension) {
   return state.threshold === null ? `${state.name}_${kind}.${extension}` : `${state.name}_${kind}_${state.threshold}.${extension}`;
-}
-
-async function saveZip(zip, fileName) {
-  saveBlob(await zip.generateAsync({ type: "blob" }, ({ percent }) => setStatus(`Packing ${fileName}, ${Math.floor(percent)}%...`)), fileName);
 }
 
 function saveBlob(blob, fileName) {
@@ -1123,17 +1106,6 @@ function saveBlob(blob, fileName) {
   link.download = fileName;
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-}
-
-// Every listed tile goes in, so the images can be labelled in another tool.
-async function downloadImages() {
-  const zip = new JSZip();
-  for (const [index, tile] of state.tiles.entries()) {
-    setStatus(`Preparing image ${index + 1} of ${state.tiles.length}...`);
-    zip.file(`images/${tile.id}.jpg`, await tileImage(tile));
-  }
-  await saveZip(zip, outputName("images", "zip"));
-  setStatus(`Downloaded ${state.tiles.length} tile images.`);
 }
 
 function parsedLabels(text, file) {
@@ -1289,6 +1261,7 @@ function showValueChoices() {
   shown.textContent = attributeName();
   shown.setAttribute("aria-hidden", "true");
   choices.replaceChildren(legend, shown, ...list.map(valueChoice));
+  choices.classList.toggle("long-values", list.some((value) => value.length > LONG_VALUE));
 }
 
 function changeValues() {

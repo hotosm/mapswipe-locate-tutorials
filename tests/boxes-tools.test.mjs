@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -118,14 +118,6 @@ test("a small or straight-line movement is a click and a drag in any direction g
   assert.deepEqual(dragBox([900, 50], [1100, -20], 1024), [900, 0, 1024, 50]);
 });
 
-test("the dataset file names the object as a quoted YAML string", () => {
-  assert.equal(datasetYaml(['solar "panel"']), 'train: images\nval: images\nnames:\n  0: "solar \\"panel\\""\n');
-});
-
-test("the dataset file numbers each attribute value as its own class, in list order", () => {
-  assert.equal(datasetYaml(["metal", "roof_tiles"]), 'train: images\nval: images\nnames:\n  0: "metal"\n  1: "roof_tiles"\n');
-});
-
 test("attribute values are split at commas, trimmed, and empty or repeated values are dropped", () => {
   assert.deepEqual(attributeValues(" metal, roof_tiles,,metal , concrete "), ["metal", "roof_tiles", "concrete"]);
   assert.deepEqual(attributeValues(" , "), []);
@@ -232,15 +224,17 @@ test("the outline is the outer ring with the largest area, even when a smaller r
   assert.deepEqual(largestRing([[square, hole], [speck]]), square);
 });
 
-test("segment labels give each outline as shares of the image side and drop the repeated closing point", () => {
-  assert.equal(segmentLabels([{ classIndex: 0, outline: [[0, 0], [512, 0], [512, 256], [0, 0]] }, { classIndex: 2, outline: [[1024, 1024], [512, 1024], [768, 512]] }], 1024),
-    "0 0.000000 0.000000 0.500000 0.000000 0.500000 0.250000\n2 1.000000 1.000000 0.500000 1.000000 0.750000 0.500000");
+test("a hand-drawn box becomes a closed four-corner outline", () => {
+  assert.deepEqual(boxOutline([256, 512, 768, 1024]), [[256, 512], [768, 512], [768, 1024], [256, 1024], [256, 512]]);
 });
 
-test("a hand-drawn box becomes a closed four-corner outline that labels as the box corners", () => {
-  const outline = boxOutline([256, 512, 768, 1024]);
-  assert.deepEqual(outline, [[256, 512], [768, 512], [768, 1024], [256, 1024], [256, 512]]);
-  assert.equal(segmentLabels([{ classIndex: 0, outline }], 1024), "0 0.250000 0.500000 0.750000 0.500000 0.750000 1.000000 0.250000 1.000000");
+test("in Boxes mode a hand-drawn part cut at the tile edge keeps every corner in the GeoJSON", () => {
+  const piece = [[600, 300], [1024, 300], [1024, 700], [900, 800], [600, 500], [600, 300]];
+  const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ outline: piece, source: "drawn by hand" }]]]), { mode: "obb", objectName: "pothole", pixels: 1024 }).features;
+  const ring = feature.geometry.coordinates[0];
+  assert.equal(ring.length, 6);
+  const pixels = ring.map((point) => lonLatToPixel(TILE, point, 1024).map((value) => Math.round(value)));
+  assert.deepEqual(pixels.slice(0, -1).toSorted(), piece.slice(0, -1).toSorted());
 });
 
 test("a lone cell has four edges and two side by side cells share no edge", () => {
@@ -267,7 +261,7 @@ test("a box covering the whole image becomes the tile's corners in longitude and
   assert.ok(corners.includes("-13.197326660,8.467618188"));
   assert.ok(corners.includes("-13.196983337,8.467278608"));
   assert.deepEqual(ring[0], ring.at(-1));
-  assert.deepEqual(feature.properties, { tile_id: TILE.id, image: `images/${TILE.id}.jpg`, object_name: "tank", output: "rotated box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
+  assert.deepEqual(feature.properties, { tile_id: TILE.id, object_name: "tank", output: "rotated box", source: "EdgeTAM", marked_cells: 2, imagery_url: TILE.template });
 });
 
 test("with an attribute, each feature carries its own value under the attribute name", () => {
@@ -277,15 +271,10 @@ test("with an attribute, each feature carries its own value under the attribute 
   assert.equal(features[0].properties.object_name, "building");
 });
 
-test("the YOLO class is the value's place in the list, and 0 without values", () => {
-  assert.equal(classIndex({ value: "roof_tiles" }, ["metal", "roof_tiles"]), 1);
-  assert.equal(classIndex({}, []), 0);
-});
-
-test("the reserved names are exactly the properties each feature carries without an attribute", () => {
+test("the reserved names are the properties each feature carries without an attribute, plus image from earlier files", () => {
   const objects = new Map([[TILE.id, [{ corners: [[0, 0], [512, 0], [512, 512], [0, 512]], source: "EdgeTAM" }]]]);
   const [feature] = labelsGeojson([TILE], objects, { mode: "obb", objectName: "tank", pixels: 1024 }).features;
-  assert.deepEqual(Object.keys(feature.properties).toSorted(), LABEL_PROPERTIES.toSorted());
+  assert.deepEqual([...Object.keys(feature.properties), "image"].toSorted(), LABEL_PROPERTIES.toSorted());
 });
 
 test("the labels file states the imagery URL at the top", () => {
@@ -311,33 +300,6 @@ test("outlines use the outline points and tiles without objects add nothing", ()
   assert.equal(features[0].geometry.coordinates[0].length, 4);
   assert.equal(features[0].properties.output, "outline");
   assert.equal(features[0].properties.source, "drawn by hand");
-});
-
-test("the readme lists each imagery URL once and the QGIS zoom of the stitched sub-tiles", () => {
-  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "segment", objectName: "tank", tiles: [TILE, { ...TILE, id: "20-485849-499534" }], objectCount: 3, pixels: 1024, detailLevels: 2 });
-  assert.equal(readme.split(TILE.template).length - 1, 1);
-  assert.match(readme, /set it to 22,/);
-  assert.match(readme, /YOLO segmentation dataset of "tank"/);
-  assert.match(readme, /Images: 2, objects: 3/);
-});
-
-test("a readme for tiles below the share says so after the share", () => {
-  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, allMapped: true, modelName: "EdgeTAM", mode: "segment", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
-  assert.match(readme, /- Volunteer share: 50%, tiles below the share included\n/);
-});
-
-test("a readme for an area names the area file and zoom in place of the project and share", () => {
-  const readme = datasetReadme({ projectName: "machangara", area: "machangara.geojson", threshold: null, modelName: "EdgeTAM", mode: "segment", objectName: "roof", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
-  assert.match(readme, /- Area: machangara.geojson, zoom 20\n/);
-  assert.doesNotMatch(readme, /Project:|Volunteer share/);
-});
-
-test("with tiles on two imagery URLs the readme lists both and asks for one connection each", () => {
-  const second = { ...TILE, id: "20-485849-499534", template: "https://other.example/{z}/{x}/{y}.png" };
-  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE, second], objectCount: 2, pixels: 1024, detailLevels: 2 });
-  assert.ok(readme.includes(TILE.template) && readme.includes(second.template));
-  assert.match(readme, /paste one of these URLs/);
-  assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset/);
 });
 
 const sortedPoints = (points) => points.map(([x, y]) => [Math.round(x * 1e6) / 1e6, Math.round(y * 1e6) / 1e6]).toSorted(([ax, ay], [bx, by]) => ax - bx || ay - by);
@@ -376,22 +338,13 @@ test("a hand-drawn rotated box runs from the dragged side to the tapped side, on
   assert.deepEqual(rectangleFromSide([100, 100], [300, 100], [250, 40]), [[100, 100], [300, 100], [300, 40], [100, 40], [100, 100]]);
 });
 
-test("rotated box labels list four corners as shares of the image side, kept inside the image", () => {
-  const corners = clampedCorners([[-20, 512], [512, -20], [1044, 512], [512, 1044]], 1024);
-  assert.equal(obbLabels([{ classIndex: 0, corners }, { classIndex: 1, corners: [[0, 0], [1024, 0], [1024, 1024], [0, 1024]] }], 1024), "0 0.000000 0.500000 0.500000 0.000000 1.000000 0.500000 0.500000 1.000000\n1 0.000000 0.000000 1.000000 0.000000 1.000000 1.000000 0.000000 1.000000");
-});
-
-test("rotated boxes go in the GeoJSON as their four corners and the readme names an OBB dataset", () => {
+test("rotated boxes go in the GeoJSON as their four corners", () => {
   const corners = [[512, 0], [1024, 512], [512, 1024], [0, 512]];
   const [feature] = labelsGeojson([TILE], new Map([[TILE.id, [{ corners, source: "EdgeTAM" }]]]), { mode: "obb", objectName: "tank", pixels: 1024 }).features;
   const ring = feature.geometry.coordinates[0];
   assert.equal(ring.length, 5);
   assert.ok(ring.some(([lon, lat]) => Math.abs(lon + 13.197154998779297) < 1e-9 && Math.abs(lat - 8.467618188) < 1e-9));
   assert.equal(feature.properties.output, "rotated box");
-  const readme = datasetReadme({ projectName: "Tanks", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "tank", tiles: [TILE], objectCount: 1, pixels: 1024, detailLevels: 2 });
-  assert.match(readme, /YOLO oriented bounding box \(OBB\) dataset of "tank"/);
-  const byRoof = datasetReadme({ projectName: "Roofs", projectLink: "https://mapswipe.org/en/projects/1/", threshold: 50, modelName: "EdgeTAM", mode: "obb", objectName: "building", attribute: "roof:material", values: ["metal", "roof_tiles"], tiles: [TILE], objectCount: 2, pixels: 1024, detailLevels: 2 });
-  assert.match(byRoof, /`roof:material` value, and each value is one class: metal, roof_tiles\./);
 });
 
 test("a point labelled in longitude and latitude lands on the same pixel the GeoJSON export gives it", () => {
@@ -569,17 +522,19 @@ test("viewed tiles are restored, older Done marks count as viewed, they stay lis
   assert.equal(tileGrid(tiles, new Map(), new Set(["1-0-0"]), new Set(["1-0-0"])).features[0].properties.viewed, true);
 });
 
-test("tiles.geojson gives every listed tile its label count and whether it was viewed", () => {
-  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }, { id: "1-1-1", zoom: 1, x: 1, y: 1 }];
+test("tiles.geojson gives every listed tile its label count, whether it was viewed and its own imagery URL", () => {
+  const template = "https://tiles.example/{z}/{x}/{y}.png";
+  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0, template }, { id: "1-1-1", zoom: 1, x: 1, y: 1, template }];
   const objects = new Map([["1-0-0", [{}, {}]]]);
-  const { features } = tilesGeojson(tiles, objects, new Set(["1-1-1"]));
-  assert.deepEqual(features.map((feature) => feature.properties), [{ tile_id: "1-0-0", labels: 2, viewed: false }, { tile_id: "1-1-1", labels: 0, viewed: true }]);
-  assert.equal(features[0].geometry.type, "Polygon");
+  const file = tilesGeojson(tiles, objects, new Set(["1-1-1"]), 2);
+  assert.equal(file.imagery_url, template);
+  assert.deepEqual(file.features.map((feature) => feature.properties), [{ tile_id: "1-0-0", labels: 2, viewed: false, url: "https://tiles.example/1/0/0.png", pixels: 256 }, { tile_id: "1-1-1", labels: 0, viewed: true, url: "https://tiles.example/1/1/1.png", pixels: 256 }]);
+  assert.equal(file.features[0].geometry.type, "Polygon");
 });
 
 test("tilesFileViewed reads viewed tiles back from tiles.geojson and leaves label files and mixed files alone", () => {
-  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0 }, { id: "1-1-1", zoom: 1, x: 1, y: 1 }];
-  const file = JSON.parse(JSON.stringify(tilesGeojson(tiles, new Map([["1-0-0", [{}]]]), new Set(["1-1-1"]))));
+  const tiles = [{ id: "1-0-0", zoom: 1, x: 0, y: 0, template: "https://tiles.example/{z}/{x}/{y}.png" }, { id: "1-1-1", zoom: 1, x: 1, y: 1, template: "https://tiles.example/{z}/{x}/{y}.png" }];
+  const file = JSON.parse(JSON.stringify(tilesGeojson(tiles, new Map([["1-0-0", [{}]]]), new Set(["1-1-1"]), 2)));
   assert.deepEqual(tilesFileViewed(file), ["1-1-1"]);
   const labels = labelsGeojson([TILE], new Map([[TILE.id, [{ corners: [[0, 0], [10, 0], [10, 10], [0, 10]], source: "EdgeTAM" }]]]), { mode: "obb", objectName: "tank", pixels: 1024 });
   assert.equal(tilesFileViewed(labels), null);
@@ -624,4 +579,23 @@ test("ringOnTiles cuts an angled box at the tile line into the exact part on eac
   assert.deepEqual(parts.map(({ tile }) => tile.id), [left.id, right.id]);
   const shifted = parts[1].outline.map(([x, y]) => [x + 1024, y]);
   assert.ok(Math.abs(ringArea(parts[0].outline) + ringArea(shifted) - ringArea(drawn)) < 0.01 * ringArea(drawn));
+});
+
+test("a hand-drawn label stays drawn by hand through two downloads and reloads of labels.geojson, and a model label does not", () => {
+  const square = [[0, 0], [1024, 0], [1024, 1024], [0, 1024], [0, 0]];
+  let objects = new Map([[TILE.id, [{ outline: [[100, 100], [400, 100], [400, 300], [100, 100]], source: "drawn by hand" }, { outline: [[600, 100], [900, 100], [900, 300], [600, 100]], source: "EdgeTAM" }]]]);
+  for (const fileName of ["first.geojson", "second.geojson"]) {
+    const { shapes } = polygonRings(labelsGeojson([TILE], objects, { mode: "obb", objectName: "pothole", pixels: 1024 }));
+    objects = placedLabels({ shapes, tiles: [TILE], objects: new Map(), fileName, attribute: "", pixels: 1024, clip: (ring) => ring, shapesOf: () => [square] }).objects;
+    assert.deepEqual(objects.get(TILE.id).map(keepsDrawnShape), [true, false], fileName);
+  }
+});
+
+test("a TiTiler tile URL with @1x gives one image at 4 times the pixels, and other URLs give the 256 pixel tile", () => {
+  const titiler = { zoom: 20, x: 485884, y: 499536, template: "https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?url=https://example.org/image.tif" };
+  assert.deepEqual(detailImage(titiler, 2), { url: "https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/20/485884/499536@4x?url=https://example.org/image.tif", pixels: 1024 });
+  assert.deepEqual(detailImage(titiler, 1), { url: "https://titiler.hotosm.org/cog/tiles/WebMercatorQuad/20/485884/499536@2x?url=https://example.org/image.tif", pixels: 512 });
+  assert.equal(detailImage(titiler, 3).pixels, 256);
+  assert.deepEqual(detailImage({ zoom: 20, x: 1, y: 2, template: "https://tiles.example/{z}/{x}/{y}.png" }, 2), { url: "https://tiles.example/20/1/2.png", pixels: 256 });
+  assert.deepEqual(detailImage({ zoom: 20, x: 1, y: 2, template: "https://tiles.example/{z}/{x}/{y}@2x.png?url=s3://bucket/scene@1x.tif" }, 2), { url: "https://tiles.example/20/1/2@2x.png?url=s3://bucket/scene@1x.tif", pixels: 256 });
 });

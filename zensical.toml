@@ -25,7 +25,6 @@ nav = [
       "guides/training-data/index.md",
       { "Auto labeller" = "guides/training-data/auto-labeller.md" },
       { "QGIS" = "guides/training-data/qgis.md" },
-      { "Label Studio" = "guides/training-data/label-studio.md" },
       { "OpenStreetMap" = "guides/training-data/openstreetmap.md" },
     ] },
     { "What to deliver" = "guides/what-to-deliver.md" },

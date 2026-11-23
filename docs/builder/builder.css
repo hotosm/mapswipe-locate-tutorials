@@ -210,6 +210,7 @@ body:not(.tile-open):not(.map-editing) #stage-tools, body.map-editing #tool-choi
 #value-choices[hidden] { display: none; }
 #value-choices legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
 #value-choices .attribute-name { grid-column: 1 / -1; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+#value-choices.long-values { grid-template-columns: minmax(0, 1fr); }
 #value-choices label { align-items: center; min-height: 40px; padding: 6px 10px; margin: 0; border-radius: 0; overflow-wrap: anywhere; }
 #value-choices kbd { margin-right: 8px; font: 12px var(--mono); opacity: 0.7; }
 #value-counts { width: 100%; border-collapse: collapse; font-size: 13px; }

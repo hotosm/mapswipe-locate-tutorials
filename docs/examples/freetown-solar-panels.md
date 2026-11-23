@@ -15,7 +15,7 @@ This example follows one finished production project from the imagery to a train
 | [Processed tasks](files/freetown-solar-panels-processed-tasks.geojson) | The 2,964 project tiles, built from the project's **Tasks** export, for the [tutorial builder](../builder/index.html) |
 | [Aggregated results](files/freetown-solar-panels-aggregated-results.csv.gz) | The project's **Aggregated Results** export |
 | [Cells at 50%](files/freetown-solar-panels-cells-50.geojson) | The cells marked by at least 50% of volunteers, downloaded from the [results map](../builder/results.html) |
-| [Results training dataset](files/freetown-solar-panels-yolo-obb-50.zip) | A YOLO oriented bounding box dataset from the [auto labeller](../builder/boxes.html), with `labels.geojson` and a `README.md` for QGIS |
+| [Labels at 50%](files/freetown-solar-panels-labels-50.geojson) | The `labels.geojson` from the [auto labeller](../builder/boxes.html) |
 
 ## Project settings
 
@@ -63,8 +63,8 @@ The cells at 50% in QGIS, as in [Label in QGIS](../guides/training-data/qgis.md#
 
 ## Training data
 
-The auto labeller loads the same project at a 50% share and lists the 73 tiles. The dataset marks 36 solar panel arrays on 20 of those tiles: EdgeTAM found 32 from a tap or a drag, and 4 were drawn by hand. With **Boxes**, each box follows the angle of the array:
+The auto labeller loads the same project at a 50% share and lists the 73 tiles. The labels mark 36 solar panel arrays on 20 of those tiles: EdgeTAM found 32 from a tap or a drag, and 4 were drawn by hand. With **Boxes**, each box follows the angle of the array:
 
 ![Rotated boxes around solar panel arrays on a Freetown tile](../assets/examples/freetown-rotated-boxes.jpg)
 
-The `README.md` in the dataset has the tile URL and the steps to show `labels.geojson` over the imagery in QGIS.
+The file's `imagery_url` is the tile URL to add in QGIS as an XYZ connection, under the labels ([Label in QGIS](../guides/training-data/qgis.md)).

@@ -26,7 +26,7 @@ Pages that prepare the files the manager asks for and clean up the results. They
 
 -   :lucide-scan-search: **[Auto labeller](../builder/boxes.html)**
 
-    Load a finished project, or a tile URL and an area. Tap or drag around each object, and download a YOLO dataset with a GeoJSON of the labels.
+    Load a finished project, or a tile URL and an area. Tap or drag around each object, and download the labels as GeoJSON.
 
 -   :lucide-list-checks: **[Labels checker](../builder/checker.html)**
 
@@ -94,22 +94,22 @@ To share the results, copy the page address. It opens at 50%, so tell others the
 
 ## Auto labeller
 
-Use it to mark each object on the tiles of a finished project or an area, as training data for a YOLO model.
+Use it to mark each object on the tiles of a finished project or an area, as training data for a model.
 
 ![Two taps and a drag mark three solar panel groups, then the outlines show](../assets/helpers/auto-labeller-laptop.gif){ loading=lazy }
 
 - **Label**: in the [auto labeller](../builder/boxes.html), paste the project link, set the **Volunteer share** and the **Object name**, and click **Load**. Click each object on the tile, or drag a box around it. With **Draw by hand** (++"d"++), you draw the box. Each tile you open counts as viewed.
 - **Review** (++escape++): a map of every tile and label over the imagery. Green tiles have labels, solid white ones were viewed, faint ones aren't viewed yet, and grey ones, zoomed in, are the rest of the project. Click any tile to label it, or click **Edit labels** (++"e"++) to draw and fix labels on the map.
-- **Download**: **Labels (GeoJSON)**, or **Full dataset (.zip)** with the images and YOLO files.
+- **Download**: **Labels (GeoJSON)** or **Tiles (GeoJSON)**.
 
 [Label with the auto labeller](../guides/training-data/auto-labeller.md) has every step. The first load downloads the [EdgeTAM](https://huggingface.co/onnx-community/EdgeTAM-ONNX) model, about 41 MB.
 
 ![A Freetown tile with the marked cells inside a yellow line and four boxes](../assets/helpers/boxes-tile.png)
 
-| Output | Shape | YOLO task |
-|---|---|---|
-| **Boxes** | The smallest box around the outline, at any angle | Oriented bounding boxes, OBB ([format](https://docs.ultralytics.com/datasets/obb/)) |
-| **Outlines** | The outline of each object | Segmentation ([format](https://docs.ultralytics.com/datasets/segment/)) |
+| Output | Shape |
+|---|---|
+| **Boxes** | The smallest box around each model outline, at any angle. A box drawn by hand stays as drawn, cut at the tile edge |
+| **Outlines** | The outline of each object |
 
 Every object keeps its outline, and its box is worked out from the outline, so the **Output** can change at any time. The labels, the tiles you viewed and the **What to label** fields are saved in the browser after each change, per project, or per tile URL, zoom and area file name. [Come back later](../guides/training-data/auto-labeller.md#come-back-later) shows how to continue.
 
@@ -117,19 +117,15 @@ Every object keeps its outline, and its box is worked out from the outline, so t
 
 Without a MapSwipe project, choose **Tile URL and area** under **Source** ([steps](../guides/training-data/auto-labeller.md#1-load-the-project)).
 
-??? note "What the download holds"
-    The `.zip` file holds:
-
+??? note "What the downloads hold"
     | File | Content |
     |---|---|
-    | `images/<tile_id>.jpg` | The 1024 by 1024 pixel image of each tile with at least one object |
-    | `labels/<tile_id>.txt` | One line per object, class first (`0`, or the value's place in **Values** counting from `0`), positions as shares of the image side. A box corner past the image edge is moved onto it, because the format takes values between 0 and 1 |
-    | `data.yaml` | The image folders and the class names for Ultralytics: the object name, or each value. It uses all images for both training and validation; split them before a real training run |
-    | `labels.geojson` | One polygon per object in longitude and latitude (EPSG:4326), in the chosen output |
-    | `tiles.geojson` | One square per tile in the list, with `labels` (its number of labels) and `viewed` (`true` when it was opened), to tell checked empty tiles from tiles not looked at yet |
-    | `README.md` | The project, share, model and counts, the tile URL to add in QGIS as an XYZ connection, and the QGIS steps |
+    | **Labels (GeoJSON)** | One polygon per object in longitude and latitude (EPSG:4326), in the chosen output. `imagery_url` is at the top |
+    | **Tiles (GeoJSON)** | One square per tile in the list, with `tile_id`, `labels` (its number of labels), `viewed` (`true` when it was opened), `url` (the tile's image) and `pixels` (the width of the square image in pixels, 1024 or 256). `imagery_url` is at the top |
 
-    Each feature in `labels.geojson` has `tile_id`, `image` (the file in the `.zip` file), `object_name`, the attribute with its value when one is set, `output` (`rotated box` or `outline`), `source` (the model, `drawn by hand`, or the name of a loaded GeoJSON file), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
+    Each file is named after the results file or the area file, ending in `_labels_obb_50.geojson` (`_labels_segment_50.geojson` with **Outlines**) or `_tiles_50.geojson`. The number is the volunteer share; a **Tile URL and area** source leaves it out. These pages call the files `labels.geojson` and `tiles.geojson`. In `tiles.geojson`, `url` is the 1024 pixel image the auto labeller shows when the tile URL has `@1x`. With other tile URLs, `url` is the 256 pixel tile at the project zoom; for the detail the labels were drawn on, fetch the 16 tiles two zoom levels deeper from `imagery_url`.
+
+    `tile_id` is the tile's zoom, x and y in the Web Mercator tile grid, so a script can also fetch a tile by putting them into `imagery_url`. Each feature in `labels.geojson` has `tile_id`, `object_name`, the attribute with its value when one is set, `output` (`rotated box` or `outline`), `source` (the model, `drawn by hand`, or the name of a loaded GeoJSON file), `marked_cells` (how many cells volunteers marked on the tile) and `imagery_url`. Pixel positions are turned into longitude and latitude through the tile's place in the Web Mercator tile grid, and each outer ring runs counterclockwise, as [RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946#section-3.1.6) asks.
 
 ??? note "On a phone"
     [EdgeTAM](https://github.com/facebookresearch/EdgeTAM) is a version of SAM 2 (Segment Anything Model 2) made for devices: its README describes it as "an on-device executable variant of the SAM 2" that "achieves 16 FPS on iPhone 15 Pro Max without quantization" ([paper](https://arxiv.org/abs/2501.07256)). That figure comes from the EdgeTAM authors. The GIF below was recorded in desktop Chromium at phone size (390 by 844 pixels); the speed of the page on a real phone has not been measured.
@@ -142,7 +138,7 @@ Without a MapSwipe project, choose **Tile URL and area** under **Source** ([step
     Everything runs in the browser. The page reads the project page, the results file, the project's imagery and the model files, and sends nothing back.
 
     1. The page keeps the cells where Single Feature and Multiple Features answers together reach the chosen share, as the results map does, and lists every tile with at least one kept cell, then, with **Also show tiles below the share**, every other tile with a volunteer answer.
-    2. Each tile is shown two zoom levels deeper than the project zoom: 16 imagery tiles joined into one 1024 by 1024 pixel image. For a zoom 20 project, the imagery must serve zoom 22 and send CORS headers. Parts beyond the edge of the image are black.
+    2. Each tile is shown at 1024 by 1024 pixels, with the detail of two zoom levels deeper than the project zoom. A tile URL with `@1x`, as from HOT's TiTiler servers, gives this image in one request with `@4x`; any other server whose URL has `@1x` must also accept `@4x`. Other tile URLs give 16 tiles two zoom levels deeper, joined into one image, so for a zoom 20 project the imagery must serve zoom 22. The imagery must send CORS headers. Parts beyond the edge of the image are black.
     3. The EdgeTAM image encoder (`vision_encoder.onnx` in the [model repository](https://huggingface.co/onnx-community/EdgeTAM-ONNX/tree/main/onnx)) turns the tile into embeddings once, with the encoder in a background worker, while the tile before it is labelled. The previous, current and next tiles stay ready, so going back one tile doesn't read it again. [Transformers.js](https://huggingface.co/docs/transformers.js) runs it on the CPU with WebAssembly: with the Freetown example in Chromium on an Intel Core i9-14900HX laptop, about 1 second, and about 6 seconds with the CPU slowed four times. On an HTTPS page the browser keeps the model files ([`useBrowserCache`](https://huggingface.co/docs/transformers.js/api/env)).
     4. A tap is sent to `prompt_encoder_mask_decoder.onnx` as one point, and a drag as a box with its centre point. Each takes under a second. The page keeps the candidate mask with the highest predicted quality score. A box drawn with **Draw by hand** skips the model.
     5. The outline is traced with [d3-contour](https://github.com/d3/d3-contour), keeps the largest shape and is simplified to within one pixel with [@turf/simplify](https://turfjs.org/docs/api/simplify). The box is the smallest rectangle around the outline's convex hull ([@turf/convex](https://turfjs.org/docs/api/convex)).

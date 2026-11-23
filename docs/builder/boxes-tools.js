@@ -49,6 +49,13 @@ export function detailTiles(tile, levels) {
   });
 }
 
+// TiTiler draws a tile at up to 4 times its 256 pixels when {y}@1x becomes {y}@4x (scale le=4, https://github.com/developmentseed/titiler/blob/0.18.0/src/titiler/core/titiler/core/factory.py), the detail of the tiles two zoom levels deeper in one request.
+export function detailImage(tile, levels) {
+  const scale = 2 ** levels;
+  if (!tile.template.includes("{y}@1x") || scale > 4) return { url: detailTiles(tile, 0)[0].url, pixels: TILE_PIXELS };
+  return { url: detailTiles({ ...tile, template: tile.template.replace("{y}@1x", `{y}@${scale}x`) }, 0)[0].url, pixels: TILE_PIXELS * scale };
+}
+
 export function cellRectangle(cell, size, pixels) {
   const side = pixels / size;
   const [left, top] = [(cell % size) * side, Math.floor(cell / size) * side];
@@ -128,7 +135,7 @@ export function parseTileTemplate(text) {
   return template;
 }
 
-// Each listed tile needs one model run and an imagery request per sub-tile.
+// Each listed tile needs one model run and one to sixteen imagery requests.
 export const MAX_AREA_TILES = 5000;
 const MAX_BOUNDING_TILES = 100 * MAX_AREA_TILES;
 
@@ -195,7 +202,6 @@ export function datasetCounts(tiles, objects) {
   return { objects: counts.reduce((sum, count) => sum + count, 0), tilesWithObjects: counts.filter((count) => count > 0).length, tiles: tiles.length };
 }
 
-// "metal, roof_tiles" becomes ["metal", "roof_tiles"]; each value is one class of the dataset.
 export function attributeValues(text) {
   return [...new Set(text.split(",").map((value) => value.trim()).filter(Boolean))];
 }
@@ -203,11 +209,6 @@ export function attributeValues(text) {
 export function valueCounts(tiles, objects, values) {
   const all = tiles.flatMap((tile) => objects.get(tile.id) ?? []);
   return values.map((value) => all.filter((object) => object.value === value).length);
-}
-
-// The YOLO class is the value's place in the list, or 0 for a dataset of one object.
-export function classIndex(object, values) {
-  return values.length > 0 ? values.indexOf(object.value) : 0;
 }
 
 // Objects labelled before the value list was set, or with a value taken off it, have no class.
@@ -238,10 +239,10 @@ export function tilesFileViewed(geojson) {
   return isTiles ? features.filter(({ properties }) => seen(properties)).map(({ properties }) => properties.tile_id) : null;
 }
 
-// One square per listed tile with its label count and whether it was viewed, since an empty viewed tile has no label to carry it.
-export function tilesGeojson(tiles, objects, viewed) {
+// One square per listed tile with its label count, whether it was viewed, and the URL and pixel size of its image, so a script can fetch each one.
+export function tilesGeojson(tiles, objects, viewed, levels) {
   const { features } = tileGrid(tiles, objects, new Set(), viewed);
-  return { type: "FeatureCollection", features: features.map(({ geometry, properties }) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, viewed: properties.viewed } })) };
+  return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features: features.map(({ geometry, properties }, index) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, viewed: properties.viewed, ...detailImage(tiles[index], levels) } })) };
 }
 
 // A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
@@ -255,6 +256,13 @@ export function fileSettings(geojson, shapes) {
   const [attribute] = attributes;
   const values = [...new Set(properties.map((entry) => entry[attribute]).filter((value) => value !== null && value !== undefined).map(String))];
   return { objectName, attribute, values: values.join(", ") };
+}
+
+export const HAND_DRAWN = "drawn by hand";
+
+// A label drawn by hand, here or in an earlier labels.geojson, is already the shape the person meant, cut at the tile edge, so only the model's labels become rotated boxes.
+export function keepsDrawnShape(object) {
+  return object.source === HAND_DRAWN || object.drawn === true;
 }
 
 function tileFromId(id) {
@@ -280,7 +288,7 @@ export function placedLabels({ shapes, tiles, objects, fileName, attribute, pixe
         continue;
       }
       const value = attribute && properties[attribute] != null ? { value: String(properties[attribute]) } : {};
-      placed.set(tile.id, [...list, { outline, source: fileName, ...value }]);
+      placed.set(tile.id, [...list, { outline, source: fileName, ...(properties.source === HAND_DRAWN && { drawn: true }), ...value }]);
       counts.count += 1;
       if (!listed.has(tile.id)) counts.unlisted += 1;
     }
@@ -345,7 +353,7 @@ export function rotatedBox(hull, pixels = Infinity) {
   return (bestInside ?? best).corners;
 }
 
-// The YOLO OBB format takes corners between 0 and 1, so corners past the image edge are moved onto it.
+// A rotated box stays on its tile, so corners past the image edge are moved onto it.
 export function clampedCorners(corners, pixels) {
   return corners.map((point) => point.map((value) => Math.min(pixels, Math.max(0, value))));
 }
@@ -357,27 +365,6 @@ export function rectangleFromSide(start, end, point) {
   const depth = (point[0] - start[0]) * normalX + (point[1] - start[1]) * normalY;
   const [shiftX, shiftY] = [normalX * depth, normalY * depth];
   return [start, end, [end[0] + shiftX, end[1] + shiftY], [start[0] + shiftX, start[1] + shiftY], start];
-}
-
-// YOLO OBB labels: class, then the four corners as shares of the image side.
-export function obbLabels(labels, pixels) {
-  const share = (value) => (value / pixels).toFixed(6);
-  return labels.map(({ classIndex, corners }) => `${classIndex} ${corners.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`).join("\n");
-}
-
-// YOLO segmentation labels: class, then the outline points as shares of the image side, without repeating the first point.
-export function segmentLabels(labels, pixels) {
-  const share = (value) => (value / pixels).toFixed(6);
-  return labels.map(({ classIndex, outline: ring }) => {
-    const [first, last] = [ring[0], ring.at(-1)];
-    const points = first[0] === last[0] && first[1] === last[1] ? ring.slice(0, -1) : ring;
-    return `${classIndex} ${points.map(([x, y]) => `${share(x)} ${share(y)}`).join(" ")}`;
-  }).join("\n");
-}
-
-// Without a `path` line Ultralytics reads the folders next to this file. Training and validation both use all images.
-export function datasetYaml(names) {
-  return `train: images\nval: images\nnames:\n${names.map((name, index) => `  ${index}: ${JSON.stringify(name)}\n`).join("")}`;
 }
 
 function pixelToLonLat(tile, [x, y], pixels) {
@@ -425,17 +412,14 @@ function lonLatRing(tile, ring, pixels) {
   return signedRingArea(lonLat) < 0 ? lonLat.toReversed() : lonLat;
 }
 
-const OUTPUTS = {
-  segment: { dataset: "segmentation", feature: "outline" },
-  obb: { dataset: "oriented bounding box (OBB)", feature: "rotated box" },
-};
+const FEATURE_OUTPUTS = { segment: "outline", obb: "rotated box" };
 
-// Rotated boxes need each object's `corners`, which the page works out with a convex hull.
+// A model label in Boxes mode carries the rotated `corners` the page works out with a convex hull; a hand-drawn label keeps its own outline.
 function pixelRing({ outline, corners }, mode) {
-  return mode === "segment" ? outline : [...corners, corners[0]];
+  return mode === "segment" || !corners ? outline : [...corners, corners[0]];
 }
 
-// The properties every feature of labels.geojson carries, so an attribute can't take one of their names.
+// The properties a labels.geojson feature can carry, including image in older files, so an attribute can't take one of their names.
 export const LABEL_PROPERTIES = ["tile_id", "image", "object_name", "output", "source", "marked_cells", "imagery_url"];
 
 export function labelsGeojson(tiles, objects, { mode, objectName, attribute, values = [], pixels }) {
@@ -443,39 +427,10 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
     (objects.get(tile.id) ?? []).map((object) => ({
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [lonLatRing(tile, pixelRing(object, mode), pixels)] },
-      properties: { tile_id: tile.id, image: `images/${tile.id}.jpg`, object_name: objectName, ...(attribute && { [attribute]: object.value }), output: OUTPUTS[mode].feature, source: object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
+      properties: { tile_id: tile.id, object_name: objectName, ...(attribute && { [attribute]: object.value }), output: FEATURE_OUTPUTS[mode], source: keepsDrawnShape(object) ? HAND_DRAWN : object.source, marked_cells: tile.cells.length, imagery_url: tile.template },
     })));
   // A Locate project has one tile URL, so it is stated once at the top as well as on each object; the full value list keeps values that no label uses yet.
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
-}
-
-export function datasetReadme({ projectName, projectLink, threshold, allMapped, area, modelName, mode, objectName, attribute, values, tiles, objectCount, pixels, detailLevels }) {
-  const templates = [...new Set(tiles.map((tile) => tile.template))];
-  return `# ${projectName}
-
-YOLO ${OUTPUTS[mode].dataset} dataset of "${objectName}", marked with the Locate auto labeller.${attribute ? ` Each object has a \`${attribute}\` value, and each value is one class: ${values.join(", ")}.` : ""}
-
-${area ? `- Area: ${area}, zoom ${tiles[0].zoom}` : `- Project: ${projectLink}\n- Volunteer share: ${threshold}%${allMapped ? ", tiles below the share included" : ""}`}
-- Model: ${modelName}
-- Images: ${tiles.length}, objects: ${objectCount}
-
-## Files
-
-- \`images/\`: one ${pixels} x ${pixels} JPEG per tile, named by tile ID (zoom-x-y).
-- \`labels/\`: one YOLO label file per image.
-- \`data.yaml\`: the dataset file for Ultralytics.
-- \`labels.geojson\`: every object as a polygon in longitude and latitude (EPSG:4326), with its tile, source and imagery.
-- \`tiles.geojson\`: every listed tile as a square, with \`labels\` (its number of labels) and \`viewed\` (true when the tile was opened).
-
-## Open in QGIS
-
-1. In the **Browser** panel, right-click **XYZ Tiles** and choose **New Connection**. Enter a **Name**, paste ${templates.length === 1 ? "this URL" : "one of these URLs"} into **URL**, tick **Max. Zoom Level** and set it to ${tiles[0].zoom + detailLevels}, and click **OK**.
-
-${templates.map((template) => `   \`\`\`text\n   ${template}\n   \`\`\``).join("\n\n")}
-
-2. Expand **XYZ Tiles** and double-click the new connection to add the imagery to the map.
-3. Drag \`labels.geojson\` into QGIS. It draws above the imagery.
-`;
 }
 
 export function tileGrid(tiles, objects, listed, viewed = new Set()) {

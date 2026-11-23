@@ -91,9 +91,9 @@ The YAML follows the Export Tool's [YAML guide](https://export.hotosm.org/learn/
 ## 6. Load the file in the auto labeller
 
 1. In the [auto labeller](../../builder/boxes.html), load the project.
-2. Under **Load labels (GeoJSON)**, click the file field (**Choose File** or **Browse…**) and pick the `.geojson` file from the download.
+2. Open **Settings**, and under **Load labels (GeoJSON)**, click the file field (**Choose File** or **Browse…**) and pick the `.geojson` file from the download.
 3. Go through the tiles with **Next**, and tap any object that is still missing.
-4. Download the **Full dataset (.zip)**, then [check the dataset](index.md#check-the-dataset).
+4. Download **Labels (GeoJSON)**, then [check the dataset](index.md#check-the-dataset).
 
 ![Labels loaded from a GeoJSON file on a tile in the auto labeller](../../assets/dataset/labeller-load-labels.jpg)
 
