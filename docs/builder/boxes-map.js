@@ -83,7 +83,8 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
   let imageryKey = null;
 
   // Zoomed out, the tiles outside the list are hidden, so they take neither clicks nor hover until their grey borders show.
-  const hidden = ({ listed }) => !listed && (!shown || map.getZoom() < shown.maxzoom - 2 - GRID_CLICKABLE);
+  const zoomedOut = () => map.getZoom() < shown.maxzoom - 2 - GRID_CLICKABLE;
+  const hidden = ({ listed }) => !listed && (!shown || zoomedOut());
   let editing = false;
   map.on("click", "tiles-fill", (event) => {
     const { properties } = event.features[0];
@@ -121,7 +122,6 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     const { left, top } = surface.getBoundingClientRect();
     return { x: event.clientX - left, y: event.clientY - top };
   };
-  const boxRing = (a, b) => [[a.x, a.y], [b.x, a.y], [b.x, b.y], [a.x, b.y], [a.x, a.y]].map((point) => map.unproject([point[0], point[1]]).toArray());
   // With rotated boxes, a drag sets one side and a click or slide sets the opposite one, as on the Label tile; the side is kept in longitude and latitude so a pan in between keeps it in place.
   let side = null;
   let pointer = null;
@@ -130,9 +130,11 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     return [x, y];
   };
   const screenRing = (ring) => ring.map((point) => map.unproject(point).toArray());
+  const boxRing = (a, b) => screenRing([[a.x, a.y], [b.x, a.y], [b.x, b.y], [a.x, b.y], [a.x, a.y]]);
   const drawDraft = (coordinates) => map.getSource("draft")?.setData(coordinates ? { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "LineString", coordinates }, properties: {} }] } : EMPTY);
   const sideRectangle = (point) => rectangleFromSide(toScreen(side[0]), toScreen(side[1]), [point.x, point.y]);
-  const tooFar = () => shown && map.getZoom() < shown.maxzoom - 2 - GRID_CLICKABLE;
+  const drawSide = (point) => drawDraft(screenRing(sideRectangle(point)));
+  const tooFar = () => shown && zoomedOut();
 
   function cancelSide() {
     if (!side) return false;
@@ -156,16 +158,18 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
   }, { capture: true });
   window.addEventListener("mousemove", (event) => {
+    if (!drag && !side) return;
     const point = pointOf(event);
     pointer = point;
     if (!drag) {
-      if (side) drawDraft(screenRing(sideRectangle(point)));
+      drawSide(point);
       return;
     }
     // A button released outside the window sends no mouseup here.
     if ((event.buttons & (drag.pan ? 4 | 1 : 1)) === 0) {
       drag = null;
-      drawDraft(side ? screenRing(sideRectangle(point)) : null);
+      if (side) drawSide(point);
+      else drawDraft(null);
       return;
     }
     if (drag.pan) {
@@ -173,7 +177,7 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
       drag.pan = point;
       return;
     }
-    if (side) drawDraft(screenRing(sideRectangle(point)));
+    if (side) drawSide(point);
     else if (rotated()) drawDraft([map.unproject([drag.start.x, drag.start.y]).toArray(), map.unproject([point.x, point.y]).toArray()]);
     else drawDraft(boxRing(drag.start, point));
   });
@@ -183,19 +187,16 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     drag = null;
     if (!start) return;
     const end = pointOf(event);
-    const moved = Math.hypot(end.x - start.x, end.y - start.y) >= DRAG_SCREEN_PIXELS;
     if (side) {
       const rectangle = sideRectangle(end);
-      side = null;
-      drawDraft(null);
-      onSide(false);
-      const [a, b, c] = rectangle;
+      cancelSide();
+      const [, b, c] = rectangle;
       if (Math.hypot(b[0] - c[0], b[1] - c[1]) < DRAG_SCREEN_PIXELS) onDraw("thin");
       else onDraw(tooFar() ? null : screenRing(rectangle));
       return;
     }
     drawDraft(null);
-    if (!moved) {
+    if (Math.hypot(end.x - start.x, end.y - start.y) < DRAG_SCREEN_PIXELS) {
       onSelect(map.queryRenderedFeatures([end.x, end.y], { layers: ["labels-fill"] }).map(({ properties }) => properties));
       return;
     }
@@ -205,14 +206,14 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     if (rotated()) {
       side = [map.unproject([start.x, start.y]).toArray(), map.unproject([end.x, end.y]).toArray()];
-      drawDraft(screenRing(sideRectangle(end)));
+      drawSide(end);
       onSide(true);
       return;
     }
     onDraw(boxRing(start, end));
   });
   map.on("move", () => {
-    if (side && pointer && !drag) drawDraft(screenRing(sideRectangle(pointer)));
+    if (side && pointer && !drag) drawSide(pointer);
   });
 
   function setEditing(on) {

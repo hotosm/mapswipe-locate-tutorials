@@ -18,6 +18,7 @@ env.backends.onnx.wasm.proxy = true;
 
 const DETAIL_LEVELS = 2;
 const PIXELS = TILE_PIXELS * 2 ** DETAIL_LEVELS;
+const clipToTile = (ring) => bboxClip({ type: "Polygon", coordinates: [ring] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
 // One pixel keeps the label files small; on 36 Freetown objects the outline area changed by at most 2%.
 const OUTLINE_TOLERANCE = 1;
 const TARGET_OBJECTS = 1000;
@@ -197,6 +198,7 @@ function updateControls() {
   element("next").disabled = state.busy || !loaded || !state.open || state.index === state.tiles.length - 1;
   element("map-edit").disabled = state.busy || !loaded || state.open || !state.map;
   element("map-edit").setAttribute("aria-pressed", String(state.mapEdit));
+  element("map-edit").classList.toggle("secondary", !state.mapEdit);
   element("map-delete").disabled = state.busy || !state.mapEdit || state.picked.length === 0;
   element("undo").disabled = state.mapEdit ? state.busy || (state.mapUndo.length === 0 && !state.mapSide) : state.busy || !loaded || !state.open || (!state.side && currentObjects().length === 0 && !canRestore());
   element("clear").disabled = state.busy || !loaded || !state.open || currentObjects().length === 0;
@@ -437,7 +439,7 @@ function drawRotated(start, end) {
     setStatus("That box doesn't have a width. End farther from the first side.");
     return;
   }
-  const outline = bboxClip({ type: "Polygon", coordinates: [rectangle] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
+  const outline = clipToTile(rectangle);
   if (!outline) {
     drawObjects();
     setStatus("That box is outside the tile. Draw it on the tile.");
@@ -672,8 +674,7 @@ function drawOnMap(ring) {
     setStatus("That box doesn't have a width. Click farther from the first side.");
     return;
   }
-  const clip = (pixelRing) => bboxClip({ type: "Polygon", coordinates: [pixelRing] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
-  const parts = ringOnTiles(ring, state.allTiles, PIXELS, clip);
+  const parts = ringOnTiles(ring, state.allTiles, PIXELS, clipToTile);
   if (parts.length === 0) {
     setStatus("That box is outside the tiles. Draw it over a tile.");
     return;
@@ -743,7 +744,8 @@ function undoMapEdit() {
   if (last.kind === "add") {
     for (const { tileId, object } of last.items) {
       const list = state.objects.get(tileId) ?? [];
-      if (list.includes(object)) list.splice(list.indexOf(object), 1);
+      const at = list.indexOf(object);
+      if (at !== -1) list.splice(at, 1);
     }
   }
   if (last.kind === "delete") {
@@ -793,7 +795,6 @@ function showReview() {
   state.drag = null;
   clearSide();
   drawObjects();
-  updateControls();
   // A failed map is not built again, since a half-built one would stay in the container.
   if (state.map !== false) {
     try {
@@ -808,6 +809,7 @@ function showReview() {
     showError(new Error("The map didn't load. Check the connection and reload the page to review; you can keep labelling."));
     return;
   }
+  updateControls();
   refreshMap();
   element("stage-area").scrollIntoView({ block: "start" });
   setStatus(REVIEW_HINT);
@@ -926,7 +928,6 @@ async function load() {
   element("attribute-values").value = settings.values;
   showValueChoices();
   if (state.mapEdit) setMapEdit(false);
-  state.mapUndo = [];
   state.open = true;
   await showTile(restored.index);
 }
@@ -1172,9 +1173,8 @@ async function loadLabels(file) {
   const { shapes, skipped } = polygonRings(geojson);
   if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
   fillEmptySettings(fileSettings(geojson, shapes));
-  const clip = (ring) => bboxClip({ type: "Polygon", coordinates: [ring] }, [0, 0, PIXELS, PIXELS]).geometry.coordinates[0];
   const shapesOf = (object) => [object.outline, closedRing(orientedCorners(object.outline))];
-  const { objects, count, repeated } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: attributeName(), pixels: PIXELS, clip, shapesOf });
+  const { objects, count, repeated } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: attributeName(), pixels: PIXELS, clip: clipToTile, shapesOf });
   state.objects = objects;
   state.tiles = withSavedTiles(state.tiles, state.allTiles, { objects: Object.fromEntries(objects) });
   const listed = new Set(state.tiles.map((tile) => tile.id));
@@ -1233,10 +1233,11 @@ function valueChoice(value, index) {
 
 // The value is read at each tap, so a value picked while the model runs applies to the next object.
 function pickValue(value) {
-  if (state.mapEdit && state.picked.length > 0 && busyEditing()) return;
+  const relabel = state.mapEdit && state.picked.length > 0;
+  if (relabel && busyEditing()) return;
   state.value = value;
   element("value-choices").querySelector(`input[value="${CSS.escape(value)}"]`).checked = true;
-  if (state.mapEdit && state.picked.length > 0) {
+  if (relabel) {
     state.mapUndo.push({ kind: "value", items: state.picked.map(({ object }) => ({ object, value: object.value })) });
     for (const { object } of state.picked) object.value = value;
     mapChanged(`Set ${state.picked.length === 1 ? "the selected label" : `${state.picked.length} selected labels`} to ${attributeName()}: ${value}.`);

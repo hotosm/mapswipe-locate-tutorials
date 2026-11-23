@@ -177,8 +177,6 @@ body.working #status::before, body.working #setup-status::before { display: inli
 #tile-view { position: absolute; inset: 0; transform-origin: 0 0; }
 body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves), body:not(.tile-open):not(.map-editing) #tile-bar .tile-edit { display: none; }
 body.tile-open #map-edit, body.map-editing #clear, body:not(.map-editing) #map-delete { display: none; }
-#map-edit[aria-pressed="true"] { color: var(--on-ink); background: var(--ink); border-color: var(--ink); }
-#map-edit[aria-pressed="true"]:hover:not(:disabled) { background: var(--ink-hover); border-color: var(--ink-hover); }
 body.map-editing #tile-bar #value-counts { display: none; }
 .tile-zoom { position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
 .tile-zoom button { min-width: 36px; padding: 4px 8px; font-size: 15px; }

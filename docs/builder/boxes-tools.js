@@ -405,13 +405,12 @@ export function polygonRings(geojson) {
 export function ringOnTiles(ring, tiles, pixels, clip) {
   return tiles.flatMap((tile) => {
     const pixelRing = ring.map((point) => lonLatToPixel(tile, point, pixels));
-    const xs = pixelRing.map(([x]) => x);
-    const ys = pixelRing.map(([, y]) => y);
-    if (Math.max(...xs) <= 0 || Math.min(...xs) >= pixels || Math.max(...ys) <= 0 || Math.min(...ys) >= pixels) return [];
+    const [minX, minY, maxX, maxY] = ringBounds(pixelRing);
+    if (maxX <= 0 || minX >= pixels || maxY <= 0 || minY >= pixels) return [];
     const outline = clip(pixelRing);
     if (!outline) return [];
-    const [width, height] = [0, 1].map((axis) => Math.max(...outline.map((point) => point[axis])) - Math.min(...outline.map((point) => point[axis])));
-    return width >= DRAG_PIXELS && height >= DRAG_PIXELS ? [{ tile, outline }] : [];
+    const [x1, y1, x2, y2] = ringBounds(outline);
+    return isDrag([x1, y1], [x2, y2]) ? [{ tile, outline }] : [];
   });
 }
 

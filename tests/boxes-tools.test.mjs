@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, classIndex, datasetCounts, datasetReadme, datasetYaml, detailTiles, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, obbLabels, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, segmentLabels, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -619,10 +619,9 @@ test("ringOnTiles cuts an angled box at the tile line into the exact part on eac
     for (const [axis, value, keep] of [[0, 0, (v) => v >= 0], [0, 1024, (v) => v <= 1024], [1, 0, (v) => v >= 0], [1, 1024, (v) => v <= 1024]]) points = clipEdge(points, (point) => keep(point[axis]), at(axis, value));
     return points.length > 2 ? [...points, points[0]] : null;
   };
-  const area = (ring) => Math.abs(ring.slice(0, -1).reduce((sum, [x, y], index) => sum + x * ring[index + 1][1] - ring[index + 1][0] * y, 0)) / 2;
   const drawn = [[900, 300], [1100, 400], [1060, 480], [860, 380], [900, 300]];
   const parts = ringOnTiles(drawn.map(toLonLat), [left, right], 1024, clip);
   assert.deepEqual(parts.map(({ tile }) => tile.id), [left.id, right.id]);
   const shifted = parts[1].outline.map(([x, y]) => [x + 1024, y]);
-  assert.ok(Math.abs(area(parts[0].outline) + area(shifted) - area(drawn)) < 0.01 * area(drawn));
+  assert.ok(Math.abs(ringArea(parts[0].outline) + ringArea(shifted) - ringArea(drawn)) < 0.01 * ringArea(drawn));
 });
