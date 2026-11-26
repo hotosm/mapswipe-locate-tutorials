@@ -26,8 +26,8 @@ function addImageInput(value = "") {
   const input = document.createElement("input");
   input.type = "text";
   input.value = value;
-  input.placeholder = "Browse link, TMS URL or image ID";
-  input.setAttribute("aria-label", "Image link, Copy TMS URL or ID");
+  input.placeholder = "Browse link, TMS URL, image ID or merged tile URL";
+  input.setAttribute("aria-label", "Image link, Copy TMS URL, image ID or merged tile URL");
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "secondary";
@@ -83,7 +83,7 @@ element("setup").addEventListener("submit", (event) => {
       setStatus("Red lines are the image outlines.");
     } catch (error) {
       console.error(error);
-      setStatus(error.message);
+      setStatus(error.message, true);
     }
   });
 });

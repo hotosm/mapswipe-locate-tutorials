@@ -54,3 +54,12 @@ test("the area finder's hint, naming the TiTiler option, shows for a link that i
   assert.throws(() => parseImageIdsFromLink("https://example.org/tiles/{z}/{x}/{y}.png", AREA_HINT), /TiTiler \/cog\/ tile URL/);
   assert.throws(() => parseImageIdsFromLink(`https://example.org/tiles?ids=${BANEPA},not-an-image`, AREA_HINT), /TiTiler \/cog\/ tile URL/);
 });
+
+test("parseImageIds expands a pasted merger tile URL so more images can join it", () => {
+  assert.deepEqual(parseImageIds([mosaicTileUrl([BANEPA, TRAINING_CENTER])]), [BANEPA, TRAINING_CENTER]);
+  const third = "64fac6d25ee57100013326ff";
+  assert.deepEqual(parseImageIds([mosaicTileUrl([BANEPA, TRAINING_CENTER]), third]), [BANEPA, TRAINING_CENTER, third]);
+  assert.deepEqual(parseImageIds([BANEPA, mosaicTileUrl([BANEPA, TRAINING_CENTER])]), [BANEPA, TRAINING_CENTER]);
+  assert.throws(() => parseImageIds([mosaicTileUrl([BANEPA, TRAINING_CENTER]).replace(TRAINING_CENTER, "not-an-image")]), /^Error: Image 1: .*merged tile URL/);
+  assert.throws(() => parseImageIds([`https://example.org/tiles?ids=%E0%A4,${BANEPA}`, TRAINING_CENTER]), /^Error: Image 1:/);
+});

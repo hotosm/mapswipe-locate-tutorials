@@ -2,6 +2,8 @@ import { rectangleFromSide } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 
 const SELECTED_COLOUR = "#ffd400";
+// The red the Results map gives cells that passed the share.
+const AGREEMENT_COLOUR = "#d73f3f";
 const LABELLED_COLOUR = "#1f9d55";
 const LABELLED_FILL = "#4ade80";
 const UNLISTED_COLOUR = "#bdbdbd";
@@ -41,9 +43,10 @@ const GRID_CLICKABLE = GRID_HIDDEN - 0.3;
 function fadeTiles(map, view) {
   const tileZoom = view.maxzoom - 2;
   const byZoom = (zoomedOut, zoomedIn, from, to) => ["interpolate", ["linear"], ["zoom"], tileZoom - from, zoomedOut, tileZoom - to, zoomedIn];
-  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.35, SEEN, 0.2, 0], 3, 2));
-  map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0.7], GRID_HIDDEN, GRID_SHOWN));
-  map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.2], GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.1, SEEN, 0.1, 0], 3, 2));
+  for (const layer of ["agreement-casing", "agreement"]) map.setPaintProperty(layer, "line-opacity", byZoom(0, layer === "agreement" ? 1 : 0.5, GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 1], GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.45], GRID_HIDDEN, GRID_SHOWN));
 }
 
 function addImagery(map, view) {
@@ -55,15 +58,22 @@ function addLayers(map, view) {
   map.addSource("tiles", { type: "geojson", data: view.grid, promoteId: "index" });
   map.addSource("labels", { type: "geojson", data: view.labels });
   map.addSource("selected", { type: "geojson", data: EMPTY });
+  map.addSource("agreement", { type: "geojson", data: view.agreement });
   map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, "#ffffff"], "fill-opacity": 0 } });
-  map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 1] } });
-  map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1] } });
+  map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 3] } });
+  map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1.5] } });
+  map.addLayer({ id: "agreement-casing", type: "line", source: "agreement", paint: { "line-color": "#000000", "line-width": 3 } });
+  map.addLayer({ id: "agreement", type: "line", source: "agreement", paint: { "line-color": AGREEMENT_COLOUR, "line-width": 1.5, "line-dasharray": [4, 3] } });
+  map.addLayer({ id: "selected-fill", type: "fill", source: "selected", paint: { "fill-color": SELECTED_COLOUR, "fill-opacity": 0 } });
   map.addLayer({ id: "labels-fill", type: "fill", source: "labels", paint: { "fill-color": view.colour, "fill-opacity": 0.15 } });
-  map.addLayer({ id: "labels-line", type: "line", source: "labels", paint: { "line-color": view.colour, "line-width": 2 } });
+  map.addLayer({ id: "selected-casing", type: "line", source: "selected", paint: { "line-color": "#000000", "line-width": 5 } });
   map.addLayer({ id: "selected", type: "line", source: "selected", paint: { "line-color": SELECTED_COLOUR, "line-width": 3 } });
   map.addSource("picked", { type: "geojson", data: EMPTY });
-  map.addLayer({ id: "picked-casing", type: "line", source: "picked", paint: { "line-color": "#000000", "line-width": 5 } });
-  map.addLayer({ id: "picked", type: "line", source: "picked", paint: { "line-color": "#ffffff", "line-width": 3 } });
+  map.addLayer({ id: "picked-fill", type: "fill", source: "picked", paint: { "fill-color": SELECTED_COLOUR, "fill-opacity": 0.25 } });
+  map.addLayer({ id: "picked-casing", type: "line", source: "picked", paint: { "line-color": "#000000", "line-width": 7 } });
+  map.addLayer({ id: "picked", type: "line", source: "picked", paint: { "line-color": "#ffffff", "line-width": 5 } });
+  // Label outlines draw over the selection ring, so a selected label still shows its value's colour.
+  map.addLayer({ id: "labels-line", type: "line", source: "labels", paint: { "line-color": view.colour, "line-width": 2 } });
   map.addSource("draft", { type: "geojson", data: EMPTY });
   map.addLayer({ id: "draft", type: "line", source: "draft", paint: { "line-color": "#ffffff", "line-width": 2, "line-dasharray": [2, 2] } });
   addImagery(map, view);
@@ -73,7 +83,8 @@ function addLayers(map, view) {
 // Call show() only while the container is visible; the first fitBounds needs its size.
 // onDraw gets the box ring in longitude and latitude, null when zoomed out too far, or "thin" for a box without width.
 export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rotated }) {
-  const map = new maplibregl.Map({ container, style: { version: 8, sources: {}, layers: [] }, center: [0, 0], zoom: 1, attributionControl: false, dragRotate: false, pitchWithRotate: false, keyboard: false, maxPitch: 0 });
+  // Shift+drag picks tiles, or selects labels in Edit, so MapLibre's own Shift+drag box zoom is off (https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/#boxzoom).
+  const map = new maplibregl.Map({ container, style: { version: 8, sources: {}, layers: [] }, center: [0, 0], zoom: 1, attributionControl: false, boxZoom: false, dragRotate: false, pitchWithRotate: false, keyboard: false, maxPitch: 0 });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
   showMapLoading(map);
@@ -88,9 +99,9 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
   let editing = false;
   map.on("click", "tiles-fill", (event) => {
     const { properties } = event.features[0];
-    if (editing || hidden(properties)) return;
+    if (editing || event.originalEvent.shiftKey || hidden(properties)) return;
     hover(null);
-    onPick(properties.index);
+    onPick([properties.index], "replace");
   });
   let hovered = null;
   function hover(index) {
@@ -154,7 +165,10 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     if (editing && event.button === 0) {
       event.stopPropagation();
-      drag = { start: point };
+      drag = { start: point, picking: event.shiftKey && !side };
+    } else if (event.shiftKey && event.button === 0) {
+      map.dragPan.disable();
+      drag = { start: point, picking: true, tiles: true };
     }
   }, { capture: true });
   window.addEventListener("mousemove", (event) => {
@@ -167,6 +181,7 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     // A button released outside the window sends no mouseup here.
     if ((event.buttons & (drag.pan ? 4 | 1 : 1)) === 0) {
+      if (drag.tiles) map.dragPan.enable();
       drag = null;
       if (side) drawSide(point);
       else drawDraft(null);
@@ -177,16 +192,29 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
       drag.pan = point;
       return;
     }
-    if (side) drawSide(point);
+    if (drag.picking) drawDraft(boxRing(drag.start, point));
+    else if (side) drawSide(point);
     else if (rotated()) drawDraft([map.unproject([drag.start.x, drag.start.y]).toArray(), map.unproject([point.x, point.y]).toArray()]);
     else drawDraft(boxRing(drag.start, point));
   });
   window.addEventListener("mouseup", (event) => {
     if (!drag) return;
-    const { start } = drag;
+    const { start, picking, tiles } = drag;
     drag = null;
     if (!start) return;
     const end = pointOf(event);
+    if (picking) {
+      drawDraft(null);
+      const click = Math.hypot(end.x - start.x, end.y - start.y) < DRAG_SCREEN_PIXELS;
+      const area = click ? [end.x, end.y] : [[Math.min(start.x, end.x), Math.min(start.y, end.y)], [Math.max(start.x, end.x), Math.max(start.y, end.y)]];
+      const found = map.queryRenderedFeatures(area, { layers: [tiles ? "tiles-fill" : "labels-fill"] }).map(({ properties }) => properties);
+      if (!tiles) onSelect(found, click ? "toggle" : "add");
+      else {
+        map.dragPan.enable();
+        onPick(found.filter((properties) => !hidden(properties)).map(({ index }) => index), click ? "toggle" : "add");
+      }
+      return;
+    }
     if (side) {
       const rectangle = sideRectangle(end);
       cancelSide();
@@ -197,7 +225,7 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     drawDraft(null);
     if (Math.hypot(end.x - start.x, end.y - start.y) < DRAG_SCREEN_PIXELS) {
-      onSelect(map.queryRenderedFeatures([end.x, end.y], { layers: ["labels-fill"] }).map(({ properties }) => properties));
+      onSelect(map.queryRenderedFeatures([end.x, end.y], { layers: ["labels-fill"] }).map(({ properties }) => properties), "replace");
       return;
     }
     if (tooFar()) {
@@ -252,12 +280,14 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     imageryKey = view.key;
     if (first || shown.key !== view.key) {
+      map.getSource("agreement").setData(view.agreement);
       map.setMaxZoom(shownZoom(view));
       map.fitBounds(bounds(view.grid.features), { padding: 40, animate: false });
     }
     shown = view;
-    const feature = view.grid.features[view.selected];
-    map.getSource("selected").setData(feature ? { type: "FeatureCollection", features: [feature] } : EMPTY);
+    // Only picked tiles are tinted, so the open tile keeps its true colours while labelling.
+    map.setPaintProperty("selected-fill", "fill-opacity", view.set.length > 0 ? 0.15 : 0);
+    map.getSource("selected").setData({ type: "FeatureCollection", features: (view.set.length > 0 ? view.set : [view.selected]).map((index) => view.grid.features[index]).filter(Boolean) });
   }
 
   // Updates run one after another, so the layers are added once, and a failed update doesn't stop later ones.

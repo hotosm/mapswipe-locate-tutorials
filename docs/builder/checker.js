@@ -32,7 +32,7 @@ function areaCheck(features, area) {
   const shapes = area.features.filter(isPolygon);
   const drawn = features.flatMap((feature, index) => (isWellFormed(feature) ? [[feature, index + 1]] : []));
   const bad = drawn.filter(([feature]) => !shapes.some((shape) => turf.booleanPointInPolygon(turf.pointOnFeature(feature), shape))).map(([, number]) => number);
-  return { title: "Every label inside the area of interest", ok: bad.length === 0, detail: bad.length ? `Outside the area of interest: feature ${featureList(bad)}.` : "", bad };
+  return { title: "Every label inside the area of interest", ok: bad.length === 0, warning: bad.length > 0, detail: bad.length ? `Outside the area of interest: feature ${featureList(bad)}.` : "", bad };
 }
 
 function showChecks(checks) {
@@ -75,7 +75,7 @@ function fixForm(name) {
     const fixed = input ? fix.apply(state.labels, input.value) : fix.apply(state.labels);
     const refused = fix.valid?.(fixed);
     if (refused && !refused.ok) {
-      setStatus(`The file is unchanged: ${refused.detail}`);
+      setStatus(`The file is unchanged: ${refused.detail}`, true);
       input.setCustomValidity(refused.detail);
       input.reportValidity();
       return;
@@ -266,7 +266,7 @@ async function load(labelsSource, areaSources, name, fileName, knownZoom = null)
 
 function showError(error) {
   console.error(error);
-  setStatus(error.message);
+  setStatus(error.message, true);
 }
 
 element("setup").addEventListener("submit", (event) => {

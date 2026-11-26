@@ -260,6 +260,24 @@ export function fileSettings(geojson, shapes) {
 
 export const HAND_DRAWN = "drawn by hand";
 
+export function mergedSelection(current, found, mode, keyOf = (item) => item.object) {
+  const unique = (items) => [...new Map(items.map((item) => [keyOf(item), item])).values()];
+  if (mode === "replace") return unique(found);
+  const selected = new Set(current.map(keyOf));
+  if (mode === "toggle" && found.length > 0 && found.every((item) => selected.has(keyOf(item)))) {
+    const removed = new Set(found.map(keyOf));
+    return current.filter((item) => !removed.has(keyOf(item)));
+  }
+  return unique([...current, ...found]);
+}
+
+// Next and Previous follow the list order, so a tile set is walked in that order whatever order the tiles were picked in.
+export function setStep(tiles, set, index, direction) {
+  const ids = new Set(set);
+  const indexes = tiles.flatMap((tile, place) => (ids.has(tile.id) ? [place] : []));
+  return (direction > 0 ? indexes.find((place) => place > index) : indexes.findLast((place) => place < index)) ?? null;
+}
+
 // A label drawn by hand, here or in an earlier labels.geojson, is already the shape the person meant, cut at the tile edge, so only the model's labels become rotated boxes.
 export function keepsDrawnShape(object) {
   return object.source === HAND_DRAWN || object.drawn === true;
@@ -431,6 +449,11 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
     })));
   // A Locate project has one tile URL, so it is stated once at the top as well as on each object; the full value list keeps values that no label uses yet.
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
+}
+
+export function agreementEdges(tiles) {
+  const features = tiles.filter((tile) => tile.cells.length > 0).map((tile) => ({ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: markedAreaEdges(tile.cells, tile.size, 1).map((edge) => edge.map((point) => pixelToLonLat(tile, point, 1))) } }));
+  return { type: "FeatureCollection", features };
 }
 
 export function tileGrid(tiles, objects, listed, viewed = new Set()) {

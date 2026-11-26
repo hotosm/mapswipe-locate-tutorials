@@ -1,5 +1,6 @@
 import { IMAGE_HINT, matchImageId, orderedBounds, parseImageId, RASTER_API, renderQuery } from "./area-tools.js";
 
+const MERGER_HINT = "Paste an imagery.hotosm.org link, a Copy TMS URL, an image ID or a merged tile URL.";
 const STAC_ITEMS = "https://api.imagery.hotosm.org/stac/collections/openaerialmap/items";
 export const EXAMPLE_IMAGES = [
   "https://imagery.hotosm.org/browse?lat=27.6337&lon=85.5228&zoom=13.4&selected_id=62d86c65d8499800053796c4",
@@ -7,11 +8,11 @@ export const EXAMPLE_IMAGES = [
 ];
 
 export function parseImageIds(values) {
-  const ids = values.map((value, index) => ({ value: value.trim(), position: index + 1 })).filter(({ value }) => value).map(({ value, position }) => {
-    const id = matchImageId(value);
-    if (!id) throw new Error(`Image ${position}: ${IMAGE_HINT}`);
+  const ids = values.map((value, index) => ({ value: value.trim(), position: index + 1 })).filter(({ value }) => value).flatMap(({ value, position }) => linkedValues(value).map((part) => {
+    const id = matchImageId(part);
+    if (!id) throw new Error(`Image ${position}: ${MERGER_HINT}`);
     return id;
-  });
+  }));
   const unique = [...new Set(ids)];
   if (unique.length < 2) throw new Error("Add at least two different images.");
   return unique;
@@ -22,11 +23,21 @@ export function mosaicTileUrl(ids) {
   return `${RASTER_API}/collections/openaerialmap/tiles/WebMercatorQuad/{z}/{x}/{y}?ids=${ids.join(",")}&exitwhenfull=false&skipcovered=false&${renderQuery()}`;
 }
 
-// The merger's tile URL lists its images as ids=<id>,<id>; any other link names one image.
 export function parseImageIdsFromLink(text, hint = IMAGE_HINT) {
+  return [...new Set(linkedValues(text).map((value) => parseImageId(value, hint)))];
+}
+
+// The merger's tile URL lists its images as ids=<id>,<id>; any other link names one image.
+function linkedValues(text) {
   const listed = text.match(/[?&]ids=([^&]+)/);
-  if (!listed) return [parseImageId(text, hint)];
-  return [...new Set(decodeURIComponent(listed[1]).split(",").map((value) => parseImageId(value, hint)))];
+  if (!listed) return [text];
+  try {
+    return decodeURIComponent(listed[1]).split(",");
+  } catch (error) {
+    // A broken %-escape (URIError) keeps the raw text, which then fails as an unreadable image with the field's hint.
+    if (error instanceof URIError) return [listed[1]];
+    throw error;
+  }
 }
 
 export async function fetchItem(id) {

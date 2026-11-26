@@ -1,9 +1,12 @@
 // The setup card covers the work area until something loads, then folds into a summary line with a Change button.
 const element = (id) => document.getElementById(id);
 
-export function setStatus(message) {
-  element("status").textContent = message;
-  element("setup-status").textContent = message;
+// A problem shows in red, so a message that stops the work isn't read as a passing hint.
+export function setStatus(message, problem = false) {
+  for (const id of ["status", "setup-status"]) {
+    element(id).textContent = message;
+    element(id).classList.toggle("problem", problem);
+  }
 }
 
 export async function copyText(text, label) {

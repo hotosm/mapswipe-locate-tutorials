@@ -4,7 +4,7 @@ icon: lucide/wrench
 
 # Helpers
 
-Pages that prepare the files the manager asks for and clean up the results. They run in the browser. Each opens with a short form and a link to try it with sample data; after loading, the form folds into a line at the top of the side panel, and **Change** opens it again. While a helper is working, a spinner shows next to its status line, and **Loading map...** shows at the top left of the map until the map has finished drawing. Large results files, such as the Pemba Island fishing boat project, take several seconds to read.
+Pages that prepare the files the manager asks for and clean up the results. They run in the browser. Each opens with a short form and a link to try it with sample data; after loading, the form folds into a line at the top of the side panel, and **Change** opens it again. While a helper is working, a spinner shows next to its status line, and **Loading map...** shows at the bottom left of the map until the map has finished drawing. Large results files, such as the Pemba Island fishing boat project, take several seconds to read.
 
 <div class="grid cards" markdown>
 
@@ -43,7 +43,7 @@ Use it when the project area needs more than one image.
 ![Two Banepa images merged, zoomed in, and the tile URL copied](../assets/helpers/imagery-merger.gif){ loading=lazy }
 
 1. Copy the page address or **Copy TMS** of each image on <https://imagery.hotosm.org/browse>, as in [step 1 of Create a Locate project](../guides/create-a-project.md#1-copy-the-image-link).
-2. In the [imagery merger](../builder/mosaic.html), paste one image per field under **Images**. **Add image** adds a field and **Remove** drops one. Click **Merge**.
+2. In the [imagery merger](../builder/mosaic.html), paste one image per field under **Images**. To add images to a merged tile URL, paste it in one field and the new images in the others. **Add image** adds a field and **Remove** drops one. Click **Merge**.
 3. Zoom in where the images meet. Each image has a red outline, and the list on the right shows its date.
 4. Click **Copy tile URL** and use it in the manager and in the tutorial builder.
 5. Click **Open in area finder** to find the footprint of all the images and draw the area of interest across them.
@@ -161,7 +161,7 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
 ![The labels checker with the Stellenbosch example: building outlines in yellow over the drone imagery, the checks with 1,036 metal roofs of the 1,000 needed, and the spread check to fix at 33 tiles at zoom 19](../assets/helpers/labels-checker.jpg)
 
 1. In the [labels checker](../builder/checker.html), choose `labels.geojson` and, optionally, the `area-of-interest.geojson` of each Locate project. Click **Check**.
-2. Each check shows **Passed**, **To fix** or **Warning**, and checks on single labels list the feature numbers. Those labels are red on the map. A warning leaves the delivery accepted.
+2. Each check shows **Passed**, **To fix** or **Warning**, and checks on single labels list the feature numbers. Those labels are red on the map. A delivery with a warning is accepted.
 3. Some **To fix** checks have a button that fixes the file:
 
     | Button | Fixes |
@@ -190,7 +190,7 @@ Check `labels.geojson` before you submit it ([What to deliver](../guides/what-to
     | Closed outlines and lines with a length | A ring has fewer than four positions, ends away from its start, or encloses zero area, or a line has fewer than two positions ([RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-3.1.4)) or all its positions on one point |
     | One feature per object, each shape once | Two features have the same geometry |
     | Outlines that don't cross themselves | An outline crosses itself ([turf kinks](https://turfjs.org/docs/api/kinks)); lines may cross themselves, as a road can loop |
-    | Every label inside the area of interest | A point on the label ([turf pointOnFeature](https://turfjs.org/docs/api/pointOnFeature)) is outside every area file chosen |
+    | Every label inside the area of interest | A point on the label ([turf pointOnFeature](https://turfjs.org/docs/api/pointOnFeature)) is outside every area file chosen, which gives a warning |
     | At least 1,000 of the most common type | The largest type has fewer than 1,000 labels; labels without a value under **Type attribute** don't count toward it |
     | At least 1,000 tiles of one type, for a file of lines | The type with the most tiles touches fewer than 1,000 tiles at the project zoom, the project zoom is unset, or every label lacks a value under **Type attribute** |
     | Spread over at least 1,000 tiles, for boxes and outlines | All labels together touch fewer than 500 tiles at the project zoom; 500 to 999 tiles, or an unset project zoom, gives a warning |

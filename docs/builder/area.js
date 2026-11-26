@@ -302,7 +302,7 @@ element("setup").addEventListener("submit", (event) => {
       setStatus(`The yellow area is the imagery footprint, ready to download. Draw area to choose part of it.${imageListHint}`);
     } catch (error) {
       console.error(error);
-      if (isCurrent()) setStatus(error.message);
+      if (isCurrent()) setStatus(error.message, true);
     }
   }, { lockSetup: false });
 });

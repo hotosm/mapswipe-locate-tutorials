@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, objectsWithoutValue, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, agreementEdges, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -598,4 +598,41 @@ test("a TiTiler tile URL with @1x gives one image at 4 times the pixels, and oth
   assert.equal(detailImage(titiler, 3).pixels, 256);
   assert.deepEqual(detailImage({ zoom: 20, x: 1, y: 2, template: "https://tiles.example/{z}/{x}/{y}.png" }, 2), { url: "https://tiles.example/20/1/2.png", pixels: 256 });
   assert.deepEqual(detailImage({ zoom: 20, x: 1, y: 2, template: "https://tiles.example/{z}/{x}/{y}@2x.png?url=s3://bucket/scene@1x.tif" }, 2), { url: "https://tiles.example/20/1/2@2x.png?url=s3://bucket/scene@1x.tif", pixels: 256 });
+});
+
+test("mergedSelection replaces on a click, adds a box and toggles on Shift+click", () => {
+  const [a, b, c] = [{ id: "a" }, { id: "b" }, { id: "c" }].map((object) => ({ tileId: "t", object }));
+  assert.deepEqual(mergedSelection([a, b], [c], "replace"), [c]);
+  assert.deepEqual(mergedSelection([a], [b, c, b], "add"), [a, b, c]);
+  assert.deepEqual(mergedSelection([a], [b], "toggle"), [a, b]);
+  assert.deepEqual(mergedSelection([a, b], [b], "toggle"), [a]);
+  assert.deepEqual(mergedSelection([a], [a, b], "toggle"), [a, b]);
+  assert.deepEqual(mergedSelection([a], [], "toggle"), [a]);
+  assert.deepEqual(mergedSelection([a], [], "replace"), []);
+});
+
+test("mergedSelection toggles tile ids with a key function", () => {
+  const id = (value) => value;
+  assert.deepEqual(mergedSelection(["a"], ["b", "a"], "add", id), ["a", "b"]);
+  assert.deepEqual(mergedSelection(["a", "b"], ["a"], "toggle", id), ["b"]);
+});
+
+test("setStep walks a tile set in list order and stops at its ends", () => {
+  const tiles = ["t0", "t1", "t2", "t3", "t4"].map((id) => ({ id }));
+  const set = ["t4", "t1", "t3"];
+  assert.equal(setStep(tiles, set, -1, 1), 1);
+  assert.equal(setStep(tiles, set, 4, -1), 3);
+  assert.equal(setStep(tiles, set, 1, 1), 3);
+  assert.equal(setStep(tiles, set, 4, 1), null);
+  assert.equal(setStep(tiles, set, 3, -1), 1);
+  assert.equal(setStep(tiles, set, 1, -1), null);
+  assert.equal(setStep(tiles, set, 2, 1), 3);
+});
+
+test("agreementEdges outlines each tile's passed cells and skips tiles without them", () => {
+  const tile = { id: "a", x: 0, y: 0, zoom: 1, size: 2, cells: [0, 1] };
+  const { features } = agreementEdges([tile, { ...tile, id: "b", cells: [] }]);
+  assert.equal(features.length, 1);
+  assert.equal(features[0].geometry.coordinates.length, 6);
+  assert.deepEqual(features[0].geometry.coordinates[0].map(([longitude, latitude]) => [longitude, Number(latitude.toFixed(6))]), [[-180, 85.051129], [-90, 85.051129]]);
 });

@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -28,7 +28,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], mapUndo: [], mapVersion: 0 };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0 };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -142,7 +142,9 @@ function showCounts() {
   element("tile-number").value = state.index + 1;
   element("tile-number").max = tiles;
   const viewed = state.tiles.filter((listed) => state.viewed.has(listed.id)).length;
-  element("tile-total").textContent = `${tiles}, ${tilesWithObjects} labelled, ${viewed} viewed`;
+  const set = new Set(state.tileSet);
+  const inSet = set.size === 0 ? "" : set.has(tile.id) ? `, picked tile ${state.tiles.filter((listed, index) => index <= state.index && set.has(listed.id)).length} of ${set.size}` : `, ${set.size} picked`;
+  element("tile-total").textContent = `${tiles}, ${tilesWithObjects} labelled, ${viewed} viewed${inSet}`;
   element("tile-position").title = state.area ? tile.id : `${tile.id}, ${tile.cells.length} marked ${tile.cells.length === 1 ? "cell" : "cells"}`;
   const { percent, reached } = targetProgress(list.length > 0 ? Math.max(...counts) : objects, TARGET_OBJECTS);
   element("tile-bar-fill").style.width = `${((state.index + 1) / tiles) * 100}%`;
@@ -196,12 +198,13 @@ function drawObjects() {
 // While the model or the network works, every control is off, so no second task starts on top of it.
 function updateControls() {
   const loaded = state.tiles.length > 0;
-  element("previous").disabled = state.busy || !loaded || !state.open || state.index === 0;
-  element("next").disabled = state.busy || !loaded || !state.open || state.index === state.tiles.length - 1;
+  element("previous").disabled = state.busy || !loaded || !state.open || neighbour(-1) === null;
+  element("next").disabled = state.busy || !loaded || !state.open || neighbour(1) === null;
   element("map-edit").disabled = state.busy || !loaded || state.open || !state.map;
   element("map-edit").setAttribute("aria-pressed", String(state.mapEdit));
   element("map-edit").classList.toggle("secondary", !state.mapEdit);
   element("map-delete").disabled = state.busy || !state.mapEdit || state.picked.length === 0;
+  element("map-clear").hidden = state.open || (state.mapEdit ? state.picked.length === 0 : state.tileSet.length === 0);
   element("undo").disabled = state.mapEdit ? state.busy || (state.mapUndo.length === 0 && !state.mapSide) : state.busy || !loaded || !state.open || (!state.side && currentObjects().length === 0 && !canRestore());
   element("clear").disabled = state.busy || !loaded || !state.open || currentObjects().length === 0;
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
@@ -238,6 +241,7 @@ function savedRecord() {
 }
 
 function saveObjects() {
+  element("download-note").textContent = "";
   state.saveWanted = true;
   state.saving ??= writeSaves().catch(showError).finally(() => { state.saving = null; });
 }
@@ -560,18 +564,25 @@ element("clear").addEventListener("click", () => {
 
 function showError(error) {
   console.error(error);
-  setStatus(error.message);
+  setStatus(error.message, true);
 }
 
-element("previous").addEventListener("click", () => work(() => showTile(state.index - 1)));
-element("next").addEventListener("click", () => work(() => showTile(state.index + 1)));
+function neighbour(direction) {
+  if (state.tileSet.length > 0) return setStep(state.tiles, state.tileSet, state.index, direction);
+  const index = state.index + direction;
+  return index >= 0 && index < state.tiles.length ? index : null;
+}
+
+element("previous").addEventListener("click", () => work(() => showTile(neighbour(-1))));
+element("next").addEventListener("click", () => work(() => showTile(neighbour(1))));
 element("tile-number").addEventListener("change", (event) => {
   const number = Number(event.target.value);
   if (!Number.isInteger(number) || number < 1 || number > state.tiles.length) {
     event.target.value = state.index + 1;
-    setStatus(`Enter a tile number from 1 to ${state.tiles.length}.`);
+    setStatus(`Enter a tile number from 1 to ${state.tiles.length}.`, true);
     return;
   }
+  clearTileSet();
   if (number - 1 !== state.index) work(() => showTile(number - 1));
 });
 
@@ -598,7 +609,7 @@ element("zoom-in").addEventListener("click", () => tileZoom.zoomIn());
 element("zoom-out").addEventListener("click", () => tileZoom.zoomOut());
 element("zoom-fit").addEventListener("click", resetZoom);
 
-const REVIEW_HINT = "Click a tile to label it. Green tiles have labels, solid white ones were viewed, and faint ones aren't viewed yet. Zoom in to see grey tiles, which aren't in your list. Clicking one adds it to your list.";
+const REVIEW_HINT = "Click a tile to label it. Shift+click to pick several.";
 
 function labelColours() {
   const list = values();
@@ -613,7 +624,29 @@ function mapView() {
   numberLabels(labels);
   const all = state.allTiles;
   const listed = new Set(state.tiles.map((tile) => tile.id));
-  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id) };
+  const picked = new Set(state.tileSet);
+  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id), set: all.flatMap((tile, index) => (picked.has(tile.id) ? [index] : [])), agreement: state.agreement };
+}
+
+function clearSelection() {
+  if (state.mapEdit) {
+    if (state.picked.length > 0) selectOnMap([], "replace");
+    return;
+  }
+  clearTileSet();
+  setStatus(reviewHint());
+}
+
+function clearTileSet() {
+  state.tileSet = [];
+  showCounts();
+  updateControls();
+  refreshMap();
+}
+
+function reviewHint() {
+  const count = state.tileSet.length;
+  return count === 0 ? REVIEW_HINT : `${count === 1 ? "1 tile" : `${count} tiles`} picked. Open the Label tab to go through them. Esc clears.`;
 }
 
 function refreshMap() {
@@ -705,19 +738,19 @@ function sideOnMap(started) {
 }
 
 // The map can return a label twice when it spans its own data tiles (https://maplibre.org/maplibre-gl-js/docs/API/classes/Map/#queryrenderedfeatures), so each label is kept once.
-function selectOnMap(found) {
+function selectOnMap(found, mode) {
   if (found.some((properties) => properties.map_version !== state.mapVersion)) {
-    setStatus("Wait for the map to update, then click again.");
+    setStatus("Wait for the map to update, then try again.");
     return;
   }
   const picked = found.map((properties) => ({ tileId: properties.tile_id, object: state.objects.get(properties.tile_id)?.[properties.object_index] })).filter(({ object }) => object);
-  state.picked = [...new Map(picked.map((item) => [item.object, item])).values()];
+  state.picked = mergedSelection(state.picked, picked, mode);
   state.map.showPicked(pickedGeojson());
   updateControls();
   if (state.picked.length === 0) setStatus(editHint());
   else {
     const one = state.picked.length === 1;
-    setStatus(`Selected ${one ? "1 label" : `${state.picked.length} labels`}. Delete removes ${one ? "it" : "them"}${values().length > 0 ? `, and a value button changes ${one ? "its value" : "their value"}` : ""}.`);
+    setStatus(`${one ? "1 label" : `${state.picked.length} labels`} selected. ${values().length > 0 ? "Press Delete, or pick a value." : "Press Delete to remove."} Esc clears.`);
   }
 }
 
@@ -771,26 +804,31 @@ function setMapEdit(on) {
   state.mapUndo = [];
   state.map?.setEditing(on);
   updateControls();
-  setStatus(on ? `${editHint()} Hold Space and drag, or drag with the middle mouse button, to move the map.` : REVIEW_HINT);
+  setStatus(on ? editHint() : reviewHint());
 }
 
 element("map-edit").addEventListener("click", () => setMapEdit(!state.mapEdit));
 element("map-delete").addEventListener("click", deleteOnMap);
 
 // A tile of the area that isn't listed yet joins the end of the list, so it counts and downloads like the others.
-function pickFromMap(areaIndex) {
+function pickFromMap(areaIndexes, mode) {
   if (state.busy) {
     setStatus("Wait for the labeller to finish, then click the tile again.");
     return;
   }
-  const tile = state.allTiles[areaIndex];
-  const index = state.tiles.findIndex((listed) => listed.id === tile.id);
-  if (index !== -1) {
-    pickTile(index);
+  const tiles = [...new Set(areaIndexes)].map((areaIndex) => state.allTiles[areaIndex]);
+  const listed = new Set(state.tiles.map((tile) => tile.id));
+  state.tiles = [...state.tiles, ...tiles.filter((tile) => !listed.has(tile.id))];
+  if (mode === "replace") {
+    state.tileSet = [];
+    pickTile(state.tiles.findIndex((tile) => tile.id === tiles[0].id));
     return;
   }
-  state.tiles = [...state.tiles, tile];
-  pickTile(state.tiles.length - 1);
+  state.tileSet = mergedSelection(state.tileSet, tiles.map((tile) => tile.id), mode, (id) => id);
+  showCounts();
+  updateControls();
+  refreshMap();
+  setStatus(reviewHint());
 }
 
 function showReview() {
@@ -815,11 +853,11 @@ function showReview() {
   updateControls();
   refreshMap();
   element("stage-area").scrollIntoView({ block: "start" });
-  setStatus(REVIEW_HINT);
+  setStatus(reviewHint());
 }
 
 element("review").addEventListener("change", showReview);
-element("label-view").addEventListener("change", () => pickTile(state.index));
+element("label-view").addEventListener("change", () => pickTile(state.tileSet.length === 0 || state.tileSet.includes(currentTile().id) ? state.index : setStep(state.tiles, state.tileSet, -1, 1)));
 
 // The model class is fixed, so every option in the Model field is an EdgeTAM checkpoint.
 async function loadModel() {
@@ -907,7 +945,9 @@ async function load() {
   const objectName = settings.objectName || (source.identity === EXAMPLE_PROJECT ? "solar panel" : "");
   keepClaim(storageKey, release);
   state.tiles = tiles;
+  state.tileSet = [];
   state.allTiles = source.allTiles;
+  state.agreement = agreementEdges(source.allTiles);
   state.images = new Map();
   state.prompts = new Map();
   state.cleared = null;
@@ -1059,36 +1099,47 @@ function unloadedLabels() {
 
 // The tiles file holds every listed tile, viewed or not, so a later session can restore what was checked.
 function downloadTiles() {
-  saveBlob(new Blob([JSON.stringify(tilesGeojson(state.tiles, state.objects, state.viewed, DETAIL_LEVELS))], { type: "application/geo+json" }), outputName("tiles", "geojson"));
-  setStatus(`Downloaded ${state.tiles.length} ${state.tiles.length === 1 ? "tile" : "tiles"}, ${state.viewed.size} viewed.`);
+  const fileName = outputName("tiles", "geojson");
+  saveBlob(new Blob([JSON.stringify(tilesGeojson(state.tiles, state.objects, state.viewed, DETAIL_LEVELS))], { type: "application/geo+json" }), fileName);
+  downloadNote(`Downloaded ${state.tiles.length} ${state.tiles.length === 1 ? "tile" : "tiles"} (${state.viewed.size} viewed) as ${fileName}.`, true);
 }
 
 // Only tiles with an object go in the labels file, so skipping past a tile never adds it.
 function download() {
+  element("download-note").textContent = "";
   if (element("download-kind").value === "tiles") {
     downloadTiles();
     return;
   }
   const objectName = element("object-name").value.trim();
   if (!objectName) {
-    setStatus("Enter the object name under Change.");
+    downloadNote("Enter the object name under Change.");
     return;
   }
   const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
   if (tiles.length === 0) {
-    setStatus("Mark at least one object before downloading.");
+    downloadNote("Mark at least one object before downloading.");
     return;
   }
   const attribute = attributeName();
   const problem = valuesProblem(attribute, enteredValues()) ?? valueLabelsProblem(tiles);
   if (problem) {
-    setStatus(problem);
+    downloadNote(problem);
     return;
   }
   const mode = outputMode();
   const geojson = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName, attribute, values: values(), pixels: PIXELS });
-  saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), outputName(`labels_${mode}`, "geojson"));
-  setStatus(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"}.${unloadedLabels()}`);
+  const fileName = outputName(`labels_${mode}`, "geojson");
+  saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), fileName);
+  downloadNote(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} as ${fileName}.${unloadedLabels()}`, true);
+}
+
+// The note sits under the Download button, where the person is looking, and any edit clears it.
+function downloadNote(message, saved = false) {
+  setStatus(message, !saved);
+  element("download-note").textContent = message;
+  element("download-note").classList.toggle("hint", saved);
+  element("download-note").classList.toggle("problem", !saved);
 }
 
 function shapedObjects(tiles, mode) {
@@ -1229,7 +1280,11 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (action === "undo" && event.repeat) return;
     if (action === "review" && state.mapEdit) {
-      state.map.cancelSide();
+      if (!state.map.cancelSide()) clearSelection();
+      return;
+    }
+    if (action === "review" && !state.open && state.tileSet.length > 0) {
+      clearSelection();
       return;
     }
     if (action === "review" && state.side) {
@@ -1270,7 +1325,8 @@ function changeValues() {
   saveObjects();
   drawObjects();
   showCounts();
-  setStatus(valuesProblem(attributeName(), enteredValues()) ?? objectCount());
+  const problem = valuesProblem(attributeName(), enteredValues());
+  setStatus(problem ?? objectCount(), problem !== null);
   refreshMap();
 }
 
@@ -1296,6 +1352,8 @@ element("object-name").addEventListener("input", () => {
 element("attribute").addEventListener("input", changeValues);
 element("attribute-values").addEventListener("input", changeValues);
 element("download").addEventListener("click", () => work(download));
+element("map-clear").addEventListener("click", clearSelection);
+element("download-kind").addEventListener("change", () => { element("download-note").textContent = ""; });
 for (const choice of document.querySelectorAll('input[name="source"]')) choice.addEventListener("change", showSourceFields);
 element("focus").addEventListener("change", () => {
   if (state.tiles.length > 0) drawObjects();

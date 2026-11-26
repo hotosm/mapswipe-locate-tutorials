@@ -103,6 +103,7 @@
         </div>
       </div>
       <div id="tile-map"></div>
+      <button id="map-clear" type="button" class="secondary" title="Clear selection (Esc)" aria-keyshortcuts="Escape" hidden>Clear selection</button>
     </div>
     <aside>
       <div id="summary"><span id="summary-text"></span><button id="change" type="button" class="secondary">Change</button></div>
@@ -138,6 +139,21 @@
           <button id="map-delete" type="button" class="secondary" title="Delete the selected label (Delete)" aria-keyshortcuts="Delete" disabled>Delete</button>
         </div>
       </div>
+      <details id="shortcuts">
+        <summary>Shortcuts</summary>
+        <dl class="hint">
+          <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous or next tile</dd></div>
+          <div id="values-keys" hidden><dt><kbd>1</kbd> to <kbd id="values-last">8</kbd></dt><dd>Pick a value</dd></div>
+          <div><dt><kbd>d</kbd></dt><dd>Model or draw by hand</dd></div>
+          <div><dt><kbd>z</kbd></dt><dd>Undo</dd></div>
+          <div><dt><kbd>e</kbd></dt><dd>Edit labels on the map</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Open Review, or clear what is picked or selected</dd></div>
+          <div><dt><kbd>Shift</kbd></dt><dd>Click or drag to pick tiles in Review, or select labels in Edit</dd></div>
+          <div><dt><kbd>Delete</kbd> <kbd>Backspace</kbd></dt><dd>Delete the selected labels</dd></div>
+          <div><dt><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></dt><dd>Zoom in, zoom out, or show the whole tile</dd></div>
+          <div><dt><kbd>Space</kbd></dt><dd>Drag to move the zoomed tile, or the map in Edit</dd></div>
+        </dl>
+      </details>
       <details id="settings">
         <summary>Settings</summary>
         <div class="settings-body">
@@ -152,7 +168,6 @@
             <input id="labels-file" type="file" accept=".geojson,.json" disabled>
           </label>
           <p class="hint">Model: <a id="model-link" target="_blank" rel="noopener"></a></p>
-          <p id="keys-hint" class="hint">Keys: <kbd>←</kbd> <kbd>→</kbd> tiles, <kbd>z</kbd> undo, <kbd>d</kbd> switch tool, <kbd>Esc</kbd> review, <kbd>e</kbd> edit on the map, <kbd>Delete</kbd> or <kbd>Backspace</kbd> delete the selected label, <kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd> zoom the tile, <kbd>Space</kbd> and drag to move the zoomed tile, or the map while editing<span id="values-keys" hidden>, <kbd>1</kbd> to <kbd id="values-last">8</kbd> values</span>.</p>
         </div>
       </details>
       <div id="download-row">
@@ -161,6 +176,7 @@
           <option value="tiles">Tiles (GeoJSON)</option>
         </select>
         <button id="download" type="button" disabled>Download</button>
+        <p id="download-note"></p>
         <p id="saved-at" class="hint" aria-live="polite"></p>
       </div>
     </aside>

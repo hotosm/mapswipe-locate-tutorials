@@ -116,7 +116,7 @@ element("setup").addEventListener("submit", (event) => {
       await load(JSON.parse(await element("tasks-file").files[0].text()));
     } catch (error) {
       console.error(error);
-      setStatus(error.message);
+      setStatus(error.message, true);
     }
   });
 });
@@ -150,7 +150,7 @@ element("example").addEventListener("click", () => {
       await load(await response.json());
     } catch (error) {
       console.error(error);
-      setStatus(error.message);
+      setStatus(error.message, true);
     }
   });
 });

@@ -61,7 +61,7 @@ async function load(link) {
 
 function showError(error) {
   console.error(error);
-  setStatus(error.message);
+  setStatus(error.message, true);
 }
 
 element("setup").addEventListener("submit", (event) => {

@@ -11,6 +11,7 @@
   --hover: #f3f4f6;
   --stage: #e9ecf1;
   --overlay: #d73f3f;
+  --problem: #c23030;
   --no: rgba(255, 255, 255, 0.05);
   --single: rgba(46, 160, 67, 0.55);
   --multiple: rgba(255, 221, 0, 0.6);
@@ -123,10 +124,11 @@ aside label input:not([type="radio"]) { width: 100%; }
 
 #status { margin: 0; color: var(--muted); }
 #status:empty { display: none; }
+:is(#status, #setup-status).problem { color: var(--problem); font-weight: 500; }
 .hint { margin: 0; font-size: 13px; color: var(--muted); }
 #status::before, #setup-status::before { content: ""; display: none; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border: 2px solid var(--line-strong); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.8s linear infinite; }
 body.working #status::before, body.working #setup-status::before { display: inline-block; }
-.map-loading { position: absolute; left: 10px; top: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 13px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; pointer-events: none; }
+.map-loading { position: absolute; left: 10px; bottom: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 13px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; pointer-events: none; }
 .map-loading[hidden] { display: none; }
 .map-loading::before { content: ""; width: 12px; height: 12px; border: 2px solid var(--line-strong); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -173,6 +175,8 @@ body.working #status::before, body.working #setup-status::before { display: inli
 
 #stage-area { position: relative; min-height: 300px; background: var(--stage); container-type: size; }
 #tile-map { position: absolute; inset: 0; }
+#map-clear { position: absolute; top: 10px; left: 10px; z-index: 2; }
+#map-clear[hidden] { display: none; }
 #stage { position: absolute; inset: 0; margin: auto; width: calc(min(100cqw, 100cqh) - 24px); height: calc(min(100cqw, 100cqh) - 24px); overflow: hidden; border-radius: 4px; }
 #tile-view { position: absolute; inset: 0; transform-origin: 0 0; }
 body.tile-open #tile-map, body:not(.tile-open) :is(#stage, #tile-bar .tile-moves), body:not(.tile-open):not(.map-editing) #tile-bar .tile-edit { display: none; }
@@ -191,7 +195,7 @@ body:not(.tile-open):not(.map-editing) #stage-tools, body.map-editing #tool-choi
 #view-choice label { flex: 1; justify-content: center; }
 :is(#tool-choice, #view-choice) legend { position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip-path: inset(50%); }
 #download-row { display: flex; flex-wrap: wrap; gap: 8px; }
-#download-row #saved-at { flex-basis: 100%; }
+#download-row #saved-at, #download-row #download-note { flex-basis: 100%; }
 #resume-list button.link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
 #download-row select { flex: 1; min-width: 0; }
 .hint kbd { padding: 0 4px; font: inherit; color: var(--ink); border: 1px solid var(--line-strong); border-radius: 3px; }
@@ -201,8 +205,8 @@ body:not(.tile-open):not(.map-editing) #stage-tools, body.map-editing #tool-choi
 :is(#tile-bar, #target-summary) :is(#target-track, #spread-track, #tile-track) { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 :is(#tile-bar, #target-summary) :is(#target-bar, #spread-bar, #tile-bar-fill) { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
 :is(#tile-bar, #target-summary) #target-bar.reached { background: var(--reached); }
-#tile-bar #status { min-height: 2lh; }
-@media (hover: none) and (pointer: coarse) { #keys-hint { display: none; } }
+#tile-bar #status { min-height: 2lh; overflow-wrap: anywhere; }
+@media (hover: none) and (pointer: coarse) { #shortcuts { display: none; } }
 #tile-bar div { display: flex; gap: 8px; }
 #what-to-label { align-items: stretch; gap: 12px; }
 #what-to-label legend { margin-bottom: 12px; font-size: 15px; font-weight: 600; color: var(--ink); }
@@ -225,13 +229,20 @@ body:not(.tile-open):not(.map-editing) #stage-tools, body.map-editing #tool-choi
 #tile-number { width: 4.5em; margin-inline: 4px; padding: 1px 4px; font: inherit; }
 #saved-at { margin: 0; }
 #saved-at:empty { display: none; }
+#download-note { margin: 0; overflow-wrap: anywhere; }
+#download-note:empty { display: none; }
+#download-note.problem { color: var(--problem); }
 #resume:not([hidden]) { display: grid; gap: 8px; }
 #resume h3 { margin: 0; font-size: 15px; font-weight: 400; }
 #resume-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 #resume-list li { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 #resume-list li div { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
-#settings { border-top: 1px solid var(--line); padding-top: 12px; }
-#settings > summary { padding: 8px 6px; margin-inline: -6px; font-size: 14px; font-weight: 500; }
+#settings, #shortcuts { border-top: 1px solid var(--line); padding-top: 12px; }
+#shortcuts dt { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
+#shortcuts dl { display: grid; grid-template-columns: fit-content(88px) minmax(0, 1fr); gap: 6px 12px; padding-top: 12px; }
+#shortcuts dl > div:not([hidden]) { display: contents; }
+#shortcuts dd { margin: 0; }
+:is(#settings, #shortcuts) > summary { padding: 8px 6px; margin-inline: -6px; font-size: 14px; font-weight: 500; }
 #settings .settings-body { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; }
 #value-choices .swatch { flex: none; width: 14px; height: 14px; margin-right: 8px; border-radius: 3px; }
 #tile-bar button { flex: 1; min-width: 0; }
