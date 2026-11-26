@@ -56,7 +56,7 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
 
     Zoomed out, the tiles in the list are filled in these colours. Zoomed in, the labels show in their colours.
 
-    With a MapSwipe project, the cells that reach the **Volunteer share** stay bright, with a thin white edge as you zoom in, as on the [results map](../../helpers/index.md#results-map), and the rest of the project is dimmed. **Dim cells below the share**, in **Settings**, turns this off.
+    With a MapSwipe project, the rest of the project is dimmed, and the cells that reach the **Volunteer share** stay bright. These are the cells the [results map](../../helpers/index.md#results-map) keeps. Zoomed in, they have a thin white edge. **Dim cells below the share**, in **Settings**, turns this off.
 
 2. Zoom with the mouse wheel or the **+** and **-** buttons. Drag with the left or middle mouse button to move the map.
 3. Click a tile to open it in the **Label** tab, and add the missing labels. A tile with a grey border joins the end of the list and stays there after a reload.
