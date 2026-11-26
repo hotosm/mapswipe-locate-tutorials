@@ -28,7 +28,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0, committedValues: [], committedPick: "" };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0, committedValues: [], committedPick: "", reservedShown: false };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -1093,7 +1093,6 @@ element("example").addEventListener("click", () => {
   element("setup").requestSubmit();
 });
 
-// Labels on tiles outside the loaded list go in the labels download, so its status counts them.
 function outsideLabels(tiles) {
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const count = tiles.filter((tile) => !listed.has(tile.id)).reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
@@ -1115,9 +1114,10 @@ function download(anyway = false) {
     downloadTiles();
     return;
   }
-  const tiles = labelledTiles(state.tiles, state.objects, state.allTiles[0]?.template);
+  const { tiles, unplaced } = labelledTiles(withSavedTiles(state.tiles, state.allTiles, { objects: Object.fromEntries(state.objects) }), state.objects, state.allTiles[0]?.template);
+  const lost = unplaced === 0 ? "" : ` ${unplaced === 1 ? "1 label has a tile id that can't be placed, so it isn't" : `${unplaced} labels have a tile id that can't be placed, so they aren't`} in the file.`;
   if (tiles.length === 0) {
-    downloadNote("Mark at least one object before downloading.");
+    downloadNote(`Mark at least one object before downloading.${lost}`);
     return;
   }
   const objectName = element("object-name").value.trim();
@@ -1133,7 +1133,7 @@ function download(anyway = false) {
   const fileName = outputName(`labels_${mode}`, "geojson");
   saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), fileName);
   const saved = `Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} as ${fileName}.`;
-  const outside = outsideLabels(tiles);
+  const outside = `${outsideLabels(tiles)}${lost}`;
   downloadNote(problem ? `${saved}${outside} Fix this before you deliver it: ${problem}` : `${saved}${outside}`, !problem);
 }
 
@@ -1333,8 +1333,10 @@ function showValueChoices() {
 function changeValues() {
   showValueChoices();
   if (state.tiles.length === 0) {
-    const problem = LABEL_PROPERTIES.includes(attributeName()) ? valuesProblem(attributeName(), []) : null;
-    if (problem) setStatus(problem, true);
+    const reserved = LABEL_PROPERTIES.includes(attributeName());
+    if (reserved) setStatus(valuesProblem(attributeName(), []), true);
+    else if (state.reservedShown) setStatus("");
+    state.reservedShown = reserved;
     return;
   }
   saveObjects();

@@ -312,11 +312,13 @@ export function keepsDrawnShape(object) {
   return object.source === HAND_DRAWN || object.drawn === true;
 }
 
-// A label can sit on a tile outside the project, as from a file of a neighbouring area, so its tile is rebuilt from the id to keep it in the download.
+// A label can sit on a tile outside the project or area, as from a file of a neighbouring area, so its tile is rebuilt from the id to keep it in the download.
 export function labelledTiles(listed, objects, template) {
   const ids = new Set(listed.map((tile) => tile.id));
-  const outside = [...objects.keys()].filter((id) => !ids.has(id) && objects.get(id).length > 0).map(tileFromId).filter(Boolean);
-  return [...listed.filter((tile) => objects.get(tile.id)?.length > 0), ...outside.map((tile) => ({ ...tile, template, size: 1, cells: [] }))];
+  const outsideIds = [...objects.keys()].filter((id) => !ids.has(id) && objects.get(id).length > 0);
+  const outside = outsideIds.map(tileFromId).filter(Boolean);
+  const unplaced = outsideIds.filter((id) => !tileFromId(id)).reduce((sum, id) => sum + objects.get(id).length, 0);
+  return { tiles: [...listed.filter((tile) => objects.get(tile.id)?.length > 0), ...outside.map((tile) => ({ ...tile, template, size: 1, cells: [] }))], unplaced };
 }
 
 function tileFromId(id) {

@@ -696,9 +696,9 @@ test("fileAttribute reads values under the attribute an auto labeller file names
   assert.equal(fileAttribute({ features: [feature({ source: "Bing" })] }, "source"), "");
 });
 
-test("labelledTiles keeps labels on tiles outside the project and skips tiles without labels", () => {
+test("labelledTiles keeps labels on tiles outside the project, skips tiles without labels and counts labels it can't place", () => {
   const listed = [{ id: "20-1-1", zoom: 20, x: 1, y: 1, template: "t", size: 4, cells: [3] }, { id: "20-2-1", zoom: 20, x: 2, y: 1, template: "t", size: 4, cells: [] }];
   const label = { outline: [[0, 0], [10, 0], [10, 10], [0, 0]] };
   const objects = new Map([["20-1-1", [label]], ["20-2-1", []], ["20-9-9", [label, label]], ["not-a-tile", [label]]]);
-  assert.deepEqual(labelledTiles(listed, objects, "t"), [listed[0], { id: "20-9-9", zoom: 20, x: 9, y: 9, template: "t", size: 1, cells: [] }]);
+  assert.deepEqual(labelledTiles(listed, objects, "t"), { tiles: [listed[0], { id: "20-9-9", zoom: 20, x: 9, y: 9, template: "t", size: 1, cells: [] }], unplaced: 1 });
 });
