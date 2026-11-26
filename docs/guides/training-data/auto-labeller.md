@@ -41,7 +41,7 @@ The **Label** tab, under the project name in the side panel, shows one tile as l
 4. To look closer, zoom into the tile with the mouse wheel, the **+** and **-** buttons on the tile, or the ++plus++ and ++minus++ keys. Hold ++space++ and drag, or drag with the middle mouse button, to move around the zoomed tile. **Fit** (++0++) shows the whole tile again. Touch screens hide the **+** and **-** buttons and show the whole tile.
 5. **Clear** removes every label on the tile, and **Undo** right after brings them back.
 6. Click **Next** (++arrow-right++) for the next tile, and **Previous** (++arrow-left++) to go back. Each tile you open counts as viewed. The next tile loads while you label. To jump to a tile, type its number in the box after **Tile** and press ++enter++.
-7. With a MapSwipe project, cells below the share are dimmed. To see the whole tile, open **Settings** and untick **Dim cells below the share**.
+7. With a MapSwipe project, cells below the share are dimmed. To see the whole tile and the whole map, open **Settings** and untick **Dim cells below the share**.
 
 ### Review the labels
 
@@ -53,9 +53,10 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
     - Faint white border: in the list, not viewed yet.
     - Thin grey border, as you zoom in: another tile of the MapSwipe project. With **Tile URL and area**, every tile is in the list.
     - Yellow border: the tiles you picked with ++shift++. With none picked, the tile open in **Label**.
-    - Bright cells on darker imagery: the cells that reach the **Volunteer share**, as on the [results map](../../helpers/index.md#results-map). The rest of the project is dimmed. To turn this off, open **Settings** and untick **Dim cells below the share**.
 
     Zoomed out, the tiles in the list are filled in these colours. Zoomed in, the labels show in their colours.
+
+    With a MapSwipe project, the cells that reach the **Volunteer share** stay bright, as on the [results map](../../helpers/index.md#results-map), and the rest of the project is dimmed. **Dim cells below the share**, in **Settings**, turns this off.
 
 2. Zoom with the mouse wheel or the **+** and **-** buttons. Drag with the left or middle mouse button to move the map.
 3. Click a tile to open it in the **Label** tab, and add the missing labels. A tile with a grey border joins the end of the list and stays there after a reload.
