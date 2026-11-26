@@ -948,7 +948,7 @@ async function load() {
   state.tiles = tiles;
   state.tileSet = [];
   state.allTiles = source.allTiles;
-  state.dimmed = belowShareCells(source.allTiles);
+  state.dimmed = source.area === null ? belowShareCells(source.allTiles) : { type: "FeatureCollection", features: [] };
   state.images = new Map();
   state.prompts = new Map();
   state.cleared = null;

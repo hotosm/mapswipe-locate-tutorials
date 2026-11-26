@@ -632,7 +632,7 @@ test("setStep walks a tile set in list order and stops at its ends", () => {
 test("belowShareCells covers every project cell below the share, including tiles without a passed cell", () => {
   const tile = { id: "a", x: 0, y: 0, zoom: 1, size: 2, cells: [0, 1] };
   const { features } = belowShareCells([tile, { ...tile, id: "none", cells: [] }, { ...tile, id: "all", cells: [0, 1, 2, 3] }]);
-  assert.deepEqual(features.map((feature) => feature.geometry.coordinates.length), [2, 4]);
+  assert.deepEqual(features.map((feature) => feature.geometry.coordinates.length), [2, 1]);
   const rings = features[0].geometry.coordinates.map(([ring]) => ring.map(([longitude, latitude]) => [longitude, Number(latitude.toFixed(6))]));
   assert.deepEqual(rings, [[[-180, 66.51326], [-180, 0], [-90, 0], [-90, 66.51326], [-180, 66.51326]], [[-90, 66.51326], [-90, 0], [0, 0], [0, 66.51326], [-90, 66.51326]]]);
 });

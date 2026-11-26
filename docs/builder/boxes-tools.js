@@ -494,12 +494,13 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
 }
 
-// Every project cell below the share, so the cells volunteers marked are the bright ones on the map.
 export function belowShareCells(tiles) {
   const features = tiles.map((tile) => {
     const passed = new Set(tile.cells);
-    const rings = Array.from({ length: tile.size ** 2 }, (_, cell) => cell).filter((cell) => !passed.has(cell)).map((cell) => {
-      const [left, top, right, bottom] = cellRectangle(cell, tile.size, 1);
+    // A tile without a passed cell is one ring, not one per cell, which keeps a large project's GeoJSON small.
+    const size = passed.size === 0 ? 1 : tile.size;
+    const rings = Array.from({ length: size ** 2 }, (_, cell) => cell).filter((cell) => !passed.has(cell)).map((cell) => {
+      const [left, top, right, bottom] = cellRectangle(cell, size, 1);
       return [[[left, top], [left, bottom], [right, bottom], [right, top], [left, top]].map((point) => pixelToLonLat(tile, point, 1))];
     });
     return { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: rings } };
