@@ -53,7 +53,7 @@ The **Review** tab (++escape++) shows every tile and every label on a map over t
     - Faint white border: in the list, not viewed yet.
     - Thin grey border, as you zoom in: another tile of the MapSwipe project. With **Tile URL and area**, every tile is in the list.
     - Yellow border: the tiles you picked with ++shift++. With none picked, the tile open in **Label**.
-    - Light red fill with a red and white border, as you zoom in: the cells that reach the **Volunteer share**, as on the [results map](../../helpers/index.md#results-map).
+    - Bright cells on darker imagery: the cells that reach the **Volunteer share**, as on the [results map](../../helpers/index.md#results-map). The rest of the project is dimmed. To turn this off, open **Settings** and untick **Dim cells below the share**.
 
     Zoomed out, the tiles in the list are filled in these colours. Zoomed in, the labels show in their colours.
 

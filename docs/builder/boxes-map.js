@@ -2,8 +2,6 @@ import { rectangleFromSide } from "./boxes-tools.js";
 import { showMapLoading } from "./map-loading.js";
 
 const SELECTED_COLOUR = "#ffd400";
-// The red the Results map gives cells that passed the share.
-const AGREEMENT_COLOUR = "#d73f3f";
 const LABELLED_COLOUR = "#1f9d55";
 const LABELLED_FILL = "#4ade80";
 const UNLISTED_COLOUR = "#bdbdbd";
@@ -44,29 +42,24 @@ function fadeTiles(map, view) {
   const tileZoom = view.maxzoom - 2;
   const byZoom = (zoomedOut, zoomedIn, from, to) => ["interpolate", ["linear"], ["zoom"], tileZoom - from, zoomedOut, tileZoom - to, zoomedIn];
   map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.1, SEEN, 0.1, 0], 3, 2));
-  map.setPaintProperty("agreement-fill", "fill-opacity", byZoom(0, 0.22, GRID_HIDDEN, GRID_SHOWN));
-  map.setPaintProperty("agreement-halo", "line-opacity", byZoom(0, 0.7, GRID_HIDDEN, GRID_SHOWN));
-  map.setPaintProperty("agreement", "line-opacity", byZoom(0, 1, GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 1], GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.45], GRID_HIDDEN, GRID_SHOWN));
 }
 
 function addImagery(map, view) {
   map.addSource("imagery", { type: "raster", tiles: [view.template], tileSize: 256, maxzoom: view.maxzoom });
-  map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, "tiles-fill");
+  map.addLayer({ id: "imagery", type: "raster", source: "imagery" }, "dimmed");
 }
 
 function addLayers(map, view) {
   map.addSource("tiles", { type: "geojson", data: view.grid, promoteId: "index" });
   map.addSource("labels", { type: "geojson", data: view.labels });
   map.addSource("selected", { type: "geojson", data: EMPTY });
-  map.addSource("agreement", { type: "geojson", data: view.agreement });
+  map.addSource("dimmed", { type: "geojson", data: view.dimmed });
+  map.addLayer({ id: "dimmed", type: "fill", source: "dimmed", paint: { "fill-color": "#000000", "fill-opacity": 0, "fill-antialias": false } });
   map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, "#ffffff"], "fill-opacity": 0 } });
   map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 3] } });
   map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1.5] } });
-  map.addLayer({ id: "agreement-fill", type: "fill", source: "agreement", filter: ["==", ["get", "kind"], "cells"], paint: { "fill-color": AGREEMENT_COLOUR, "fill-opacity": 0, "fill-antialias": false } });
-  map.addLayer({ id: "agreement-halo", type: "line", source: "agreement", filter: ["==", ["get", "kind"], "edge"], paint: { "line-color": "#ffffff", "line-width": 4.5 } });
-  map.addLayer({ id: "agreement", type: "line", source: "agreement", filter: ["==", ["get", "kind"], "edge"], paint: { "line-color": AGREEMENT_COLOUR, "line-width": 2.5 } });
   map.addLayer({ id: "selected-fill", type: "fill", source: "selected", paint: { "fill-color": SELECTED_COLOUR, "fill-opacity": 0 } });
   map.addLayer({ id: "labels-fill", type: "fill", source: "labels", paint: { "fill-color": view.colour, "fill-opacity": 0.15 } });
   map.addLayer({ id: "selected-casing", type: "line", source: "selected", paint: { "line-color": "#000000", "line-width": 5 } });
@@ -283,10 +276,12 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     }
     imageryKey = view.key;
     if (first || shown.key !== view.key) {
-      map.getSource("agreement").setData(view.agreement);
+      map.getSource("dimmed").setData(view.dimmed);
       map.setMaxZoom(shownZoom(view));
       map.fitBounds(bounds(view.grid.features), { padding: 40, animate: false });
     }
+    // Lighter than the Label tab's 55%, since the map shows many tiles at once.
+    map.setPaintProperty("dimmed", "fill-opacity", view.dim ? 0.4 : 0);
     shown = view;
     // Only picked tiles are tinted, so the open tile keeps its true colours while labelling.
     map.setPaintProperty("selected-fill", "fill-opacity", view.set.length > 0 ? 0.15 : 0);

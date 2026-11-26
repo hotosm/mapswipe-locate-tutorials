@@ -494,14 +494,17 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
 }
 
-export function agreementEdges(tiles) {
-  const marked = tiles.filter((tile) => tile.cells.length > 0);
-  const edges = marked.map((tile) => ({ type: "Feature", properties: { kind: "edge" }, geometry: { type: "MultiLineString", coordinates: markedAreaEdges(tile.cells, tile.size, 1).map((edge) => edge.map((point) => pixelToLonLat(tile, point, 1))) } }));
-  const cells = marked.map((tile) => ({ type: "Feature", properties: { kind: "cells" }, geometry: { type: "MultiPolygon", coordinates: tile.cells.map((cell) => {
-    const [left, top, right, bottom] = cellRectangle(cell, tile.size, 1);
-    return [[[left, top], [left, bottom], [right, bottom], [right, top], [left, top]].map((point) => pixelToLonLat(tile, point, 1))];
-  }) } }));
-  return { type: "FeatureCollection", features: [...cells, ...edges] };
+// Every project cell below the share, so the cells volunteers marked are the bright ones on the map.
+export function belowShareCells(tiles) {
+  const features = tiles.map((tile) => {
+    const passed = new Set(tile.cells);
+    const rings = Array.from({ length: tile.size ** 2 }, (_, cell) => cell).filter((cell) => !passed.has(cell)).map((cell) => {
+      const [left, top, right, bottom] = cellRectangle(cell, tile.size, 1);
+      return [[[left, top], [left, bottom], [right, bottom], [right, top], [left, top]].map((point) => pixelToLonLat(tile, point, 1))];
+    });
+    return { type: "Feature", properties: {}, geometry: { type: "MultiPolygon", coordinates: rings } };
+  });
+  return { type: "FeatureCollection", features: features.filter((feature) => feature.geometry.coordinates.length > 0) };
 }
 
 export function tileGrid(tiles, objects, listed, viewed = new Set()) {

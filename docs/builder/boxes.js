@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, belowShareCells, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -626,7 +626,7 @@ function mapView() {
   const all = state.allTiles;
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const picked = new Set(state.tileSet);
-  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id), set: all.flatMap((tile, index) => (picked.has(tile.id) ? [index] : [])), agreement: state.agreement };
+  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id), set: all.flatMap((tile, index) => (picked.has(tile.id) ? [index] : [])), dimmed: state.dimmed, dim: element("focus").checked && !element("focus").disabled };
 }
 
 function clearSelection() {
@@ -948,7 +948,7 @@ async function load() {
   state.tiles = tiles;
   state.tileSet = [];
   state.allTiles = source.allTiles;
-  state.agreement = agreementEdges(source.allTiles);
+  state.dimmed = belowShareCells(source.allTiles);
   state.images = new Map();
   state.prompts = new Map();
   state.cleared = null;
@@ -1405,7 +1405,9 @@ element("map-clear").addEventListener("click", clearSelection);
 element("download-kind").addEventListener("change", clearDownloadNote);
 for (const choice of document.querySelectorAll('input[name="source"]')) choice.addEventListener("change", showSourceFields);
 element("focus").addEventListener("change", () => {
-  if (state.tiles.length > 0) drawObjects();
+  if (state.tiles.length === 0) return;
+  drawObjects();
+  refreshMap();
 });
 element("labels-file").addEventListener("change", (event) => {
   const [file] = event.target.files;
