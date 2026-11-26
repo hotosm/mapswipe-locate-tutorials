@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -1093,12 +1093,12 @@ element("example").addEventListener("click", () => {
   element("setup").requestSubmit();
 });
 
-// Labels on tiles outside the loaded list stay saved but leave the labels download, so its status names them.
-function unloadedLabels(one = "so it isn't in this file", many = "so they aren't in this file") {
+// Labels on tiles outside the loaded list go in the labels download, so its status counts them.
+function outsideLabels(tiles) {
   const listed = new Set(state.tiles.map((tile) => tile.id));
-  const count = [...state.objects].filter(([id]) => !listed.has(id)).reduce((sum, [, objects]) => sum + objects.length, 0);
+  const count = tiles.filter((tile) => !listed.has(tile.id)).reduce((sum, tile) => sum + state.objects.get(tile.id).length, 0);
   if (count === 0) return "";
-  return count === 1 ? ` 1 label is on a tile that isn't loaded, ${one}.` : ` ${count} labels are on tiles that aren't loaded, ${many}.`;
+  return count === 1 ? " 1 label is on a tile outside this project or area." : ` ${count} labels are on tiles outside this project or area.`;
 }
 
 // The tiles file holds every listed tile, viewed or not, so a later session can restore what was checked.
@@ -1115,9 +1115,9 @@ function download(anyway = false) {
     downloadTiles();
     return;
   }
-  const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
+  const tiles = labelledTiles(state.tiles, state.objects, state.allTiles[0]?.template);
   if (tiles.length === 0) {
-    downloadNote(`Mark at least one object before downloading.${unloadedLabels("so it can't be downloaded until its tile is loaded", "so they can't be downloaded until their tiles are loaded")}`);
+    downloadNote("Mark at least one object before downloading.");
     return;
   }
   const objectName = element("object-name").value.trim();
@@ -1133,7 +1133,8 @@ function download(anyway = false) {
   const fileName = outputName(`labels_${mode}`, "geojson");
   saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), fileName);
   const saved = `Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} as ${fileName}.`;
-  downloadNote(problem ? `${saved}${unloadedLabels()} Fix this before you deliver it: ${problem}` : `${saved}${unloadedLabels()}`, !problem);
+  const outside = outsideLabels(tiles);
+  downloadNote(problem ? `${saved}${outside} Fix this before you deliver it: ${problem}` : `${saved}${outside}`, !problem);
 }
 
 function clearDownloadNote() {
@@ -1202,6 +1203,7 @@ async function loadLabels(file) {
   }
   const { shapes, skipped } = polygonRings(geojson);
   if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
+  const attributeWasEmpty = !attributeName();
   fillEmptySettings(fileSettings(geojson, shapes));
   const shapesOf = (object) => [object.outline, closedRing(orientedCorners(object.outline))];
   const { objects, count, repeated } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: fileAttribute(geojson, attributeName()), pixels: PIXELS, clip: clipToTile, shapesOf });
@@ -1210,9 +1212,10 @@ async function loadLabels(file) {
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const unlisted = [...objects].filter(([id]) => !listed.has(id)).reduce((sum, [, list]) => sum + list.filter((object) => object.source === file.name).length, 0);
   const alreadyThere = repeated > 0 ? ` ${repeated} ${repeated === 1 ? "was already on its tile" : "were already on their tiles"}.` : "";
-  const elsewhere = unlisted > 0 ? (unlisted === 1 ? " 1 is on a tile that isn't loaded; it stays saved but isn't in the download." : ` ${unlisted} are on tiles that aren't loaded; they stay saved but aren't in the download.`) : "";
+  const elsewhere = unlisted > 0 ? (unlisted === 1 ? " 1 of them is on a tile outside this project or area. It stays saved and is included in the labels file." : ` ${unlisted} of them are on tiles outside this project or area. They stay saved and are included in the labels file.`) : "";
+  const renamed = attributeWasEmpty && attributeName() === "value" ? ' Values were read from the attribute "value". If you meant another name, change it under Change before you deliver.' : "";
   const leftOut = skipped > 0 ? ` ${skipped} ${skipped === 1 ? "feature without a polygon was" : "features without a polygon were"} left out.` : "";
-  afterChange(`Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut} ${objectCount()}`);
+  afterChange(`Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut}${renamed} ${objectCount()}`);
   refreshMap();
 }
 
@@ -1329,7 +1332,11 @@ function showValueChoices() {
 
 function changeValues() {
   showValueChoices();
-  if (state.tiles.length === 0) return;
+  if (state.tiles.length === 0) {
+    const problem = LABEL_PROPERTIES.includes(attributeName()) ? valuesProblem(attributeName(), []) : null;
+    if (problem) setStatus(problem, true);
+    return;
+  }
   saveObjects();
   drawObjects();
   showCounts();

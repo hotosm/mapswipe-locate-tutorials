@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptSettings, fileAttribute, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, agreementEdges, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, renameLabels, renamedValue, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptSettings, fileAttribute, labelledTiles, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, agreementEdges, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, renameLabels, renamedValue, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -694,4 +694,11 @@ test("fileAttribute reads values under the attribute an auto labeller file names
   assert.equal(fileAttribute(saved, "roof:material"), "value");
   assert.equal(fileAttribute({ attribute: "value", features: saved.features }, "roof:material"), "roof:material");
   assert.equal(fileAttribute({ features: [feature({ source: "Bing" })] }, "source"), "");
+});
+
+test("labelledTiles keeps labels on tiles outside the project and skips tiles without labels", () => {
+  const listed = [{ id: "20-1-1", zoom: 20, x: 1, y: 1, template: "t", size: 4, cells: [3] }, { id: "20-2-1", zoom: 20, x: 2, y: 1, template: "t", size: 4, cells: [] }];
+  const label = { outline: [[0, 0], [10, 0], [10, 10], [0, 0]] };
+  const objects = new Map([["20-1-1", [label]], ["20-2-1", []], ["20-9-9", [label, label]], ["not-a-tile", [label]]]);
+  assert.deepEqual(labelledTiles(listed, objects, "t"), [listed[0], { id: "20-9-9", zoom: 20, x: 9, y: 9, template: "t", size: 1, cells: [] }]);
 });

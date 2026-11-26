@@ -89,7 +89,7 @@ A grey label doesn't have a listed value, for example one made before the values
 ## 3. Download the labels
 
 1. **Output**, under **Settings**: choose **Boxes** for objects such as solar panels or boats, and **Outlines** for buildings and other shapes that follow their edges.
-2. In the list next to **Download**, choose **Labels (GeoJSON)** for the labels, or **Tiles (GeoJSON)** for the list of tiles ([What the downloads hold](../../helpers/index.md#auto-labeller)). Click **Download**. The line under it names the saved file. If something needs fixing, the line is red and says what to fix, and a **Download anyway** button appears. Click it to save the labels now and fix the problem later. The file keeps each label with its value, and **Load labels (GeoJSON)** loads it back. Labels on tiles that aren't loaded stay in the browser but aren't in the file; the line under **Download** gives their number.
+2. In the list next to **Download**, choose **Labels (GeoJSON)** for the labels, or **Tiles (GeoJSON)** for the list of tiles ([What the downloads hold](../../helpers/index.md#auto-labeller)). Click **Download**. The line under it names the saved file. If something needs fixing, the line is red and says what to fix, and a **Download anyway** button appears. Click it to save the labels now and fix the problem later. The file keeps each label with its value, and **Load labels (GeoJSON)** loads it back. Labels on tiles outside the project or area, such as from a file of a neighbouring area, are also saved in the file, and the line says how many.
 
 <video src="../../assets/dataset/labeller.mp4" autoplay loop muted playsinline aria-label="Loading the project, tapping two solar arrays, moving to the next tile and downloading the labels"></video>
 
