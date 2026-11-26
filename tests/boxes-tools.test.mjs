@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, agreementEdges, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptSettings, fileAttribute, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, agreementEdges, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, renameLabels, renamedValue, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -635,4 +635,63 @@ test("agreementEdges outlines each tile's passed cells and skips tiles without t
   assert.equal(features.length, 1);
   assert.equal(features[0].geometry.coordinates.length, 6);
   assert.deepEqual(features[0].geometry.coordinates[0].map(([longitude, latitude]) => [longitude, Number(latitude.toFixed(6))]), [[-180, 85.051129], [-90, 85.051129]]);
+});
+
+test("renamedValue finds one value typed over in place", () => {
+  const before = ["metal", "roof_tiles", "concrete"];
+  assert.deepEqual(renamedValue(before, ["steel", "roof_tiles", "concrete"]), { from: "metal", to: "steel" });
+  assert.equal(renamedValue(before, [...before, "glass"]), null);
+  assert.equal(renamedValue(before, ["metal", "concrete"]), null);
+  assert.equal(renamedValue(before, ["roof_tiles", "metal", "concrete"]), null);
+  assert.equal(renamedValue(before, ["steel", "tiles", "concrete"]), null);
+  assert.equal(renamedValue(before, ["concrete", "roof_tiles", "concrete"]), null);
+  assert.equal(renamedValue(before, before), null);
+});
+
+test("renameLabels moves a value's labels and the undo records that bring it back", () => {
+  const labels = [{ value: "metal" }, { value: "tiles" }, { value: "metal" }];
+  const undo = [{ kind: "value", items: [{ object: labels[1], value: "metal" }] }, { kind: "add", items: [{ object: labels[0] }] }];
+  assert.deepEqual(renameLabels(labels, undo, { from: "metal", to: "steel" }), [labels[0], labels[2]]);
+  assert.deepEqual(labels.map((label) => label.value), ["steel", "tiles", "steel"]);
+  assert.equal(undo[0].items[0].value, "steel");
+});
+
+test("renameLabels refuses to merge into a name a label or an undo record already has", () => {
+  const labels = [{ value: "metal" }, { value: "steel" }];
+  assert.equal(renameLabels(labels, [], { from: "metal", to: "steel" }), null);
+  assert.deepEqual(labels.map((label) => label.value), ["metal", "steel"]);
+  const undone = [{ value: "metal" }];
+  assert.equal(renameLabels(undone, [{ kind: "value", items: [{ object: {}, value: "steel" }] }], { from: "metal", to: "steel" }), null);
+  assert.equal(undone[0].value, "metal");
+  assert.deepEqual(renameLabels([{ value: "steel" }], [], { from: "metal", to: "steel" }), []);
+});
+
+test("a file saved with keptSettings brings back every label value, whatever the attribute field held", () => {
+  const tile = { id: "20-485867-499535", zoom: 20, x: 485867, y: 499535, cells: [], template: "https://tiles.example/{z}/{x}/{y}" };
+  const square = [[100, 100], [300, 100], [300, 300], [100, 300], [100, 100]];
+  const labels = [{ outline: square, source: "EdgeTAM", value: "metal" }, { outline: square.map(([x, y]) => [x + 400, y]), source: "EdgeTAM", value: "glass" }, { outline: square.map(([x, y]) => [x, y + 400]), source: "EdgeTAM" }];
+  const nine = ["a", "b", "c", "d", "e", "f", "g", "h", "metal"];
+  for (const [attribute, values] of [["", []], ["source", ["metal"]], ["roof:material", nine]]) {
+    const settings = keptSettings(attribute, values, labels);
+    const file = JSON.parse(JSON.stringify(labelsGeojson([tile], new Map([[tile.id, labels]]), { mode: "segment", objectName: "", ...settings, pixels: 1024 })));
+    const { shapes } = polygonRings(file);
+    const read = fileSettings(file, shapes);
+    assert.equal(read.values, values.join(", "), attribute);
+    const { objects } = placedLabels({ shapes, tiles: [tile], objects: new Map(), fileName: "anyway.geojson", attribute: fileAttribute(file, attribute || "roof:material"), pixels: 1024, clip: (ring) => ring, shapesOf: (object) => [object.outline] });
+    assert.deepEqual(objects.get(tile.id).map((object) => object.value), ["metal", "glass", undefined], attribute);
+  }
+  assert.deepEqual(keptSettings("", [], [{ outline: square }]), { attribute: "", values: [] });
+  const bare = [{ outline: square, source: "EdgeTAM" }];
+  const file = JSON.parse(JSON.stringify(labelsGeojson([tile], new Map([[tile.id, bare]]), { mode: "segment", objectName: "", ...keptSettings("source", [], bare), pixels: 1024 })));
+  const { shapes } = polygonRings(file);
+  const { objects } = placedLabels({ shapes, tiles: [tile], objects: new Map(), fileName: "anyway.geojson", attribute: fileAttribute(file, "source"), pixels: 1024, clip: (ring) => ring, shapesOf: (object) => [object.outline] });
+  assert.equal(objects.get(tile.id)[0].value, undefined);
+});
+
+test("fileAttribute reads values under the attribute an auto labeller file names, and never under a label property", () => {
+  const feature = (properties) => ({ type: "Feature", properties });
+  const saved = { object_name: "", attribute: "value", features: [feature({ value: "metal" })] };
+  assert.equal(fileAttribute(saved, "roof:material"), "value");
+  assert.equal(fileAttribute({ attribute: "value", features: saved.features }, "roof:material"), "roof:material");
+  assert.equal(fileAttribute({ features: [feature({ source: "Bing" })] }, "source"), "");
 });

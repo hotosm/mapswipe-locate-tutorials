@@ -7,6 +7,8 @@ export function setStatus(message, problem = false) {
     element(id).textContent = message;
     element(id).classList.toggle("problem", problem);
   }
+  // A problem under the setup card's buttons can sit below a phone screen, where nobody reads it.
+  if (problem && element("setup-status").getClientRects().length > 0) element("setup-status").scrollIntoView({ block: "nearest" });
 }
 
 export async function copyText(text, label) {

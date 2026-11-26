@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, parseTileTemplate, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -28,7 +28,7 @@ const TARGET_OBJECTS = 1000;
 const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
-const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0 };
+const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0, committedValues: [], committedPick: "" };
 const element = (id) => document.getElementById(id);
 const tileCanvas = element("tile-canvas");
 const boxCanvas = element("box-canvas");
@@ -209,6 +209,7 @@ function updateControls() {
   element("clear").disabled = state.busy || !loaded || !state.open || currentObjects().length === 0;
   for (const tool of document.querySelectorAll('input[name="tool"]')) tool.disabled = state.busy || !loaded;
   element("download").disabled = state.busy || !loaded;
+  element("download-anyway").disabled = element("download").disabled;
   element("download-kind").disabled = state.busy || !loaded;
   element("labels-file").disabled = state.busy || !loaded;
   element("tile-number").disabled = state.busy || !loaded || !state.open;
@@ -241,7 +242,7 @@ function savedRecord() {
 }
 
 function saveObjects() {
-  element("download-note").textContent = "";
+  clearDownloadNote();
   state.saveWanted = true;
   state.saving ??= writeSaves().catch(showError).finally(() => { state.saving = null; });
 }
@@ -968,6 +969,7 @@ async function load() {
   element("object-name").value = objectName;
   element("attribute").value = settings.attribute;
   element("attribute-values").value = settings.values;
+  commitValues();
   showValueChoices();
   if (state.mapEdit) setMapEdit(false);
   state.open = true;
@@ -1044,12 +1046,14 @@ async function resumeSaved(key, record) {
     element("object-name").value = record.objectName;
     element("attribute").value = record.attribute;
     element("attribute-values").value = record.values;
+    commitValues();
     await load();
   } catch (error) {
     if (state.tiles === openedTiles) {
       element("object-name").value = opened.objectName;
       element("attribute").value = opened.attribute;
       element("attribute-values").value = opened.values;
+      commitValues();
       showValueChoices();
     }
     throw error;
@@ -1090,11 +1094,11 @@ element("example").addEventListener("click", () => {
 });
 
 // Labels on tiles outside the loaded list stay saved but leave the labels download, so its status names them.
-function unloadedLabels() {
+function unloadedLabels(one = "so it isn't in this file", many = "so they aren't in this file") {
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const count = [...state.objects].filter(([id]) => !listed.has(id)).reduce((sum, [, objects]) => sum + objects.length, 0);
   if (count === 0) return "";
-  return count === 1 ? " 1 label is on a tile that isn't loaded, so it isn't in this file." : ` ${count} labels are on tiles that aren't loaded, so they aren't in this file.`;
+  return count === 1 ? ` 1 label is on a tile that isn't loaded, ${one}.` : ` ${count} labels are on tiles that aren't loaded, ${many}.`;
 }
 
 // The tiles file holds every listed tile, viewed or not, so a later session can restore what was checked.
@@ -1105,33 +1109,36 @@ function downloadTiles() {
 }
 
 // Only tiles with an object go in the labels file, so skipping past a tile never adds it.
-function download() {
-  element("download-note").textContent = "";
+function download(anyway = false) {
+  clearDownloadNote();
   if (element("download-kind").value === "tiles") {
     downloadTiles();
     return;
   }
-  const objectName = element("object-name").value.trim();
-  if (!objectName) {
-    downloadNote("Enter the object name under Change.");
-    return;
-  }
   const tiles = state.tiles.filter((tile) => state.objects.get(tile.id)?.length > 0);
   if (tiles.length === 0) {
-    downloadNote("Mark at least one object before downloading.");
+    downloadNote(`Mark at least one object before downloading.${unloadedLabels("so it can't be downloaded until its tile is loaded", "so they can't be downloaded until their tiles are loaded")}`);
     return;
   }
-  const attribute = attributeName();
-  const problem = valuesProblem(attribute, enteredValues()) ?? valueLabelsProblem(tiles);
-  if (problem) {
+  const objectName = element("object-name").value.trim();
+  const problem = objectName ? valuesProblem(attributeName(), enteredValues()) ?? valueLabelsProblem(tiles) : "Enter the object name under Change.";
+  if (problem && !anyway) {
     downloadNote(problem);
+    element("download-anyway").hidden = false;
     return;
   }
   const mode = outputMode();
-  const geojson = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName, attribute, values: values(), pixels: PIXELS });
+  const settings = problem ? keptSettings(attributeName(), attributeValues(element("attribute-values").value), tiles.flatMap((tile) => state.objects.get(tile.id))) : { attribute: attributeName(), values: values() };
+  const geojson = labelsGeojson(tiles, shapedObjects(tiles, mode), { mode, objectName, ...settings, pixels: PIXELS });
   const fileName = outputName(`labels_${mode}`, "geojson");
   saveBlob(new Blob([JSON.stringify(geojson)], { type: "application/geo+json" }), fileName);
-  downloadNote(`Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} as ${fileName}.${unloadedLabels()}`, true);
+  const saved = `Downloaded the labels of ${tiles.length} ${tiles.length === 1 ? "tile" : "tiles"} as ${fileName}.`;
+  downloadNote(problem ? `${saved}${unloadedLabels()} Fix this before you deliver it: ${problem}` : `${saved}${unloadedLabels()}`, !problem);
+}
+
+function clearDownloadNote() {
+  element("download-note").textContent = "";
+  element("download-anyway").hidden = true;
 }
 
 // The note sits under the Download button, where the person is looking, and any edit clears it.
@@ -1197,7 +1204,7 @@ async function loadLabels(file) {
   if (shapes.length === 0) throw new Error(`${file.name} needs at least one polygon.`);
   fillEmptySettings(fileSettings(geojson, shapes));
   const shapesOf = (object) => [object.outline, closedRing(orientedCorners(object.outline))];
-  const { objects, count, repeated } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: attributeName(), pixels: PIXELS, clip: clipToTile, shapesOf });
+  const { objects, count, repeated } = placedLabels({ shapes, tiles: state.tiles, objects: state.objects, fileName: file.name, attribute: fileAttribute(geojson, attributeName()), pixels: PIXELS, clip: clipToTile, shapesOf });
   state.objects = objects;
   state.tiles = withSavedTiles(state.tiles, state.allTiles, { objects: Object.fromEntries(objects) });
   const listed = new Set(state.tiles.map((tile) => tile.id));
@@ -1214,6 +1221,7 @@ function fillEmptySettings({ objectName, attribute, values: fileValues }) {
   if (attribute && !attributeName()) {
     element("attribute").value = attribute;
     element("attribute-values").value = fileValues;
+    commitValues();
     showValueChoices();
   }
 }
@@ -1231,7 +1239,7 @@ function valueLabelsProblem(tiles) {
   const labels = tiles.flatMap((tile) => state.objects.get(tile.id));
   if (list.length === 0) {
     const valued = labels.filter((object) => object.value !== undefined).length;
-    return valued > 0 ? `${valued} ${valued === 1 ? "label has" : "labels have"} a value. Enter the attribute and its values before downloading.` : null;
+    return valued > 0 ? `${valued} ${valued === 1 ? "label has" : "labels have"} a value. Enter the attribute and its values under Change.` : null;
   }
   const missing = objectsWithoutValue(tiles, state.objects, list);
   return missing > 0 ? `${missing} ${missing === 1 ? "label doesn't" : "labels don't"} have a ${attributeName()} value. They are grey on the tiles: click a value, then tap each one.` : null;
@@ -1330,6 +1338,33 @@ function changeValues() {
   refreshMap();
 }
 
+function commitValues() {
+  state.committedValues = enteredValues();
+  state.committedPick = state.value;
+}
+
+// Without this, a renamed value's labels turn grey and need a value again one by one.
+function renameValue() {
+  const [before, pick] = [state.committedValues, state.committedPick];
+  commitValues();
+  const rename = renamedValue(before, state.committedValues);
+  if (!rename) return;
+  const onTiles = new Set([...state.objects.values()].flat());
+  // Labels held for Undo or for restoring a cleared tile are renamed too, so bringing them back doesn't bring back a value that is gone.
+  const held = new Set([...onTiles, ...(state.cleared?.objects ?? []), ...state.mapUndo.flatMap((record) => record.items.map((item) => item.object))]);
+  const moved = renameLabels([...held], state.mapUndo, rename);
+  if (!moved) {
+    [state.committedValues, state.committedPick] = [before, pick];
+    setStatus(`Some labels, or labels that Undo can bring back, already have the value ${rename.to}, so the ${rename.from} labels keep ${rename.from} and are grey. Type ${rename.from} back, or type another name.`, true);
+    return;
+  }
+  if (pick === rename.from) state.value = state.committedPick = rename.to;
+  const labels = moved.filter((label) => onTiles.has(label));
+  changeValues();
+  if (labels.length === 0) return;
+  setStatus(`Renamed ${rename.from} to ${rename.to} on ${labels.length === 1 ? "1 label" : `${labels.length} labels`}.`);
+}
+
 function fieldSettings() {
   return { objectName: element("object-name").value.trim(), attribute: attributeName(), values: element("attribute-values").value };
 }
@@ -1351,9 +1386,11 @@ element("object-name").addEventListener("input", () => {
 });
 element("attribute").addEventListener("input", changeValues);
 element("attribute-values").addEventListener("input", changeValues);
+element("attribute-values").addEventListener("change", renameValue);
 element("download").addEventListener("click", () => work(download));
+element("download-anyway").addEventListener("click", () => work(() => download(true)));
 element("map-clear").addEventListener("click", clearSelection);
-element("download-kind").addEventListener("change", () => { element("download-note").textContent = ""; });
+element("download-kind").addEventListener("change", clearDownloadNote);
 for (const choice of document.querySelectorAll('input[name="source"]')) choice.addEventListener("change", showSourceFields);
 element("focus").addEventListener("change", () => {
   if (state.tiles.length > 0) drawObjects();

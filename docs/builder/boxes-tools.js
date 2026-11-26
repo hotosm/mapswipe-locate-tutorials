@@ -206,6 +206,22 @@ export function attributeValues(text) {
   return [...new Set(text.split(",").map((value) => value.trim()).filter(Boolean))];
 }
 
+export function renamedValue(before, after) {
+  if (before.length !== after.length) return null;
+  const changed = before.flatMap((value, index) => (value === after[index] ? [] : [index]));
+  if (changed.length !== 1 || before.includes(after[changed[0]])) return null;
+  return { from: before[changed[0]], to: after[changed[0]] };
+}
+
+// A rename that moves labels is refused when a label or an undo record already has the new name, since the two groups couldn't be told apart again.
+export function renameLabels(labels, undoRecords, { from, to }) {
+  const oldValues = undoRecords.flatMap((record) => (record.kind === "value" ? record.items : []));
+  const moved = labels.filter((label) => label.value === from);
+  if (moved.length > 0 && [...labels, ...oldValues].some((item) => item.value === to)) return null;
+  for (const item of [...moved, ...oldValues.filter((old) => old.value === from)]) item.value = to;
+  return moved;
+}
+
 export function valueCounts(tiles, objects, values) {
   const all = tiles.flatMap((tile) => objects.get(tile.id) ?? []);
   return values.map((value) => all.filter((object) => object.value === value).length);
@@ -243,6 +259,19 @@ export function tilesFileViewed(geojson) {
 export function tilesGeojson(tiles, objects, viewed, levels) {
   const { features } = tileGrid(tiles, objects, new Set(), viewed);
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, features: features.map(({ geometry, properties }, index) => ({ type: "Feature", geometry, properties: { tile_id: properties.tile_id, labels: objects.get(properties.tile_id)?.length ?? 0, viewed: properties.viewed, ...detailImage(tiles[index], levels) } })) };
+}
+
+// "value" isn't in LABEL_PROPERTIES, so fileSettings reads it back as the attribute.
+export function keptSettings(attribute, values, labels) {
+  if (attribute && !LABEL_PROPERTIES.includes(attribute)) return { attribute, values };
+  const valued = labels.some((label) => label.value !== undefined);
+  return { attribute: valued || attribute || values.length > 0 ? "value" : "", values };
+}
+
+// Download anyway can save values under another attribute than the field, and the file names it; a label property never holds a value.
+export function fileAttribute(geojson, fieldAttribute) {
+  if (typeof geojson.object_name === "string" && typeof geojson.attribute === "string") return geojson.attribute;
+  return LABEL_PROPERTIES.includes(fieldAttribute) ? "" : fieldAttribute;
 }
 
 // A labels.geojson from this page names its settings at the top, or carries tile_id on every feature and one attribute beside its standard properties; other files give no settings.
