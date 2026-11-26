@@ -44,7 +44,9 @@ function fadeTiles(map, view) {
   const tileZoom = view.maxzoom - 2;
   const byZoom = (zoomedOut, zoomedIn, from, to) => ["interpolate", ["linear"], ["zoom"], tileZoom - from, zoomedOut, tileZoom - to, zoomedIn];
   map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.1, SEEN, 0.1, 0], 3, 2));
-  for (const layer of ["agreement-casing", "agreement"]) map.setPaintProperty(layer, "line-opacity", byZoom(0, layer === "agreement" ? 1 : 0.5, GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("agreement-fill", "fill-opacity", byZoom(0, 0.22, GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("agreement-halo", "line-opacity", byZoom(0, 0.7, GRID_HIDDEN, GRID_SHOWN));
+  map.setPaintProperty("agreement", "line-opacity", byZoom(0, 1, GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 1], GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.45], GRID_HIDDEN, GRID_SHOWN));
 }
@@ -62,8 +64,9 @@ function addLayers(map, view) {
   map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, "#ffffff"], "fill-opacity": 0 } });
   map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 3] } });
   map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1.5] } });
-  map.addLayer({ id: "agreement-casing", type: "line", source: "agreement", paint: { "line-color": "#000000", "line-width": 3 } });
-  map.addLayer({ id: "agreement", type: "line", source: "agreement", paint: { "line-color": AGREEMENT_COLOUR, "line-width": 1.5, "line-dasharray": [4, 3] } });
+  map.addLayer({ id: "agreement-fill", type: "fill", source: "agreement", filter: ["==", ["get", "kind"], "cells"], paint: { "fill-color": AGREEMENT_COLOUR, "fill-opacity": 0, "fill-antialias": false } });
+  map.addLayer({ id: "agreement-halo", type: "line", source: "agreement", filter: ["==", ["get", "kind"], "edge"], paint: { "line-color": "#ffffff", "line-width": 4.5 } });
+  map.addLayer({ id: "agreement", type: "line", source: "agreement", filter: ["==", ["get", "kind"], "edge"], paint: { "line-color": AGREEMENT_COLOUR, "line-width": 2.5 } });
   map.addLayer({ id: "selected-fill", type: "fill", source: "selected", paint: { "fill-color": SELECTED_COLOUR, "fill-opacity": 0 } });
   map.addLayer({ id: "labels-fill", type: "fill", source: "labels", paint: { "fill-color": view.colour, "fill-opacity": 0.15 } });
   map.addLayer({ id: "selected-casing", type: "line", source: "selected", paint: { "line-color": "#000000", "line-width": 5 } });

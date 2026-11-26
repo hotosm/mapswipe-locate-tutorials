@@ -312,6 +312,11 @@ export function keepsDrawnShape(object) {
   return object.source === HAND_DRAWN || object.drawn === true;
 }
 
+// The URL is compared as written, since titiler templates for different images differ only in their query string.
+export function namesOtherImagery(geojson, template) {
+  return typeof geojson.imagery_url === "string" && Boolean(template) && geojson.imagery_url !== template;
+}
+
 // A label can sit on a tile outside the project or area, as from a file of a neighbouring area, so its tile is rebuilt from the id to keep it in the download.
 export function labelledTiles(listed, objects, template) {
   const ids = new Set(listed.map((tile) => tile.id));
@@ -490,8 +495,13 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
 }
 
 export function agreementEdges(tiles) {
-  const features = tiles.filter((tile) => tile.cells.length > 0).map((tile) => ({ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: markedAreaEdges(tile.cells, tile.size, 1).map((edge) => edge.map((point) => pixelToLonLat(tile, point, 1))) } }));
-  return { type: "FeatureCollection", features };
+  const marked = tiles.filter((tile) => tile.cells.length > 0);
+  const edges = marked.map((tile) => ({ type: "Feature", properties: { kind: "edge" }, geometry: { type: "MultiLineString", coordinates: markedAreaEdges(tile.cells, tile.size, 1).map((edge) => edge.map((point) => pixelToLonLat(tile, point, 1))) } }));
+  const cells = marked.map((tile) => ({ type: "Feature", properties: { kind: "cells" }, geometry: { type: "MultiPolygon", coordinates: tile.cells.map((cell) => {
+    const [left, top, right, bottom] = cellRectangle(cell, tile.size, 1);
+    return [[[left, top], [left, bottom], [right, bottom], [right, top], [left, top]].map((point) => pixelToLonLat(tile, point, 1))];
+  }) } }));
+  return { type: "FeatureCollection", features: [...cells, ...edges] };
 }
 
 export function tileGrid(tiles, objects, listed, viewed = new Set()) {

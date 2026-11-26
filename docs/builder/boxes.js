@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, agreementEdges, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -1215,7 +1215,10 @@ async function loadLabels(file) {
   const elsewhere = unlisted > 0 ? (unlisted === 1 ? " 1 of them is on a tile outside this project or area. It stays saved and is included in the labels file." : ` ${unlisted} of them are on tiles outside this project or area. They stay saved and are included in the labels file.`) : "";
   const renamed = attributeWasEmpty && attributeName() === "value" ? ' Values were read from the attribute "value". If you meant another name, change it under Change before you deliver.' : "";
   const leftOut = skipped > 0 ? ` ${skipped} ${skipped === 1 ? "feature without a polygon was" : "features without a polygon were"} left out.` : "";
-  afterChange(`Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut}${renamed} ${objectCount()}`);
+  const otherImagery = count > 0 && namesOtherImagery(geojson, state.allTiles[0]?.template) ? " This file names another imagery URL. Its labels are kept and are saved with this project's imagery URL. Check that they are still on the right objects." : "";
+  const message = `Loaded ${count} ${count === 1 ? "label" : "labels"} from ${file.name}.${alreadyThere}${elsewhere}${leftOut}${renamed}${otherImagery} ${objectCount()}`;
+  afterChange(message);
+  if (otherImagery) setStatus(message, true);
   refreshMap();
 }
 
