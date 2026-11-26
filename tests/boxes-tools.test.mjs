@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, belowShareCells, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, renameLabels, renamedValue, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
+import { LABEL_PROPERTIES, MAX_AREA_TILES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsCutLabel, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringArea, ringOnTiles, fileSettings, placedLabels, labelSettings, legacyKeys, mergedSaves, labelsGeojson, tileGrid, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, objectsWithoutValue, setStep, belowShareCells, markedAreaLines, parseTileTemplate, polygonRings, remembered, rectangleFromSide, restoredObjects, renameLabels, renamedValue, rotatedBox, sameLabel, savedObjectsKey, targetProgress, valueCounts, valueForKey, valueSummary } from "../docs/builder/boxes-tools.js";
 
 const URL_TEMPLATE = "https://tiles.example/cog/tiles/WebMercatorQuad/20/485848/499534@1x?url=a.tif";
 const row = (task, x, cell, kept) => ({
@@ -709,4 +709,12 @@ test("namesOtherImagery flags a file whose imagery URL differs, including only i
   assert.equal(namesOtherImagery({ imagery_url: template.replace("a.tif", "b.tif") }, template), true);
   assert.equal(namesOtherImagery({}, template), false);
   assert.equal(namesOtherImagery({ imagery_url: template }, undefined), false);
+});
+
+test("markedAreaLines outlines each tile's passed cells and skips tiles without them", () => {
+  const tile = { id: "a", x: 0, y: 0, zoom: 1, size: 2, cells: [0, 1] };
+  const { features } = markedAreaLines([tile, { ...tile, id: "b", cells: [] }]);
+  assert.equal(features.length, 1);
+  assert.equal(features[0].geometry.coordinates.length, 6);
+  assert.deepEqual(features[0].geometry.coordinates[0].map(([longitude, latitude]) => [longitude, Number(latitude.toFixed(6))]), [[-180, 85.051129], [-90, 85.051129]]);
 });

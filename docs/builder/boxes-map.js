@@ -41,8 +41,10 @@ const GRID_CLICKABLE = GRID_HIDDEN - 0.3;
 function fadeTiles(map, view) {
   const tileZoom = view.maxzoom - 2;
   const byZoom = (zoomedOut, zoomedIn, from, to) => ["interpolate", ["linear"], ["zoom"], tileZoom - from, zoomedOut, tileZoom - to, zoomedIn];
-  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.85, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.1, SEEN, 0.1, 0], 3, 2));
+  map.setPaintProperty("tiles-fill", "fill-opacity", byZoom(["case", HOVERED, 0.35, SEEN, 0.4, ["get", "listed"], 0.3, 0], ["case", HOVERED, 0.1, SEEN, 0.1, 0], 3, 2));
   map.setPaintProperty("tiles-line", "line-opacity", byZoom(["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 0], ["case", HOVERED, 1, SEEN, 0.9, ["get", "listed"], 0.5, 1], GRID_HIDDEN, GRID_SHOWN));
+  // A thin edge, since a single bright cell on dimmed imagery reads as a pale roof once zoomed in.
+  map.setPaintProperty("marked-line", "line-opacity", byZoom(0, 0.8, GRID_HIDDEN, GRID_SHOWN));
   map.setPaintProperty("tiles-halo", "line-opacity", byZoom(["case", ["get", "listed"], 0.45, 0], ["case", ["get", "listed"], 0.45, 0.45], GRID_HIDDEN, GRID_SHOWN));
 }
 
@@ -57,6 +59,8 @@ function addLayers(map, view) {
   map.addSource("selected", { type: "geojson", data: EMPTY });
   map.addSource("dimmed", { type: "geojson", data: view.dimmed });
   map.addLayer({ id: "dimmed", type: "fill", source: "dimmed", paint: { "fill-color": "#000000", "fill-opacity": 0, "fill-antialias": false } });
+  map.addSource("marked", { type: "geojson", data: view.marked });
+  map.addLayer({ id: "marked-line", type: "line", source: "marked", paint: { "line-color": "#ffffff", "line-width": 1.5 } });
   map.addLayer({ id: "tiles-fill", type: "fill", source: "tiles", paint: { "fill-color": ["case", ["get", "labelled"], LABELLED_FILL, "#ffffff"], "fill-opacity": 0 } });
   map.addLayer({ id: "tiles-halo", type: "line", source: "tiles", paint: { "line-color": "#000000", "line-width": ["case", ["get", "listed"], 4, 3] } });
   map.addLayer({ id: "tiles-line", type: "line", source: "tiles", paint: { "line-color": ["case", HOVERED, "#ffffff", ["get", "labelled"], LABELLED_COLOUR, ["get", "listed"], "#ffffff", UNLISTED_COLOUR], "line-width": ["case", HOVERED, 3, ["get", "labelled"], 3, ["get", "viewed"], 2, ["get", "listed"], 1, 1.5] } });
@@ -277,11 +281,13 @@ export function createTileMap(container, onPick, { onDraw, onSelect, onSide, rot
     imageryKey = view.key;
     if (first || shown.key !== view.key) {
       map.getSource("dimmed").setData(view.dimmed);
+      map.getSource("marked").setData(view.marked);
       map.setMaxZoom(shownZoom(view));
       map.fitBounds(bounds(view.grid.features), { padding: 40, animate: false });
     }
     // Lighter than the Label tab's 55%, since the map shows many tiles at once.
     map.setPaintProperty("dimmed", "fill-opacity", view.dim ? 0.4 : 0);
+    map.setLayoutProperty("marked-line", "visibility", view.dim ? "visible" : "none");
     shown = view;
     // Only picked tiles are tinted, so the open tile keeps its true colours while labelling.
     map.setPaintProperty("selected-fill", "fill-opacity", view.set.length > 0 ? 0.15 : 0);

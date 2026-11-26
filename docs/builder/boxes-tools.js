@@ -494,6 +494,11 @@ export function labelsGeojson(tiles, objects, { mode, objectName, attribute, val
   return { type: "FeatureCollection", imagery_url: tiles[0]?.template, object_name: objectName, ...(attribute && { attribute, values }), features };
 }
 
+export function markedAreaLines(tiles) {
+  const features = tiles.filter((tile) => tile.cells.length > 0).map((tile) => ({ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: markedAreaEdges(tile.cells, tile.size, 1).map((edge) => edge.map((point) => pixelToLonLat(tile, point, 1))) } }));
+  return { type: "FeatureCollection", features };
+}
+
 export function belowShareCells(tiles) {
   const features = tiles.map((tile) => {
     const passed = new Set(tile.cells);

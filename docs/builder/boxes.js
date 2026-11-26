@@ -11,7 +11,7 @@ import { loadProject } from "./results-file.js";
 import { foldSetup, setStatus } from "./setup-card.js";
 import { createTileMap } from "./boxes-map.js";
 import { createTileZoom } from "./boxes-zoom.js";
-import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, belowShareCells, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
+import { DRAG_PIXELS, HAND_DRAWN, TILE_PIXELS, LABEL_PROPERTIES, areaObjectsKey, areaTiles, attributeValues, boxOutline, cellRectangle, clampedCorners, datasetCounts, detailTiles, detailImage, dragBox, isDrag, isOutsideImage, keepsDrawnShape, keptTiles, keyAction, projectTiles, withSavedTiles, tilesFileViewed, tilesGeojson, ringOnTiles, fileSettings, labelSettings, legacyKeys, mergedSaves, placedLabels, labelsGeojson, largestRing, lonLatToPixel, markedAreaEdges, maskBox, mergedSelection, setStep, belowShareCells, markedAreaLines, objectsWithoutValue, keptSettings, fileAttribute, labelledTiles, namesOtherImagery, parseTileTemplate, renamedValue, renameLabels, remembered, polygonRings, rectangleFromSide, restoredObjects, rotatedBox, savedObjectsKey, targetProgress, tileGrid, valueCounts, valueForKey, valueSummary } from "./boxes-tools.js";
 
 // The model runs in a worker, so reading the next tile ahead leaves the page free for taps (https://onnxruntime.ai/docs/api/js/interfaces/Env.WebAssemblyFlags.html).
 env.backends.onnx.wasm.proxy = true;
@@ -25,7 +25,7 @@ const clipToTile = (ring) => bboxClip({ type: "Polygon", coordinates: [ring] }, 
 const OUTLINE_TOLERANCE = 1;
 const TARGET_OBJECTS = 1000;
 // One colour per attribute value on the tile; grey marks a label without a listed value.
-const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1f9d55", "#e0559c", "#00a3a3", "#8a6d3b"];
+const VALUE_COLOURS = ["#d73f3f", "#2f7fe0", "#f08c00", "#8e44d6", "#1e3a8a", "#e0559c", "#00a3a3", "#8a6d3b"];
 const NO_VALUE_COLOUR = "#9aa0a6";
 
 const state = { tiles: [], allTiles: [], index: 0, objects: new Map(), viewed: new Set(), images: new Map(), prompts: new Map(), results: null, cleared: null, name: "", projectName: "", identity: "", threshold: 0, allMapped: false, area: null, storageKey: "", claimedKey: "", releaseTab: null, source: null, saving: null, saveWanted: false, modelId: "", modelName: "", model: null, processor: null, prompt: null, drag: null, side: null, pointer: null, busy: false, value: "", open: false, map: null, zoom: 1, mapEdit: false, mapSide: false, picked: [], tileSet: [], mapUndo: [], mapVersion: 0, committedValues: [], committedPick: "", reservedShown: false };
@@ -626,7 +626,7 @@ function mapView() {
   const all = state.allTiles;
   const listed = new Set(state.tiles.map((tile) => tile.id));
   const picked = new Set(state.tileSet);
-  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id), set: all.flatMap((tile, index) => (picked.has(tile.id) ? [index] : [])), dimmed: state.dimmed, dim: element("focus").checked && !element("focus").disabled };
+  return { key: [state.storageKey, all[0].template, state.threshold, state.allMapped, all.length, all[0].id, all.at(-1).id].join(" "), template: all[0].template, maxzoom: all[0].zoom + DETAIL_LEVELS, grid: tileGrid(all, state.objects, listed, state.viewed), labels, colour: labelColours(), selected: all.findIndex((tile) => tile.id === currentTile().id), set: all.flatMap((tile, index) => (picked.has(tile.id) ? [index] : [])), dimmed: state.dimmed, marked: state.marked, dim: element("focus").checked && !element("focus").disabled };
 }
 
 function clearSelection() {
@@ -948,7 +948,9 @@ async function load() {
   state.tiles = tiles;
   state.tileSet = [];
   state.allTiles = source.allTiles;
-  state.dimmed = source.area === null ? belowShareCells(source.allTiles) : { type: "FeatureCollection", features: [] };
+  const empty = { type: "FeatureCollection", features: [] };
+  state.dimmed = source.area === null ? belowShareCells(source.allTiles) : empty;
+  state.marked = source.area === null ? markedAreaLines(source.allTiles) : empty;
   state.images = new Map();
   state.prompts = new Map();
   state.cleared = null;
